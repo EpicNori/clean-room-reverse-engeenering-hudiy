@@ -9,39 +9,35 @@ import subprocess
 import sys
 from urllib.parse import unquote,urlsplit
 from obd import OBD
-from projection import Projection
 from phonebook import Phonebook
 from layout import LayoutStore
 from updates import UpdateSettings
 from bluetooth_devices import BluetoothDevices
 from live_media import with_bluetooth_media
-from obd_settings import NativeOBDSettings
 from display import DisplayBrightness
 from calls import PhoneCalls
-from wireless import WirelessSettings
-from audio_route import AudioRoute
 from standalone_projection import StandaloneProjection
 from independent_obd import IndependentOBDSettings
 from independent_wireless import IndependentWireless
 from bluez_agent import BluezAgent
 from independent_audio_route import IndependentAudioRoute
+from audio_settings import AudioSettings
 
 ROOT=Path(__file__).resolve().parents[1]/'dashboard'/'dist'/'client'
 obd=OBD()
 STANDALONE=os.environ.get('HUDIY_STANDALONE')=='1'
-projection=StandaloneProjection(enabled=True) if STANDALONE else Projection(enabled=os.environ.get('HUDIY_PROJECTION_HOST')=='1')
+projection=StandaloneProjection(enabled=STANDALONE)
 phonebook=Phonebook(enabled=projection.enabled)
 layout=LayoutStore(enabled=projection.enabled)
 updates=UpdateSettings(projection, phonebook)
+audio_dsp=AudioSettings(projection)
 bluetooth=BluetoothDevices(enabled=projection.enabled)
-native_obd=IndependentOBDSettings(bluetooth,obd) if STANDALONE else NativeOBDSettings(projection,bluetooth)
+native_obd=IndependentOBDSettings(bluetooth,obd)
 display=DisplayBrightness(enabled=projection.enabled)
 calls=PhoneCalls(enabled=projection.enabled)
-wireless=IndependentWireless(projection) if STANDALONE else WirelessSettings(projection)
-agent=BluezAgent(bluetooth,wireless,projection) if STANDALONE else None
-# Only the optional legacy bridge shares one native configuration file.
-if not STANDALONE:native_obd.lock=wireless.lock
-radio_output=IndependentAudioRoute(bluetooth,projection,calls,enabled=projection.enabled) if STANDALONE else AudioRoute(bluetooth,enabled=projection.enabled)
+wireless=IndependentWireless(projection)
+agent=BluezAgent(bluetooth,wireless,projection) if projection.enabled else None
+radio_output=IndependentAudioRoute(bluetooth,projection,calls,enabled=projection.enabled)
 ALLOWED_PORTS={8766,4173}
 
 class Handler(BaseHTTPRequestHandler):
@@ -74,6 +70,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/api/bluetooth':return self.send(200,{**bluetooth.snapshot(),**(agent.snapshot() if agent else {})})
         if path=='/api/display':return self.send(200,display.snapshot())
         if path=='/api/audio-route':return self.send(200,radio_output.snapshot())
+        if path=='/api/audio-settings':return self.send(200,audio_dsp.snapshot())
         if path=='/api/wireless':
             try:return self.send(200,wireless.snapshot())
             except (OSError,ValueError):return self.send(503,{'error':'Native wireless settings unavailable'})
@@ -151,6 +148,9 @@ class Handler(BaseHTTPRequestHandler):
                 if not radio_output.enabled:return self.send(501,{'error':'Radio output requires the Pi'})
                 if calls.snapshot().get('call',{}).get('state') in (1,2,3):raise ConnectionError('End the phone call before changing the radio output')
                 return self.send(200,radio_output.save(data['address']))
+            if name=='audio-settings':
+                if set(data)!={'action','settings'}:raise ValueError('Audio settings accept only the settings object')
+                return self.send(200,audio_dsp.save(data['settings']))
             if name=='application-quit':
                 if set(data)!={'action'}:raise ValueError('Quit accepts no arguments')
                 if not projection.enabled:return self.send(501,{'error':'Quit is available in the Pi application'})
@@ -164,8 +164,7 @@ class Handler(BaseHTTPRequestHandler):
             if name=='bluetooth-pair-menu':
                 if set(data)!={'action'}:raise ValueError('Pairing menu accepts no arguments')
                 if agent:return self.send(200,bluetooth.command('stop' if bluetooth.snapshot().get('scanActive') else 'scan'))
-                if not projection.enabled:return self.send(501,{'error':'Pairing requires the installed Hudiy agent'})
-                return self.send(200,projection.action('pair-native'))
+                return self.send(501,{'error':'Pairing requires our BlueZ agent on the Pi'})
             if name=='bluetooth-media':
                 if set(data)!={'action','operation'}:raise ValueError('Bluetooth playback requires only operation')
                 if not bluetooth.enabled:return self.send(501,{'error':'Bluetooth playback requires the Pi host'})
@@ -196,11 +195,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,{'accepted':True})
             if name=='obd-connect':
                 port=data.get('port')
-                if STANDALONE and port=='hudiy':
+                if port=='bluetooth':
                     port=native_obd.port()
                     if not port:raise ConnectionError('Select a paired ELM327 adapter first')
                 if not isinstance(port,str) or len(port)>100:raise ValueError('Invalid serial port')
-                obd.connect(port,projection)
+                obd.connect(port)
                 return self.send(200,{'message':'ELM327 connected'})
             if name=='obd-disconnect':
                 obd.disconnect()
@@ -212,8 +211,8 @@ class Handler(BaseHTTPRequestHandler):
                 subprocess.run(['wpctl','set-volume','@DEFAULT_AUDIO_SINK@',str(value/100)],check=True,timeout=3,capture_output=True)
                 return self.send(200,{'message':f'Volume {value}'})
             if name=='projection':
-                if not projection.enabled:return self.send(501,{'error':'Android Auto requires the installed Hudiy projection host'})
-                if data.get('projection','android')!='android':raise ValueError('Only Android Auto is supported by this bridge')
+                if not projection.enabled:return self.send(501,{'error':'Android Auto requires our native Pi application'})
+                if data.get('projection','android')!='android':raise ValueError('Only Android Auto is supported by this application')
                 result=projection.action(data.get('operation'))
                 if agent and data.get('operation') in {'usb','wifi'}:agent.select_transport(data['operation'])
                 if agent and data.get('operation') in {'resume','wifi'}:
@@ -238,8 +237,7 @@ def main():
     if args.port not in ALLOWED_PORTS:parser.error('Supported ports: 8766 or 4173')
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
     projection.start()
-    if STANDALONE:obd.start_independent(native_obd)
-    else:obd.start(projection)
+    if projection.enabled:obd.start_independent(native_obd)
     phonebook.start()
     bluetooth.start()
     if agent:agent.start()

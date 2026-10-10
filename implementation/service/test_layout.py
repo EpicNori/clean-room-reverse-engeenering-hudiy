@@ -22,7 +22,7 @@ class LayoutTests(unittest.TestCase):
 
     def test_save_flushes_data_before_reporting_success(self):
         with tempfile.TemporaryDirectory() as folder:
-            with patch('projection.os.fsync', wraps=os.fsync) as sync:
+            with patch('runtime_support.os.fsync', wraps=os.fsync) as sync:
                 LayoutStore(True, Path(folder) / 'layout.json').save(DEFAULT_LAYOUT)
                 self.assertEqual(sync.call_count, 2 if os.name == 'posix' else 1)
 

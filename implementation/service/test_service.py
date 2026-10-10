@@ -53,6 +53,15 @@ class SensorTests(unittest.TestCase):
         finally:obd.disconnect();simulator.shutdown();simulator.server_close()
 
 class HTTPTests(unittest.TestCase):
+    def test_projection_audio_schema_rejects_injection_and_disabled_runtime(self):
+        with self.request('/api/audio-settings') as response:
+            self.assertFalse(json.load(response)['enabled'])
+        for body in ({'action':'audio-settings','settings':{'balance':0},'command':'sh'},
+                     {'action':'audio-settings','settings':{'balance':0},'path':'/etc/passwd'}):
+            with self.request('/api/action',body) as response: self.assertEqual(response.status,400)
+        with self.request('/api/action',{'action':'audio-settings','settings':{'balance':0}}) as response:
+            self.assertEqual(response.status,503)
+
     @classmethod
     def setUpClass(cls):
         cls.http=server.ThreadingHTTPServer(('127.0.0.1',0),server.Handler)

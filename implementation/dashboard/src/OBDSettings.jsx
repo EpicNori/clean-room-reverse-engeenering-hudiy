@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 
 export function OBDSettings({action, status, demo, demoControl}) {
-  const [transport, setTransport] = useState('hudiy');
+  const [transport, setTransport] = useState('bluetooth');
   const [settings, setSettings] = useState({available:false, devices:[]});
   const [address, setAddress] = useState(''), [channel, setChannel] = useState(2);
   const [port, setPort] = useState('/dev/rfcomm0'), [busy, setBusy] = useState(false);
@@ -37,10 +37,10 @@ export function OBDSettings({action, status, demo, demoControl}) {
     {demoControl}
     <label className="setting-row obd-choice">Connection
       <select aria-label="OBD connection type" value={transport} onChange={e=>setTransport(e.target.value)}>
-        <option value="hudiy">Bluetooth ELM327</option><option value="serial">Serial / USB</option>
+        <option value="bluetooth">Bluetooth ELM327</option><option value="serial">Serial / USB</option>
       </select>
     </label>
-    {transport==='hudiy' ? <>
+    {transport==='bluetooth' ? <>
       <label className="setting-row obd-choice">Paired ELM327
         <select aria-label="Paired Bluetooth OBD adapter" value={address} disabled={!settings.available || busy} onChange={e=>setAddress(e.target.value)}>
           {!settings.devices.some(d=>d.address===address) && <option value={address}>{address || 'No paired serial adapter'}</option>}
@@ -56,10 +56,10 @@ export function OBDSettings({action, status, demo, demoControl}) {
         <button disabled={busy || !settings.available || !settings.devices.some(d=>d.address===address)}
           onClick={()=>run('obd-native-settings',{address,channel})}>Save and connect ELM327</button>
         <button disabled={busy || !settings.devices.some(d=>d.address===address)}
-          onClick={()=>run('obd-connect',{port:'hudiy'})}>Read live sensors</button>
+          onClick={()=>run('obd-connect',{port:'bluetooth'})}>Read live sensors</button>
       </div>
       <p className="obd-details">{!settings.available ? 'Bluetooth OBD settings are available on the Pi.' :
-        status.projection?.nativeOBDConnected ? 'The configured Bluetooth adapter is connected.' : 'Turn on your paired ELM327 and the vehicle ignition.'}
+        status.obd?.connected && status.obd?.port?.startsWith('bluetooth://') ? 'The configured Bluetooth adapter is connected.' : 'Turn on your paired ELM327 and the vehicle ignition.'}
         <br/>This adapter uses Bluetooth Serial Port. BLE-only adapters are not supported yet.</p>
     </> : <>
       <label className="setting-row obd-choice">Serial port

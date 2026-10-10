@@ -11,6 +11,7 @@ import {
 } from "./catalog";
 import { Telemetry } from "./Telemetry";
 import { createMediaProcessor } from "./audio";
+import { audioPresets } from './audioPresets.mjs';
 import { themePalette } from "./theme";
 import { useDragScroll } from "./useDragScroll";
 import { PhonebookView } from "./PhonebookView";
@@ -209,6 +210,7 @@ export function App() {
     urls = useRef([]),
     routeRevision = useRef(0);
   const layoutState = useRef(layout), layoutPending = useRef(0), layoutQueue = useRef(Promise.resolve()), layoutEnabled = useRef(false), layoutReady = useRef(false), layoutGeneration = useRef(0), updatesPending = useRef(0);
+  const audioPending=useRef(0), audioQueue=useRef(Promise.resolve()), audioConfirmed=useRef(null);
   layoutState.current = layout;
   layoutEnabled.current = Boolean(status.projection?.enabled);
   useDragScroll(viewportRef);
@@ -262,7 +264,22 @@ export function App() {
       return { ...current, columns: moveItem(current.columns, column, delta) };
     });
   };
+  const saveAudio = patch => {
+    setPrefs(p=>({...p,...patch}));
+    if (status.projection?.renderer!=='standalone') return;
+    audioPending.current++;
+    audioQueue.current=audioQueue.current.then(async()=>{
+      try {
+        const result=await action('audio-settings',{settings:patch});
+        if (result) audioConfirmed.current=result.settings;
+        if (audioPending.current===1 && audioConfirmed.current) setPrefs(p=>({...p,...audioConfirmed.current}));
+      } finally {audioPending.current--;}
+    });
+  };
   const pref = (key, value) => {
+    if (['equalizer','balance','preset'].includes(key)) {
+      saveAudio({[key]:value,...(key==='equalizer' ? {preset:'Custom'} : {})}); return;
+    }
     if (key === 'androidDayNight' && status.projection?.enabled) {
       action('projection-settings', {
         dayNight: value,
@@ -400,6 +417,24 @@ export function App() {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+  useEffect(()=>{
+    if(status.projection?.renderer!=='standalone') return;
+    let cancelled=false;
+    const poll=async()=>{
+      const controller=new AbortController(); const deadline=setTimeout(()=>controller.abort(),2000);
+      try {
+        const response=await fetch('/api/audio-settings',{signal:controller.signal});
+        if(!response.ok) return;
+        const data=await response.json();
+        if(!cancelled && data.enabled && !audioPending.current) {
+          audioConfirmed.current=data.settings;
+          setPrefs(p=>JSON.stringify({equalizer:p.equalizer,balance:p.balance,preset:p.preset})===JSON.stringify(data.settings) ? p : {...p,...data.settings});
+        }
+      } catch {} finally {clearTimeout(deadline);}
+    };
+    poll(); const interval=setInterval(poll,1000);
+    return()=>{cancelled=true;clearInterval(interval);};
+  },[status.projection?.renderer]);
   useEffect(() => {
     try {
       localStorage.setItem("hudiy.preferences", JSON.stringify(prefs));
@@ -802,12 +837,12 @@ export function App() {
         <WirelessSettings action={action} standalone={status.projection?.renderer === 'standalone'}/>
         <PhoneReconnect action={action}/>
         {toggle("androidAutostart", "Open Android Auto automatically")}
-        {toggle("androidTaskbar", "Keep Hudiy taskbar visible")}
+        {toggle("androidTaskbar", "Keep taskbar visible")}
         <p className="setting-note">
           Music and navigation update every {prefs.musicRefreshSeconds} seconds, even when automatic
           opening is off.
           {status.projection?.enabled
-            ? status.projection?.renderer === 'standalone' ? " Layout changes reconnect Android Auto. The dashboard stays running." : " Apply layout to switch between the taskbar and the original fullscreen view. This restarts Hudiy."
+            ? " Layout changes reconnect Android Auto. The dashboard stays running."
             : " Live projection settings are available on the Pi."}
         </p>
         {status.projection?.layoutPending && (
@@ -1466,17 +1501,11 @@ export function App() {
                   "Classical",
                   "Bass boost",
                   "Voice",
-                ].map((p, i) => (
+                ].map((p) => (
                   <button
                     key={p}
                     onClick={() => {
-                      pref("preset", p);
-                      pref(
-                        "equalizer",
-                        frequencies.map((_, j) =>
-                          i === 0 ? 0 : Math.round(Math.sin(j * 0.6 + i) * 4),
-                        ),
-                      );
+                      saveAudio({preset:p,equalizer:[...audioPresets[p]]});
                       tell(`${p} preset selected`);
                     }}
                   >
@@ -1498,8 +1527,7 @@ export function App() {
                   label="Restore"
                   icon="restart_alt"
                   onClick={() => {
-                    pref("equalizer", Array(15).fill(0));
-                    pref("preset", "Flat");
+                    saveAudio({equalizer:Array(15).fill(0),preset:'Flat'});
                   }}
                 />
               </div>

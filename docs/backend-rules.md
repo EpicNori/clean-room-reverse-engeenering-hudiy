@@ -1,12 +1,12 @@
 # Backend rules
 
-These rules describe the default independent application. HUDIY_STANDALONE=1 is set by our native launcher. Compatibility modules for an explicitly selected licensed Hudiy bridge remain in the tree; their installed-runtime commands/configuration are not used by this mode.
+These rules describe our standalone-only application. HUDIY_STANDALONE=1 is set by our native launcher to enable local Pi integrations. HUDIY_PROJECTION_HOST is ignored; no licensed Hudiy bridge, API client or original configuration reader remains in production source. Without our native launcher, the desktop backend keeps Pi controls unavailable.
 
 ## API boundary
 
 - HTTP binds to 127.0.0.1:8766. Host/origin values are limited to the configured local app/preview ports. Action bodies are at most 4096 bytes; unexpected fields, arbitrary commands/URLs/paths and unsupported actions are rejected. The same-user local application is the trust boundary, not a public web account.
-- GET status/projection/bluetooth/phonebook/display/wireless/audio-route exposes bounded local status. A running renderer is distinguished from a connected phone and decoded video frames. Wi-Fi keys, pairing keys and arbitrary D-Bus object paths are not HTTP data.
-- The native command channel is user-only Unix IPC under the private state directory, at most 65536 bytes per newline JSON message. Only allowlisted screen routes, connection/media actions, options, wireless reload and application exit are accepted.
+- GET status/projection/bluetooth/phonebook/display/wireless/audio-route/audio-settings exposes bounded local status. A running renderer is distinguished from a connected phone and decoded video frames. Wi-Fi keys, pairing keys and arbitrary D-Bus object paths are not HTTP data.
+- The native command channel is user-only Unix IPC under the private state directory, at most 65536 bytes per newline JSON message. Only allowlisted screen routes, connection/media actions, options, validated audio-dsp settings, wireless reload and application exit are accepted.
 - Static responses set CSP, nosniff and no-referrer. Selected local files use browser blob URLs. There is no cloud database, login provider or external backend policy to update.
 
 ## Preferences and projection
@@ -37,8 +37,37 @@ These rules describe the default independent application. HUDIY_STANDALONE=1 is 
 
 - OBD selection accepts only a currently paired Serial Port adapter and RFCOMM channel 1–30. Our worker owns the direct socket; failed connections retry at most every 30 seconds. Fixed ELM initialization and read-only Mode 01 PIDs supply load, coolant, RPM, speed, throttle and voltage. Stale readings/history clear on disconnect. BLE-only adapters and arbitrary ECU commands are unsupported.
 - Manual Bluetooth reading retains required automatic reconnection. Manual Stop suppresses that worker for the current session; serial/USB selection takes precedence. Simulated data is explicitly marked and never counted as vehicle evidence.
-- wireless-hotspot requires boolean enabled and confirmed true, and waits until calls end. It switches only the fixed hudiy-recreation-car NetworkManager profile, updates next-boot autoconnect, privately saves our SSID/key/gateway settings and reloads our listener. Commands are argument arrays with timeouts; network/save failure attempts the previous mode. The app stays running. First-time protected AP provisioning is still an installation prerequisite; a home router is not needed for car use.
+- wireless-hotspot requires boolean enabled and confirmed true, and waits until calls end. It switches only the fixed hudiy-recreation-car NetworkManager profile, updates next-boot autoconnect, privately saves our SSID/key/gateway settings and reloads our listener. Commands are argument arrays with timeouts; network/save failure attempts the previous mode. The app stays running. First-time protected AP preparation uses our separate normal-user installer; it creates an inactive profile and private settings, then runtime activation uses this existing control. A home router is not needed for car use; fresh-image service setup is still unverified.
 - Optional audio-radio-output saves only a current paired A2DP receiver address or an empty choice, excludes PBAP phones and refuses active calls. Selecting it neither pairs nor starts playback. The route worker manages only our native PID or the single connected phone's playback streams, can set the default sink and never moves unrelated active streams. It waits during calls and verifies the route on a subsequent poll.
-- Local-file equalizer/balance affect that browser file. Native AA equalizer presets, FM, CarPlay/Autobox and multichannel vehicle audio remain incomplete. No audible-radio success is claimed without hardware evidence.
+- Local-file equalizer/balance affect that browser file. Native AA PCM uses our independent 15-band processor and stereo balance; mono channels ignore balance and bands above their Nyquist limit. Buffers retain partial writes, with at most one second queued per channel and numeric drop/queue diagnostics. FM, CarPlay/Autobox, Bluetooth AVRCP DSP and multichannel fade/subwoofer audio remain incomplete. No audible-radio success is claimed without hardware evidence.
 
 Native process/BlueZ profile registration and fixed NetworkManager switching replace the old runtime API integration. These are local OS integrations; no new external backend rules are needed. Standard OS service provisioning and privileges remain prerequisites on a fresh Pi. See SECURITY.md and STANDALONE.md for verified limits.
+
+## Native projection audio settings
+
+- GET `/api/audio-settings` distinguishes saved settings, runtime availability and native acknowledgement (`applied`). POST `audio-settings` accepts only a `settings` object containing equalizer, balance and/or a known preset. Exactly 15 finite gains in ±12 dB and integer balance −100…100 are accepted; booleans, unknown keys, paths and commands are rejected.
+- `audio.json` is private (0600 on Linux), atomically replaced and flushed. IPC failure cannot acknowledge/save a change; disk failure sends the previous curve back. The native process validates band count/gains/balance again and publishes the accepted settings. A save is not proof of audible hardware output.
+- Reconnect sends saved settings before processing projection audio. UI writes are serialized and incoming settings polls wait while edits are pending. Presets and Restore send complete named curves together; manual band changes are labeled Custom.
+- Peaking bands use Q 1.4, 15 ms coefficient/balance transitions, channel-isolated state and signed-16-bit peak bounds. Partial PCM frames are retained between packets. Only our native projection streams are processed; these commands neither start playback nor modify arbitrary OS streams.
+
+## Independent hotspot provisioning
+
+- The installer is a local CLI, not an additional HTTP action. Its default check is read-only. `--apply` creates only the fixed `hudiy-recreation-car` profile bound to `wlan0`, as the current desktop user, with autoconnect off; it never activates or restarts Wi-Fi. Existing valid settings/profile return unchanged. First-time setup refuses a running app, duplicates, missing counterparts or mismatches.
+- Generated WPA2/RSN/CCMP credentials travel through NetworkManager D-Bus, never shell interpolation, argv or output. New IPv4 shared settings use 192.168.12.1/24, receiver port 5277 and no default route from the car profile. User permission and the actual regulatory country remain prerequisites.
+- A private setup lock serializes CLI runs. New 0600 settings are flushed and atomically published without replacement; existing files/symlinks cannot be overwritten. Failed settings saves attempt rollback only for the exact newly created UUID. Uncertain D-Bus outcomes and rollback failures require state inspection before retrying. No Polkit policies, system privilege grants or external backend rules are added.
+
+## Official-runtime removal — 10 October 2026
+
+- The HTTP service always selects our Unix-IPC projection client, direct OBD settings, NetworkManager hotspot and owned-PID audio routing. The old runtime cannot be selected by an environment flag.
+- `obd-connect` with `port: "bluetooth"` resolves the saved paired ELM327 address/channel to our direct RFCOMM transport. The removed `port: "hudiy"` transport is rejected. Existing serial/USB/simulator allowlists and Mode 01 limits remain unchanged.
+- Pair-menu actions use our BlueZ agent; an unavailable agent returns 501. No official native pairing-menu command is sent.
+- Our settings/route/wire helpers are separate from transport implementations. No code connects to port 44405, edits `.hudiy/share`, invokes `hudiy_run.sh`, or relies on `hudiy_equalizer_sink`. The boot installer may recognize and disable exact old startup lines; it does not execute them.
+- Loopback Host/origin checks, request limits, device ownership, confirmation and private persistence boundaries remain in force. No cloud backend rules, new permissions or additional dependencies are introduced.
+
+## Fresh Pi installer privileges
+
+- The installer runs as the ordinary desktop user on a 64-bit Bookworm/Trixie Pi desktop. Read-only checks run no installation commands; active car-app installation is refused. Package installation and a fixed system helper request sudo; the runtime/backend remain unprivileged.
+- The system helper targets exactly the invoking SUDO_USER with a regular-user UID, and only the fixed dialout/video/plugdev groups, Bluetooth/oFono units, a panel-brightness udev rule and optional raspi-config desktop autologin. Standard distro Android USB rules are installed; no new broad D-Bus/Polkit grants or HTTP privilege endpoints are added.
+- User WirePlumber configuration selects oFono for HFP in the version-appropriate format. Changed configuration gets timestamped backups. System and graphical startup selection occur only after successful builds/tests. No automatic reboot, display/audio restart, Wi-Fi activation, pairing, playback, call or ECU action is performed by setup.
+- Official user-private Node ARM64 downloads are bounded, SHA256-checked against the official HTTPS manifest, and extracted with path/link/type/size bounds before execution. This is integrity verification, not an independent signature audit. Existing system Node remains available unchanged.
+- Source bootstrap uses only the fixed project remote/main; existing dirty/foreign checkouts and symlinked installation targets are refused. Build commands run without sudo and use npm's lockfile and the pinned native dependency. An install lock prevents concurrent setup runs. External backend/cloud rules remain unchanged.

@@ -1,9 +1,9 @@
 """Optional direct radio routing for our native audio and the paired phone."""
 import json
-from audio_route import AudioRoute,receiver_sink
+from audio_route_support import AudioRouteBase,receiver_sink
 
 
-class IndependentAudioRoute(AudioRoute):
+class IndependentAudioRoute(AudioRouteBase):
     def __init__(self,bluetooth,projection,calls,**kwargs):
         super().__init__(bluetooth,**kwargs)
         self.projection,self.calls=projection,calls

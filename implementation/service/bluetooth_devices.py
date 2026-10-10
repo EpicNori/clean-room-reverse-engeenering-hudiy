@@ -6,7 +6,7 @@ import re
 import sys
 import threading
 import time
-from projection import save_json
+from runtime_support import save_json
 
 ADDRESS = re.compile(r'(?:[0-9A-F]{2}:){5}[0-9A-F]{2}')
 DEVICE_PATH = re.compile(r'/org/bluez/hci\d+/dev_(?:[0-9A-F]{2}_){5}[0-9A-F]{2}')
@@ -47,7 +47,7 @@ def read_devices(objects):
                 if 'org.bluez.Adapter1' in props and ADAPTER_PATH.fullmatch(str(path))]
     powered = [item for item in adapters if item[1].get('Powered')]
     if len(powered) != 1:
-        raise ConnectionError('Enable one Bluetooth adapter in Hudiy')
+        raise ConnectionError('Enable one Bluetooth adapter in the system')
     adapter, info = powered[0]
     devices = []
     for path, interfaces in objects.items():

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import threading
 from bluetooth_devices import ADDRESS
-from projection import save_json
+from runtime_support import save_json
 
 
 class IndependentOBDSettings:

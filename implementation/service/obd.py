@@ -20,16 +20,11 @@ def decode(pid,response):
     return round(formula(bytes.fromhex(match.group(1))),2)
 
 class Transport:
-    def __init__(self,port,projection=None):
+    def __init__(self,port):
         self.sock=None
         self.serial=None
-        self.native=None
         self.closed=False
-        if port=='hudiy':
-            if not projection or not projection.enabled or not projection.snapshot().get('nativeOBDConnected'):
-                raise ConnectionError('Turn on the paired ELM327 and connect it in Hudiy')
-            self.native=projection
-        elif re.fullmatch(r'bluetooth://(?:[0-9A-F]{2}:){5}[0-9A-F]{2}/(?:[1-9]|[12][0-9]|30)',port):
+        if re.fullmatch(r'bluetooth://(?:[0-9A-F]{2}:){5}[0-9A-F]{2}/(?:[1-9]|[12][0-9]|30)',port):
             address, channel = port[len('bluetooth://'):].split('/')
             self.sock=socket.socket(socket.AF_BLUETOOTH,socket.SOCK_STREAM,socket.BTPROTO_RFCOMM)
             try:
@@ -57,7 +52,6 @@ class Transport:
         if command not in {'ATZ','ATE0','ATL0','ATH0','ATS0','ATSP0'} and command not in {'01'+p for p in PIDS}:
             raise ValueError('Command is not in the read-only sensor allowlist')
         if self.closed:raise ConnectionError('OBD session closed')
-        if self.native:return self.native.query_obd(command)
         data=(command+'\r').encode('ascii')
         if self.sock:self.sock.sendall(data)
         else:self.serial.write(data)
@@ -84,7 +78,6 @@ class OBD:
         self.stop_event=threading.Event()
         self.worker=None
         self.transport=None
-        self.auto_projection=None
         self.independent_settings=None
         self.automatic=False
         self.supervisor=None
@@ -98,13 +91,6 @@ class OBD:
             self.automatic=False
             self._disconnect()
 
-    def start(self,projection):
-        """Follow the installed head unit's OBD connection; never own RFCOMM."""
-        if projection.enabled and not self.supervisor:
-            self.auto_projection=projection
-            self.automatic=True
-            self.supervisor=threading.Thread(target=self._automatic_run,daemon=True)
-            self.supervisor.start()
 
     def start_independent(self,settings):
         self.independent_settings=settings
@@ -139,18 +125,6 @@ class OBD:
                 except (OSError,ValueError,RuntimeError) as exc:
                     with self.lock:self.state.update(connected=False,mode='disconnected',values={},history=[],timestamp=None,error=str(exc)[:512])
                 return
-            if self.shutdown.is_set() or not self.automatic or not self.auto_projection:return
-            state=self.auto_projection.snapshot()
-            ready=state.get('available') and state.get('nativeOBDConnected') and not state.get('exitRequested')
-            if not ready:
-                self.retry_at=0
-                if self.snapshot()['port']=='hudiy':self._disconnect()
-                return
-            if self.snapshot()['connected'] or time.monotonic()<self.retry_at:return
-            self.retry_at=time.monotonic()+30
-            try:self._connect('hudiy',self.auto_projection)
-            except (OSError,ValueError,RuntimeError) as exc:
-                with self.lock:self.state.update(connected=False,mode='disconnected',values={},history=[],timestamp=None,error=str(exc)[:512])
 
     def close(self):
         self.shutdown.set()
@@ -166,20 +140,19 @@ class OBD:
         self.transport=None
         self.worker=None
         with self.lock:self.state.update(connected=False,mode='disconnected',port=None,values={},history=[],timestamp=None)
-    def connect(self,port,projection=None):
+    def connect(self,port):
         with self.lifecycle:
-            self._connect(port,projection)
-            self.automatic=(port=='hudiy' and self.auto_projection is not None) or (self.independent_settings is not None and port.startswith('bluetooth://'))
+            self._connect(port)
+            self.automatic=self.independent_settings is not None and port.startswith('bluetooth://')
             self.retry_at=time.monotonic()+30
 
-    def _connect(self,port,projection=None):
+    def _connect(self,port):
         self._disconnect()
-        transport=Transport(port,projection)
+        transport=Transport(port)
         try:
-            if not transport.native:
-                identity=transport.query('ATZ')
-                if 'ELM' not in identity.upper():raise RuntimeError('Device did not identify as ELM327')
-                for command in ('ATE0','ATL0','ATH0','ATS0','ATSP0'):transport.query(command)
+            identity=transport.query('ATZ')
+            if 'ELM' not in identity.upper():raise RuntimeError('Device did not identify as ELM327')
+            for command in ('ATE0','ATL0','ATH0','ATS0','ATSP0'):transport.query(command)
         except Exception:
             transport.close()
             raise

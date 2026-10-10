@@ -6,7 +6,7 @@ import socket
 import sys
 import threading
 import time
-from projection import DEFAULT_OPTIONS, DAY_NIGHT_MODES, PREFERENCES, ROUTES, read_options, save_json
+from runtime_support import DEFAULT_OPTIONS, DAY_NIGHT_MODES, PREFERENCES, ROUTES, read_options, save_json
 
 STATE_DIR = Path.home() / '.local/share/hudiy-recreation'
 MAX_MESSAGE = 65536
@@ -28,6 +28,7 @@ class StandaloneProjection:
         self.updated = None
         self.refresh_interval = 5
         self.wireless_default = False
+        self.audio_options = None
 
     def start(self):
         if self.enabled and not self.worker:
@@ -44,6 +45,8 @@ class StandaloneProjection:
                     self.sock = connection
                     self.available = True
                     self._send({'operation': 'options', 'options': self.options})
+                    if self.audio_options is not None:
+                        self._send({'operation': 'audio-dsp', 'settings': self.audio_options})
                 pending = bytearray()
                 while not self.stop.is_set():
                     part = connection.recv(8192)
@@ -98,6 +101,10 @@ class StandaloneProjection:
                     'exitRequested': self.exit_requested, 'exitError': '', 'nativeOBDConnected': False,
                     'transport': self.state.get('transport'), 'decodedFrames': self.state.get('frames', 0),
                     'audioBytes': self.state.get('audioBytes', 0),
+                    'audioDSP': copy.deepcopy(self.state.get('audioDSP', {})),
+                    'audioQueuedBytes': self.state.get('audioQueuedBytes',0),
+                    'audioDroppedBytes': self.state.get('audioDroppedBytes',0),
+                    'maximumAudioPacket': self.state.get('maximumAudioPacket',0),
                     'runtimePid': self.state.get('runtimePid'),
                     'microphoneAvailable': self.state.get('microphoneAvailable') is True,
                     'videoReady': self.state.get('connected') is True and self.state.get('frames', 0) > 0,
@@ -156,6 +163,9 @@ class StandaloneProjection:
             return {'accepted': True, 'message': 'Android Auto connection requested' if operation in {'usb', 'wifi', 'resume'} else ''}
 
     def set_wireless_default(self, enabled): self.wireless_default = enabled is True
+
+    def apply_audio(self, settings):
+        with self.lock: self._send({'operation': 'audio-dsp', 'settings': settings})
 
     def request_layout(self, path=None):
         with self.lock:

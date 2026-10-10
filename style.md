@@ -122,3 +122,11 @@ Standalone wireless guidance uses the Connect Wi-Fi action and does not require 
 - The gallery cover is an original geometric SVG illustration with purple/blue hills and an amber sun, visibly labeled DEMO MEDIA. It is sample artwork, not downloaded phone artwork or a proprietary Hudiy asset.
 - Public captures use synthetic music/navigation/phone fixtures in a separate read-only loopback preview. No contact details, precise location, device IDs or credentials. OBD screenshots must visibly show DEMO when using simulated readings.
 - Captions distinguish UI illustration from genuine device verification. Comparison text separates original Hudiy observations from our additions and fixes. Remaining work uses unchecked GitHub task boxes until implementation or hardware evidence supports completion.
+
+## Native projection equalizer behavior
+
+Preserve the observed 15 vertical bands, existing labels, control shapes, theme tokens and preset-menu layout. Frequencies are 25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000 and 16000 Hz. Our own curves are declared in `audioPresets.mjs`: Flat has zero gain, Bass boost raises the low bands without changing the treble, and Voice cuts low bass while emphasizing the speech bands. These replace arbitrary placeholder sine curves; exact proprietary preset values remain unknown. The preview bars continue using the existing `118 + gain × 8` height rule. Manual changes save as Custom; named presets and Restore update all bands atomically. On the standalone Pi the saved native curve hydrates the same controls, while the local-file Web Audio processor uses that curve separately. No new theme colors, assets or geometry were introduced.
+
+## Standalone-only wording — 10 October 2026
+
+The taskbar option reads “Keep taskbar visible”. Layout help states that changing the layout reconnects Android Auto while the dashboard stays running. It must not describe restarting the proprietary runtime. Bluetooth OBD selection uses our direct transport and its connected message follows actual local OBD state. Existing colors, fonts, spacing, icons, imagery and layout are preserved. Hudiy remains named as the observed visual reference, not as a running dependency.

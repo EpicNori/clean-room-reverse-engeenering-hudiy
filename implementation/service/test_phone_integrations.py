@@ -9,7 +9,6 @@ import unittest
 from unittest.mock import Mock, patch
 
 from phonebook import Phonebook, parse_vcards, MAX_BYTES
-from projection import Projection
 from usb_recovery import USBRecovery
 
 
@@ -33,30 +32,6 @@ class PhoneTests(unittest.TestCase):
         self.assertFalse(book._ensure_session(Mock(), dbus, 'paired-phone'))
         self.assertEqual(book.client.CreateSession.call_count, 1)
 
-    def test_delayed_usb_retry_and_cancellation_do_not_reopen_after_quit(self):
-        bridge = Projection(True)
-        bridge.available = True
-        bridge.sock = Mock()
-        bridge.usb = Mock()
-        bridge.usb.reset.return_value = True
-        bridge.manual_projection = True
-        bridge.manual_deadline = time.monotonic() + 30
-        bridge.usb_retry_at = time.monotonic() - 1
-        bridge._retry_usb()
-        bridge.usb.reset.assert_called_once()
-        self.assertTrue(bridge.sock.sendall.call_args.args[0].endswith(b'connect_android_auto_usb'))
-        bridge.usb.reset.reset_mock()
-        bridge.usb_retry_at = time.monotonic() - 1
-        bridge.action('quit')
-        bridge._retry_usb()
-        bridge.usb.reset.assert_not_called()
-        def canceled_reset():
-            bridge.action('dashboard')
-            return True
-        bridge.usb.reset.side_effect = canceled_reset
-        bridge.usb.accessory.return_value = (4, 5)
-        self.assertFalse(bridge.action('resume')['accepted'])
-        self.assertFalse(bridge.manual_projection)
 
     def test_fast_phonebook_transfer_uses_completion_signal_before_object_removal(self):
         book = Phonebook()
@@ -102,23 +77,6 @@ class PhoneTests(unittest.TestCase):
         with self.assertRaises(ValueError): book.refresh('../../file')
         with self.assertRaises(ConnectionError): book.refresh('contacts')
 
-    def test_quit_then_resume_resets_accessory_but_live_resume_does_not(self):
-        bridge = Projection(True)
-        bridge.available = True
-        bridge.sock = Mock()
-        bridge.usb = Mock()
-        bridge.usb.accessory.return_value = (4, 5)
-        bridge.usb.reset.return_value = True
-        bridge.media = {'source': 'android', 'title': 'Track'}
-        bridge.action('resume')
-        bridge.usb.reset.assert_not_called()
-        bridge.action('quit')
-        self.assertEqual(bridge.data_snapshot()['media'], {})
-        bridge.action('resume')
-        bridge.usb.reset.assert_called_once()
-        self.assertTrue(bridge.manual_projection)
-        self.assertFalse(bridge.quit_requested)
-        self.assertTrue(bridge.sock.sendall.call_args.args[0].endswith(b'connect_android_auto_usb'))
 
 
 class USBTests(unittest.TestCase):

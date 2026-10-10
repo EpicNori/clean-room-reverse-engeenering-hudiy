@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import sys
 import threading
-from projection import save_json
+from runtime_support import save_json
 
 
 class DisplayBrightness:

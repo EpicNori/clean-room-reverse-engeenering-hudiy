@@ -1,6 +1,6 @@
 # Security boundaries
 
-The default application uses our native GPL Android Auto engine and Python service. It neither starts proprietary Hudiy nor connects to its API. The old bridge remains an explicitly selected compatibility/recovery path and is not an automatic fallback.
+The default application uses our native GPL Android Auto engine and Python service. It neither starts proprietary Hudiy nor connects to its API. The old bridge and compatibility launcher have been removed. Environment flags cannot select an official Hudiy API client, original configuration or original audio-sink chain.
 
 ## Local interfaces
 
@@ -32,6 +32,14 @@ The boot installer retains backups and changes only the managed app startup bloc
 
 USB reconnect selects exactly one Android accessory, uses bounded identification transfers and one owned worker with a 15-second cooldown. Explicit wired selection suspends only our wireless bootstrap, leaving other Bluetooth services intact. A protocol handshake does not claim decoded video or microphone hardware; actual unavailable capture requests fail explicitly.
 
-Current verification: 96 backend tests, 14 frontend tests, production build and actual Pi compilation pass. The production dependency audit was rerun on 10 October 2026 and reported no known vulnerabilities. Full audible audio, powered vehicle data and unattended wireless recovery remain unverified. See docs/STANDALONE.md and docs/backend-rules.md.
+Standalone-only cleanup verification: 92 backend tests pass, including guards against restoring official API/configuration paths and direct OBD/audio routing regressions. The earlier 116-test checkpoint also covered the now-removed compatibility bridge. Frontend/native DSP/build checks and Pi compilation are recorded in docs/STANDALONE.md; the cleanup does not itself establish a new Pi deployment. The production dependency audit was rerun on 10 October 2026 and reported no known vulnerabilities. Full audible audio, powered vehicle data and unattended wireless recovery remain unverified. See docs/STANDALONE.md and docs/backend-rules.md.
 
 No external Firebase/Supabase permissions or cloud rules are required. Fresh Pi installation still needs standard OS Bluetooth/audio/call services and a protected NetworkManager AP. Review OS privileges and deployment exposure when changing those boundaries.
+
+## Hotspot installer boundary
+
+The standalone installer talks to NetworkManager over D-Bus, never puts the Wi-Fi key in argv/output, and creates only an inactive protected profile restricted to the current desktop user. It refuses conflicting existing data and removes only its newly created UUID on a settings-save failure. It runs without root, preserves the active network, uses a private setup lock and publishes settings with no overwrite, 0600 mode and fsync. Default-valued D-Bus properties are interpreted explicitly. Regulatory setup and OS authorization remain system prerequisites; complete clean-image and cold-boot verification remain open. See [hotspot setup](docs/HOTSPOT_SETUP.md).
+
+## Guided installation
+
+The user executes the project’s public bootstrap; privileged steps are limited to distro packages and the fixed OS helper. Default setup enables desktop autologin for the invoking user, with an explicit opt-out. The app does not become a root service. Build failures stop before startup/system configuration. Downloads, extraction, backup, locking and fresh-image verification limits are detailed in [installation](docs/INSTALL.md) and [backend rules](docs/backend-rules.md). Existing OS service policies are retained; no Internet-facing API or cloud access rules are added.

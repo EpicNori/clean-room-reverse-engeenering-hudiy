@@ -1,9 +1,9 @@
-"""Durable, allowlisted personal layout for Hudiy's native web views."""
+"""Durable, allowlisted personal layout for our native web views."""
 import copy
 import json
 from pathlib import Path
 import threading
-from projection import save_json
+from runtime_support import save_json
 
 MENU_IDS = {
     'Phone': ['contacts', 'favorites', 'dialpad', 'call-log', 'active-call', 'notifications'],
