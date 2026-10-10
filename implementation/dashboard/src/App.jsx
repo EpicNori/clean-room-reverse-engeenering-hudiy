@@ -20,6 +20,7 @@ import { OBDSettings } from "./OBDSettings";
 import { DisplayBrightness } from "./DisplayBrightness";
 import { CallButton } from "./CallButton";
 import { WirelessSettings } from "./WirelessSettings";
+import { PhoneReconnect } from "./PhoneReconnect";
 import { RadioOutput } from "./RadioOutput";
 import { resolveMedia, isRemotePlayer } from "./media.mjs";
 import { LAYOUT_KEY, SHORTCUTS, SCREEN_IDS, REQUIRED_SHORTCUTS, readLayout, normalizeLayout, moveItem, pinShortcut, customizationAttributes } from './layout';
@@ -798,14 +799,15 @@ export function App() {
     "android-settings": (
       <>
         <DisplayBrightness action={action}/>
-        <WirelessSettings action={action}/>
+        <WirelessSettings action={action} standalone={status.projection?.renderer === 'standalone'}/>
+        <PhoneReconnect action={action}/>
         {toggle("androidAutostart", "Open Android Auto automatically")}
         {toggle("androidTaskbar", "Keep Hudiy taskbar visible")}
         <p className="setting-note">
           Music and navigation update every {prefs.musicRefreshSeconds} seconds, even when automatic
           opening is off.
           {status.projection?.enabled
-            ? " Apply layout to switch between the taskbar and the original fullscreen view. This restarts Hudiy."
+            ? status.projection?.renderer === 'standalone' ? " Layout changes reconnect Android Auto. The dashboard stays running." : " Apply layout to switch between the taskbar and the original fullscreen view. This restarts Hudiy."
             : " Live projection settings are available on the Pi."}
         </p>
         {status.projection?.layoutPending && (
@@ -984,7 +986,7 @@ export function App() {
                   <span>{shownMedia.album || "-"}</span>
                 </div>
                 <div className="dashboard-duration">
-                  {fmt(shownMedia.time)}/{fmt(shownMedia.duration)}
+                  {shownMedia.timeKnown === false ? "—" : fmt(shownMedia.time)}/{shownMedia.durationKnown === false ? "—" : fmt(shownMedia.duration)}
                 </div>
                 <div className="dashboard-playback">
                   <IconButton
@@ -1257,7 +1259,7 @@ export function App() {
                     />
                     <div>
                       <span>{fmt(playerMedia.time)}</span>
-                      <span>{fmt(playerMedia.duration)}</span>
+                      <span>{playerMedia.durationKnown === false ? "—" : fmt(playerMedia.duration)}</span>
                     </div>
                   </div>
                 )}

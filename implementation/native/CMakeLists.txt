@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 3.22)
+project(hudiy_car_runtime LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Network Multimedia WebEngineWidgets Bluetooth)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(AV REQUIRED IMPORTED_TARGET libavcodec libavutil libswscale)
+pkg_check_modules(USB REQUIRED IMPORTED_TARGET libusb-1.0)
+# A separately licensed, pinned open-source protocol dependency. No Hudiy files.
+include(FetchContent)
+set(OAA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(oaa_source
+    GIT_REPOSITORY https://github.com/mrmees/openauto-prodigy.git
+    GIT_TAG 3afc5dd8bbacb5ce68e109189b18b14b251fabef
+    GIT_SUBMODULES libs/prodigy-oaa-protocol/proto
+    SOURCE_SUBDIR libs/prodigy-oaa-protocol)
+FetchContent_MakeAvailable(oaa_source)
+add_executable(hudiy-car-runtime main.cpp usb_transport.cpp usb_transport.hpp)
+target_link_libraries(hudiy-car-runtime PRIVATE prodigy-oaa-protocol
+    Qt6::Widgets Qt6::Multimedia Qt6::WebEngineWidgets Qt6::Bluetooth PkgConfig::AV PkgConfig::USB)
+target_compile_options(hudiy-car-runtime PRIVATE -Wall -Wextra -Wpedantic)
+install(TARGETS hudiy-car-runtime RUNTIME DESTINATION bin)

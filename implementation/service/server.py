@@ -20,21 +20,28 @@ from display import DisplayBrightness
 from calls import PhoneCalls
 from wireless import WirelessSettings
 from audio_route import AudioRoute
+from standalone_projection import StandaloneProjection
+from independent_obd import IndependentOBDSettings
+from independent_wireless import IndependentWireless
+from bluez_agent import BluezAgent
+from independent_audio_route import IndependentAudioRoute
 
 ROOT=Path(__file__).resolve().parents[1]/'dashboard'/'dist'/'client'
 obd=OBD()
-projection=Projection(enabled=os.environ.get('HUDIY_PROJECTION_HOST')=='1')
+STANDALONE=os.environ.get('HUDIY_STANDALONE')=='1'
+projection=StandaloneProjection(enabled=True) if STANDALONE else Projection(enabled=os.environ.get('HUDIY_PROJECTION_HOST')=='1')
 phonebook=Phonebook(enabled=projection.enabled)
 layout=LayoutStore(enabled=projection.enabled)
 updates=UpdateSettings(projection, phonebook)
 bluetooth=BluetoothDevices(enabled=projection.enabled)
-native_obd=NativeOBDSettings(projection,bluetooth)
+native_obd=IndependentOBDSettings(bluetooth,obd) if STANDALONE else NativeOBDSettings(projection,bluetooth)
 display=DisplayBrightness(enabled=projection.enabled)
 calls=PhoneCalls(enabled=projection.enabled)
-wireless=WirelessSettings(projection)
-# Both settings edit the same native file; serialize their read/modify/write.
-native_obd.lock=wireless.lock
-radio_output=AudioRoute(bluetooth,enabled=projection.enabled)
+wireless=IndependentWireless(projection) if STANDALONE else WirelessSettings(projection)
+agent=BluezAgent(bluetooth,wireless,projection) if STANDALONE else None
+# Only the optional legacy bridge shares one native configuration file.
+if not STANDALONE:native_obd.lock=wireless.lock
+radio_output=IndependentAudioRoute(bluetooth,projection,calls,enabled=projection.enabled) if STANDALONE else AudioRoute(bluetooth,enabled=projection.enabled)
 ALLOWED_PORTS={8766,4173}
 
 class Handler(BaseHTTPRequestHandler):
@@ -64,7 +71,7 @@ class Handler(BaseHTTPRequestHandler):
         path=urlsplit(self.path).path
         if path=='/api/projection':return self.send(200,with_bluetooth_media(projection.data_snapshot(),bluetooth.media_snapshot()))
         if path=='/api/phonebook':return self.send(200,phonebook.snapshot())
-        if path=='/api/bluetooth':return self.send(200,bluetooth.snapshot())
+        if path=='/api/bluetooth':return self.send(200,{**bluetooth.snapshot(),**(agent.snapshot() if agent else {})})
         if path=='/api/display':return self.send(200,display.snapshot())
         if path=='/api/audio-route':return self.send(200,radio_output.snapshot())
         if path=='/api/wireless':
@@ -105,6 +112,14 @@ class Handler(BaseHTTPRequestHandler):
             data=json.loads(self.rfile.read(length))
             if not isinstance(data,dict):raise ValueError('Action body must be an object')
             name=data.get('action')
+            if name=='bluetooth-pair':
+                if set(data)!={'action','address'}:raise ValueError('Pairing requires only a device address')
+                if not agent:return self.send(501,{'error':'Independent pairing requires the Pi application'})
+                return self.send(200,agent.pair(data['address']))
+            if name=='bluetooth-pair-confirm':
+                if set(data) not in ({'action','id','accepted'},{'action','id','accepted','pin'}):raise ValueError('Unexpected pairing confirmation arguments')
+                if not agent:return self.send(501,{'error':'Independent pairing requires the Pi application'})
+                return self.send(200,agent.confirm(data['id'],data['accepted'],data.get('pin')))
             if name in {'phone-call','phone-answer','phone-end','phone-microphone'}:
                 expected={'action','number','confirmed'} if name=='phone-call' else {'action','muted'} if name=='phone-microphone' else {'action'}
                 if set(data)!=expected:raise ValueError('Unexpected phone action arguments')
@@ -124,12 +139,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,display.set(data['brightness']))
             if name=='obd-native-settings':
                 if set(data)!={'action','address','channel'}:raise ValueError('OBD settings require only address and channel')
-                if calls.snapshot().get('call',{}).get('state') in (1,2,3):raise ConnectionError('End the phone call before restarting Hudiy')
+                if calls.snapshot().get('call',{}).get('state') in (1,2,3):raise ConnectionError('End the phone call before changing OBD settings')
                 return self.send(200,native_obd.save(data['address'],data['channel']))
             if name=='wireless-hotspot':
                 if set(data)!={'action','enabled','confirmed'}:raise ValueError('Unexpected wireless settings arguments')
                 if not projection.enabled:return self.send(501,{'error':'Car hotspot settings require the Pi'})
-                if calls.snapshot().get('call',{}).get('state') in (1,2,3):raise ConnectionError('End the phone call before restarting Hudiy')
+                if calls.snapshot().get('call',{}).get('state') in (1,2,3):raise ConnectionError('End the phone call before changing Wi-Fi')
                 return self.send(200,wireless.save(data['enabled'],data['confirmed']))
             if name=='audio-radio-output':
                 if set(data)!={'action','address'}:raise ValueError('Unexpected radio output arguments')
@@ -148,6 +163,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,bluetooth.command(operation,data.get('address'),data.get('confirmed',False)))
             if name=='bluetooth-pair-menu':
                 if set(data)!={'action'}:raise ValueError('Pairing menu accepts no arguments')
+                if agent:return self.send(200,bluetooth.command('stop' if bluetooth.snapshot().get('scanActive') else 'scan'))
                 if not projection.enabled:return self.send(501,{'error':'Pairing requires the installed Hudiy agent'})
                 return self.send(200,projection.action('pair-native'))
             if name=='bluetooth-media':
@@ -165,7 +181,11 @@ class Handler(BaseHTTPRequestHandler):
             if name=='projection-settings':
                 if not projection.enabled:return self.send(501,{'error':'Android Auto settings require the Pi projection host'})
                 settings={key:value for key,value in data.items() if key!='action'}
-                return self.send(200,projection.settings(settings))
+                previous=projection.snapshot()['options']
+                result=projection.settings(settings)
+                if STANDALONE and result['options']['taskbarVisible']!=previous['taskbarVisible']:
+                    agent.reconnect_after_layout()
+                return self.send(200,result)
             if name=='projection-layout-apply':
                 if set(data)!={'action'}:raise ValueError('Layout apply does not accept arguments')
                 return self.send(200,projection.request_layout())
@@ -176,6 +196,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,{'accepted':True})
             if name=='obd-connect':
                 port=data.get('port')
+                if STANDALONE and port=='hudiy':
+                    port=native_obd.port()
+                    if not port:raise ConnectionError('Select a paired ELM327 adapter first')
                 if not isinstance(port,str) or len(port)>100:raise ValueError('Invalid serial port')
                 obd.connect(port,projection)
                 return self.send(200,{'message':'ELM327 connected'})
@@ -191,7 +214,13 @@ class Handler(BaseHTTPRequestHandler):
             if name=='projection':
                 if not projection.enabled:return self.send(501,{'error':'Android Auto requires the installed Hudiy projection host'})
                 if data.get('projection','android')!='android':raise ValueError('Only Android Auto is supported by this bridge')
-                return self.send(200,projection.action(data.get('operation')))
+                result=projection.action(data.get('operation'))
+                if agent and data.get('operation') in {'usb','wifi'}:agent.select_transport(data['operation'])
+                if agent and data.get('operation') in {'resume','wifi'}:
+                    state=projection.snapshot()
+                    if data.get('operation')=='wifi' and state.get('transport')=='usb':agent.reconnect_after_layout()
+                    elif not state.get('connected') and state.get('transport')!='usb':agent.retrigger()
+                return self.send(200,result)
             if name=='phone-refresh':
                 if set(data)!={'action','view'}:raise ValueError('Phone refresh requires only a view')
                 if not phonebook.enabled:return self.send(501,{'error':'Contacts require Bluetooth phonebook access on the Pi'})
@@ -209,9 +238,11 @@ def main():
     if args.port not in ALLOWED_PORTS:parser.error('Supported ports: 8766 or 4173')
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
     projection.start()
-    obd.start(projection)
+    if STANDALONE:obd.start_independent(native_obd)
+    else:obd.start(projection)
     phonebook.start()
     bluetooth.start()
+    if agent:agent.start()
     radio_output.start()
     calls.start()
     display.start()
@@ -219,5 +250,7 @@ def main():
     print(f'Dashboard service: http://127.0.0.1:{args.port}',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass
-    finally:radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();server.server_close()
+    finally:
+        if agent:agent.close()
+        radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();server.server_close()
 if __name__=='__main__':main()

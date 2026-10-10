@@ -1,12 +1,79 @@
 # Hudiy recreation
 
+**An independent Raspberry Pi car dashboard, rebuilt from observed Hudiy behavior.**
+
+React touchscreen UI · Python hardware service · Qt fullscreen host · USB & wireless Android Auto
+
+[![Our recreated dashboard in its light theme, with synthetic demo media and navigation](docs/images/dashboard-light.jpg)](docs/images/dashboard-light.jpg)
+
+*Our application running in a local browser. The phone, track and route are synthetic screenshot data; this image is not a live vehicle test.*
+
+## Contents
+
+- [Introduction](#introduction)
+- [Screenshot gallery](#screenshot-gallery)
+- [What we rebuilt and corrected from Hudiy](#what-we-rebuilt-and-corrected-from-hudiy)
+  - [Observing the original](#1-observed-the-original-application)
+  - [Rebuilt interface and corrections](#2-rebuilt-the-interface-in-code)
+  - [Backend and Pi startup](#3-added-the-real-backend-and-pi-launchers)
+  - [Android Auto](#4-integrated-android-auto)
+  - [Bluetooth phone services](#5-integrated-bluetooth-phone-services)
+  - [Required OBD vehicle data](#6-added-required-obd-vehicle-data-support)
+  - [Audio support](#7-added-audio-support)
+- [Architecture](#architecture)
+- [Run locally](#run-locally)
+- [Run on the Raspberry Pi](#run-on-the-raspberry-pi)
+- [Settings and privacy](#settings-and-privacy)
+- [Tests and observed results](#tests-and-observed-results)
+- [Remaining work checklist](#remaining-work)
+- [Clean-room approach and legal basis](#clean-room-approach-and-legal-basis)
+- [License and public references](#license-and-public-references)
+
+## Introduction
+
+The project started with the owner's original Hudiy installation: inspect its screens and interactions, document what they do, and implement a usable car application independently. The aim is to preserve that familiar dashboard while making touch navigation, customization and device integration practical on our Pi.
+
 A touchscreen car dashboard built from observations of a running Hudiy installation and its public documentation. The interface is React and CSS, the gauges are drawn in code, and a Python service connects it to supported Pi and phone services.
 
-This repository contains the independent application source. It does **not** contain the original Hudiy executable, proprietary source or assets, a phone's data, or a standalone Android Auto protocol implementation. The current Android Auto integration requires a separately installed, licensed Hudiy runtime. The dashboard can run locally without that runtime, with hardware features reported as unavailable.
+The default Pi launcher now starts **our own native application and Android Auto protocol engine**, with a separately licensed, pinned open-source protocol library. It does not launch or connect to the proprietary Hudiy runtime. Our React interface, taskbar, Python backend, Bluetooth pairing, ELM327 selection and wireless settings remain under our application's control.
+
+The standalone engine has displayed real USB and wireless Android Auto video from the owner's phone with proprietary Hudiy stopped and its API port absent. Taskbar switching, Quit/Resume, taskbar hiding, live cover art, Day/Night and physical brightness have been checked on our engine. An actual Pi reboot loaded our app and preserved preferences. We corrected USB accessory identification and a post-reboot service-discovery failure when no microphone device existed. USB and wireless now deliver decoded video again. See [standalone verification](docs/STANDALONE.md). The previous Hudiy API bridge remains an explicitly selected recovery/reference path.
 
 The reference installation was Hudiy **1.24 / native API 1.3**, on a Raspberry Pi running **Debian 12 Bookworm with labwc**, with a **1280×720** touchscreen. That is the environment we actually tested; Raspberry Pi OS 13 was discussed but not verified. The interface adapts to other screen sizes rather than depending on those reference dimensions. This is an ongoing recreation, not a claim of complete or pixel-perfect compatibility.
 
-## What we did
+## Screenshot gallery
+
+These are fresh screenshots of **our rendered React application**, captured on 10 October 2026 at 1280×720. The light theme follows the observed Hudiy reference; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
+
+| 🌙 Dark dashboard | 🧭 Application menu |
+| --- | --- |
+| [![Dark amber dashboard with synthetic media, sample navigation and demo phone](docs/images/dashboard-dark.jpg)](docs/images/dashboard-dark.jpg) | [![Recreated Hudiy application menu and persistent taskbar](docs/images/applications.jpg)](docs/images/applications.jpg) |
+| Same clock, navigation, music and phone layout with a different palette. | Rebuilt category navigation, settings entry and OBD view selection. |
+
+| 🎨 Theme controls | 🚗 OBD gauges — DEMO |
+| --- | --- |
+| [![Dark theme settings with color choices and matching amber controls](docs/images/theme-settings.jpg)](docs/images/theme-settings.jpg) | [![Code-rendered engine temperature, speed and RPM gauges labeled DEMO](docs/images/obd-gauges-demo.jpg)](docs/images/obd-gauges-demo.jpg) |
+| Accent colors reach the controls, panels and taskbar. | The application's existing Demo mode supplies simulated values. |
+
+**Screenshot scope:** the gallery preview used a separate read-only local fixture server, with no Pi proxy or hardware actions. Demo artwork was drawn specifically for this gallery. No real contacts, device addresses, location, phone artwork or Wi-Fi credentials are included. A visible menu entry or demo value does not establish hardware support; [verification](#tests-and-observed-results) and the [remaining work](#remaining-work) describe the actual status.
+
+## What we rebuilt and corrected from Hudiy
+
+The comparison below uses the **original Hudiy 1.24 installation** as the reference. “Rebuilt” describes behavior we observed and implemented ourselves. “Added/corrected” describes changes to **our recreation**, including issues reported while testing it; it does not claim that the original Hudiy has those bugs.
+
+| Original Hudiy reference | What we rebuilt | What we added or corrected in our version |
+| --- | --- | --- |
+| Clock, destination, music and phone cards with a bottom taskbar | The dashboard structure, rounded cards, spacing, typography and shortcuts | Responsive layouts, full accent propagation and touch scrolling |
+| Category menus, settings rows, switches, sliders and color choices | The navigation hierarchy and familiar control shapes | Consistent Pair screen, one discovery action and shorter radio-output controls |
+| Taskbar shortcuts and app navigation | Working navigation between dashboard, menus and players | Long-press pinning/reordering and durable settings across Pi reboots |
+| Android Auto projection and its connection/settings menus | USB/Wi-Fi entry points, Resume/Quit and phone projection | Our own open-source-based engine; persistent taskbar or fullscreen choice; separate reconnect and automatic-opening settings |
+| Music, contacts, favorites, call history and dialpad screens | Player controls, phonebook views and calling interface | Keyboard-free name filters, configurable refresh intervals and real Bluetooth service adapters |
+| OBD Charts, Blocks, Combined and two gauge layouts | Code-rendered telemetry views | Direct read-only Bluetooth ELM327 polling, adapter/channel selection and explicit unavailable/demo states |
+| Sound, equalizer and output settings | Sound controls and local-file equalizer/balance | Optional Bluetooth-to-radio routing owned by our app; projected-audio equalizer still incomplete |
+| Fullscreen Pi application and startup workflow | Our own fullscreen Qt host and graphical-login launcher | Independent runtime ownership and an application Quit path back to the desktop |
+
+The following sections explain the implementation and its limits. The [style specification](style.md) records the visual observations and intentional changes; the [public Hudiy repository](https://github.com/wiboma/hudiy) provides upstream documentation.
+
 
 ### 1. Observed the original application
 
@@ -27,7 +94,7 @@ We added and corrected:
 - Durable Pi layout storage and synchronization between the dashboard and the taskbar web views.
 - Separate configurable music and contact refresh intervals.
 - Contact name filters: **All, A–F, G–L, M–R, S–Z and #** for other names/numbers. These replace the search field that required a keyboard.
-- A consistent Pair menu with one **Pair device** action, which opens the installed Bluetooth pairing agent.
+- A consistent Pair menu with one discovery action, a pairing action for each discovered device, and our own pairing-code/PIN confirmation dialog.
 - Concise optional radio-output controls without accessory-specific instructions.
 - Code-rendered gauges with bundled fonts, theme colors and indicators that follow finite readings. Missing data stays unavailable; Demo is explicitly labeled.
 - A working application Quit path that returns to the desktop while preserving the saved settings and next-boot startup.
@@ -36,31 +103,27 @@ The visual rules are in [style.md](style.md).
 
 ### 3. Added the real backend and Pi launchers
 
-The Python service provides a local HTTP API, validates actions, maintains bounded live data and saves supported preferences privately. We implemented two launch modes:
+The Python service provides a local HTTP API, validates actions, maintains bounded live data and saves supported preferences privately. The native Qt 6.4+ application owns two web views (content and taskbar), an Android Auto video surface, the protocol session, USB transport, car Wi-Fi listener, audio playback and microphone capture.
 
-- **Standalone Qt application:** a frameless, fullscreen Qt WebEngine window hosting our dashboard.
-- **Hudiy projection host:** starts our backend first, then the installed Hudiy runtime; registers the dashboard as a supported custom application and the taskbar as an overlay.
-
-The projection host derives geometry from the current screen and preserves the original configuration in backups. The autostart installer makes reversible user-level labwc changes so the application starts after graphical login. On the reference Pi, an actual OS reboot restored the application and saved preferences.
+The launcher prevents a second application owner. The native process starts and owns the Python service and uses a private user-only Unix socket for commands and live events. Quit closes our own application and its backend. The reversible labwc installer selects our launcher after graphical login and retains startup/configuration backups.
 
 Ignition was assumed to supply power to the Pi. We did **not** implement an ignition GPIO input, a controlled power-cut circuit or a shutdown controller.
 
 ### 4. Integrated Android Auto
 
-The installed Hudiy runtime provides the real projection video. Our bridge uses its documented local API for supported actions, metadata and settings.
+Our own native executable links `prodigy-oaa-protocol`, pinned to a documented open-source revision. It negotiates an Android Auto session and handles H.264 video, PCM media/speech/system audio, touch/multitouch, microphone input and media/navigation status channels. USB accessory negotiation is implemented in our bounded libusb transport. Wireless setup uses our own BlueZ profile and the operator's protected NetworkManager car hotspot.
 
-- Android Auto can occupy the area above our taskbar. Dashboard and Applications return to our interface while leaving the phone session running.
-- A separate setting enables the fullscreen projection layout. Applying geometry changes requires a native runtime restart.
-- **Open Android Auto automatically** controls whether a connected session takes over the display. Background metadata remains available when automatic opening is off.
-- Music title, artist, album, duration, playback status and PNG/JPEG cover art populate the dashboard when supplied by the phone/runtime.
-- Music/navigation details refresh every **5 seconds by default**, configurable from **1–60 seconds**.
-- The Day/Night setting sends real native appearance commands. Common follows the Pi's theme; Day and Night force projection appearance. Day/Night requires negotiated API 1.3.
-- Physical brightness writes the panel backlight independently of theme/contrast, so it affects Android Auto video too.
-- USB recovery is limited to a uniquely validated Android accessory using the existing device permissions.
-- Wireless projection uses the installed runtime's protected **5 GHz car hotspot**, allowing use away from a home router. Initial remote setup used Ethernet before switching the Pi's single Wi-Fi adapter to hotspot mode.
-- We reproduced and fixed a wireless **Quit → Resume** failure by remembering the selected transport and using the saved hotspot setting for manual reconnection after startup.
+- The video surface sits above our taskbar, with Dashboard/Applications switching back to our web interface while the session stays connected.
+- The taskbar setting changes the advertised video/touch viewport and reconnects the session; the application stays running.
+- Automatic opening is separate from background connection/data collection.
+- Android Auto settings offer per-phone automatic Bluetooth reconnect On/Off, independently of automatic opening. These choices use the same privately saved paired-device preferences as Connections.
+- Five-second connection checks and event-driven phone metadata feed the backend; the existing music/contact refresh settings remain configurable.
+- Day/Night is sent through the Android Auto sensor channel. Physical brightness still writes the real panel backlight.
+- Quit stops connection admission until manual USB/Wi-Fi/Resume. USB and Wi-Fi select their respective transport. USB pauses the competing wireless bootstrap; its reconnect targets only one uniquely identified Android accessory, runs outside the UI thread and has a 15-second cooldown. Wired Quit/Resume has been checked without unplugging the cable. Resume can retrigger the owned wireless handshake.
+- The audio-input protocol service remains present without a physical microphone. Actual capture requests fail explicitly when no supported input exists; no fabricated microphone audio is sent. Public status separates decoded video readiness from protocol connection and reports microphone availability.
+- Pairing confirmations are handled in our own UI; wireless credentials are never returned by the HTTP API or written to logs.
 
-Actual wireless projection with no USB accessory, background media, taskbar switching, Day/Night and manual reconnection were observed on the reference device. Live fullscreen video with the taskbar disabled, active turn-by-turn instructions and out-of-range recovery still need separate hardware checks.
+The executable builds on the actual Bookworm Pi 5. [docs/STANDALONE.md](docs/STANDALONE.md) records genuine USB and wireless video on our engine separately from historical tests of the old bridge. Physical multitouch, microphone audio and guided navigation still need hardware verification.
 
 ### 5. Integrated Bluetooth phone services
 
@@ -72,7 +135,7 @@ Calling uses the existing **oFono HFP** service. Selecting a contact opens the d
 
 Bluetooth music uses reported metadata and the connected phone's addressed **AVRCP** player. The dashboard follows the active Android Auto or Bluetooth source, while an explicitly selected local file retains ownership of its player. A short authorized Bluetooth Play/Pause check reported playing and then paused. Bluetooth cover art and audible output still depend on the phone/player/stack and have not been verified end to end.
 
-The Connections menu provides real paired-device Connect/Disconnect and opt-in automatic reconnect. Retries are limited to once per device every 30 seconds. Disconnect and unpairing have confirmations; pairing/PIN approval is handled by the installed agent. No device is paired or trusted automatically.
+The Connections menu provides paired-device Connect/Disconnect and opt-in automatic reconnect. Retries are limited to once per device every 30 seconds. Android Auto settings expose the same choice for phones advertising PBAP. Disconnect and unpairing have confirmations; our own agent handles numeric/PIN approval. An explicitly selected successful pairing is marked trusted. The automatic reconnect worker neither pairs devices nor grants trust.
 
 ### 6. Added required OBD vehicle data support
 
@@ -80,7 +143,7 @@ The Connections menu provides real paired-device Connect/Disconnect and opt-in a
 
 We added native Bluetooth Serial Port adapter selection, RFCOMM channel controls (1–30), serial/USB presets and read-only Mode 01 polling. COM2 is a serial port name; it is not the same thing as RFCOMM channel 2. BLE-only adapters are currently unsupported.
 
-The native monitor follows the runtime's actual OBD connection every five seconds. When connected it starts supported reads; failed queries retry at most every 30 seconds. Disconnect clears old readings/history. Manual Stop suppresses monitoring for the current service session, and selecting serial/USB takes precedence.
+Our backend opens the selected Bluetooth adapter directly through RFCOMM and starts supported reads. Failed connections retry at most every 30 seconds. Disconnect clears old readings/history. Manual Stop suppresses monitoring for the current service session, and selecting serial/USB takes precedence. A manual Bluetooth read keeps the required automatic reconnect monitor enabled.
 
 Supported values are engine load, coolant temperature, RPM, speed, throttle and control-module voltage. Views include OBD Charts, OBD Blocks, Combined and two gauge layouts. A loopback simulator is supported for development; simulated data does not count as a real vehicle test.
 
@@ -90,7 +153,7 @@ The reference adapter was paired and its cached Serial Port advertisement matche
 
 Local audio supports file selection, playback, seeking and playlist navigation. Its 15-band Web Audio equalizer and stereo balance affect that selected local file, with offline signal checks for the audio graph.
 
-Sound can optionally save a separate paired Bluetooth A2DP receiver for the car radio. The Pi remains the middleman: the routing worker manages only the installed Hudiy equalizer/echo chain it can identify as owned by that runtime. It checks the route every five seconds and can restore it after reconnection. Selecting a receiver does not start playback, pair it, or change unrelated streams.
+Sound can optionally save a separate paired Bluetooth A2DP receiver for the car radio. The Pi remains the middleman: our worker routes playback belonging to our native process or the single connected paired phone. It checks every five seconds, waits during calls and verifies the changed route on a later poll. It can select the receiver as the default output; it does not move unrelated active streams. Selecting a receiver does not start playback or pair it. No proprietary equalizer/echo chain is required.
 
 No radio receiver was selected for the final checks. Audible music, navigation and calls through such a receiver remain unverified. UI equalizer preset choices have not been wired to the native projection equalizer; multichannel fade/subwoofer hardware, FM tuner audio and CarPlay/Autobox integration remain incomplete.
 
@@ -99,10 +162,10 @@ No radio receiver was selected for the final checks. Audible music, navigation a
 ```mermaid
 flowchart LR
     UI[React touchscreen dashboard and taskbar] --> API[Python service on 127.0.0.1]
-    API --> Native[Installed Hudiy local API]
+    API --> Native[Our native engine via private Unix IPC]
     Native --> AA[Android Auto phone and video]
     API --> Phone[BlueZ PBAP / AVRCP and oFono HFP]
-    API --> OBD[Native OBD or serial ELM327]
+    API --> OBD[Direct Bluetooth / serial ELM327]
     API --> Pi[Panel backlight and owned audio route]
 ```
 
@@ -112,8 +175,9 @@ flowchart LR
 | `implementation/dashboard/tests/` | Contact-filter, layout, media-source and static-hosting tests |
 | `implementation/dashboard/worker/` and `.openai/` | Optional static frontend packaging; this does not host Pi hardware services |
 | `implementation/dashboard/qa/audio-dsp-check.html` | Local offline audio-graph check |
-| `implementation/service/` | Local API, native protocol bridge, OBD, Bluetooth, phonebook, calls, settings and audio routing |
-| `implementation/launcher/` | Standalone Qt launcher, native projection host and reversible autostart installer |
+| `implementation/service/` | Local API, owned native IPC, direct Bluetooth/serial OBD, Bluetooth agent, phonebook, calls and audio routing |
+| `implementation/native/` | GPL native fullscreen host, USB transport and pinned open-source Android Auto protocol dependency |
+| `implementation/launcher/` | Independent native launcher and reversible autostart installer; previous compatibility host retained for recovery |
 | `docs/backend-rules.md` | Exact API boundaries, device checks and persistence rules |
 | `docs/VERIFICATION.md` | What was tested and what remains unverified |
 | `SECURITY.md` / `CLEAN_ROOM_POLICY.md` / `style.md` | Security constraints, observation policy and visual specification |
@@ -146,52 +210,37 @@ Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/). Vite proxies `/api` to th
 
 ## Run on the Raspberry Pi
 
-Build the frontend first. Install the Pi distribution's Qt WebEngine, serial, D-Bus/GObject and OBEX packages if absent:
+Build the frontend first, then install the native build/runtime dependencies:
 
 ```sh
-sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine python3-serial python3-dbus python3-gi bluez-obexd
-```
-
-Copy or clone this source and include the generated `implementation/dashboard/dist/client` build. Run from the logged-in graphical session. Native calling/routing requires the existing BlueZ, oFono and PipeWire services to be configured; these scripts do not configure a complete phone/audio stack from scratch.
-
-### Standalone dashboard
-
-```sh
+sudo apt install build-essential cmake pkg-config qt6-base-dev qt6-multimedia-dev qt6-webengine-dev qt6-connectivity-dev \
+  libprotobuf-dev protobuf-compiler libssl-dev libusb-1.0-0-dev libavcodec-dev libavutil-dev libswscale-dev \
+  python3-serial python3-dbus python3-gi bluez bluez-obexd network-manager
+cmake -S implementation/native -B implementation/native/build -DCMAKE_BUILD_TYPE=Release
+cmake --build implementation/native/build -j3
 python3 implementation/launcher/launcher.py
 ```
 
-The launcher starts the backend if needed and opens a fullscreen window. **Ctrl+Alt+Shift+Q** exits this standalone window for maintenance. Real Android Auto and the native pairing handoff are available through the projection-host mode below.
+CMake fetches the pinned protocol source and its exact protobuf submodule. The normal launcher requires this binary and refuses an already occupied backend port; it does not silently fall back to Hudiy. Run in the logged-in Wayland graphical session. **Ctrl+Alt+Shift+Q** and the application's **Quit** exit our window and backend.
 
-### Dashboard with installed Hudiy projection
+BlueZ/PBAP, oFono HFP and PipeWire are standard system services. The existing calling/audio setup on the reference Pi is reused; a fresh device still needs those services configured. Our Bluetooth ELM327 worker owns its own RFCOMM socket and polls only allowlisted read-only sensor PIDs. OBD is required; the separate A2DP radio receiver remains optional.
 
-The licensed runtime must already exist at the current user's `~/.hudiy/share/hudiy_run.sh`. Stop another recreation host/backend before starting a new one.
+Wireless Android Auto needs a protected 5 GHz NetworkManager AP named `hudiy-recreation-car`, with a private `~/.local/share/hudiy-recreation/wireless.json` describing its SSID/key and fixed gateway `192.168.12.1`. The reference Pi migration cloned the owner's existing AP profile and copied only Wi-Fi/OBD preferences into our private files; subsequent runtime operation does not read the old Hudiy configuration. Fresh hotspot provisioning is not yet automated. Do not commit credentials. Initial remote network setup must preserve Ethernet or another recovery connection.
 
-```sh
-# Review the screen-derived configuration without writing it.
-python3 implementation/launcher/hudiy_host.py
-
-# Apply the supported configuration and launch the host/runtime.
-python3 implementation/launcher/hudiy_host.py --apply
-```
-
-Original native configuration is preserved in `.recreation-original` backups. The backend starts before the native runtime so its custom web-view URLs are ready. Use the application's **Quit** button to exit this mode; the standalone keyboard shortcut does not apply to it.
-
-### Startup after boot/login
-
-For the installed native projection host:
+For boot/login startup:
 
 ```sh
-python3 implementation/launcher/install_autostart.py --projection-host
-python3 implementation/launcher/install_autostart.py --projection-host --apply
+python3 implementation/launcher/install_autostart.py
+python3 implementation/launcher/install_autostart.py --apply
 ```
 
-The first command prints a dry run. Applying backs up the labwc files and replaces the single expected original Hudiy startup line with the recreation host. It refuses an existing recreation block or an unexpected startup layout; inspect those files before reinstalling. For standalone Qt mode, omit `--projection-host` and review the original Hudiy startup separately, since that mode does not disable it.
+The first command prints the exact changes. Applying retains timestamped backups, replaces the managed recreation startup block, disables the exact previous Hudiy startup line if present and adds a labwc rule for our own application. Graphical autologin is assumed. Ignition/power-loss shutdown remains separate hardware work.
 
-Autostart takes effect on the next graphical login, so boot startup assumes a configured graphical login session. It does not make the Pi shut down safely when ignition power disappears.
+The old `hudiy_host.py --apply` launcher remains available solely for deliberate recovery/compatibility testing with an already licensed installation. It is not required by the independent application.
 
 ## Settings and privacy
 
-On the projection host, supported preferences are stored under `~/.local/share/hudiy-recreation/`, including layout, refresh intervals, projection options, brightness, Bluetooth reconnect selection and optional radio output. Saves are atomic/private on Linux; durable layout/settings saves flush before acknowledgement. The standalone browser preview uses local browser preferences for appearance/layout.
+In the independent Pi application, supported preferences are stored under `~/.local/share/hudiy-recreation/`, including layout, refresh intervals, projection options, brightness, Bluetooth reconnect selection and optional radio output. Saves are atomic/private on Linux; durable layout/settings saves flush before acknowledgement. The standalone browser preview uses local browser preferences for appearance/layout.
 
 Phonebook and current-call data stay in bounded memory; temporary PBAP transfers are deleted and caches clear when the phone disconnects. Credentials, contact exports, raw captures, generated builds, dependencies, local configs and research data are excluded from Git.
 
@@ -210,26 +259,58 @@ node --test tests/*.test.mjs
 npm audit --omit=dev --audit-level=high
 ```
 
-The latest publication check passes **79 backend tests** and **13 frontend/packaging tests**. The production build passes and the dependency audit reports **zero known production vulnerabilities at the time checked**. That is not a guarantee that the application has no security bugs.
+The previous publication passed 79 backend and 13 frontend checks. The current standalone changes pass **96 backend tests** and **14 frontend/packaging tests**, plus a real Pi native compilation. The production dependency audit was rerun on 10 October 2026 and reported zero known vulnerabilities. A passing test suite is not a guarantee that the application has no security bugs.
 
 Tests cover bounded sensor/protocol handling, source changes and artwork invalidation, connection recovery, preference validation and rollback, layout persistence, calls with mocks, phonebook session ownership, audio routing ownership, host/origin/injection rejection and touch-filter grouping. Automated tests do not place real calls, remove real pairings or verify vehicle hardware.
 
-Manual checks on the reference Pi include fullscreen launch, an actual OS reboot, matching saved-preference hashes before/after restart, real wireless Android Auto video, taskbar navigation, native Day/Night, kernel backlight changes, contact synchronization, an authorized outgoing call/hangup, Bluetooth Play/Pause and the latest filters/Pair/Sound changes. Browser checks cover sizes from 320×568 through 1920×720. See [verification and remaining work](docs/VERIFICATION.md).
+Historical checks of the licensed bridge included contact synchronization, an authorized outgoing call/hangup and Bluetooth Play/Pause. Our standalone checks include real wireless projection, taskbar navigation, Android Auto Quit/Resume, both taskbar layouts, Day/Night, live media/artwork, backlight writes and actual reboot startup with matching saved-preference hashes. The new per-phone reconnect switch was checked against its private saved file in both states. See [current standalone evidence](docs/STANDALONE.md); [docs/VERIFICATION.md](docs/VERIFICATION.md) retains the earlier history. Earlier browser checks covered sizes from 320×568 through 1920×720.
 
 ## Remaining work
 
-1. Validate required live OBD readings and reconnection with the adapter powered in a real vehicle.
-2. Validate fullscreen Android Auto with the taskbar disabled, active navigation, out-of-range recovery and the complete ignition/power lifecycle.
-3. Test the optional Bluetooth radio receiver and incoming/conversation audio, and connect native equalizer settings where supported.
+Unchecked items are still incomplete or require hardware verification. The gallery's demo gauges do not complete the OBD checks.
+
+### Required car functionality and verification
+
+- [ ] Verify required live Bluetooth ELM327 readings with the adapter powered in a real vehicle.
+- [ ] Verify OBD disconnect/reconnect and stale-data clearing during vehicle use.
+- [ ] Verify active navigation instructions and speech through our standalone Android Auto engine.
+- [ ] Verify physical touchscreen multitouch with Android Auto.
+- [ ] Verify microphone capture, an incoming call and conversation audio end to end.
+- [ ] Verify unattended cold boot, automatic phone reconnection and recovery after going out of range.
+- [ ] Verify the complete ignition/power lifecycle and implement safe shutdown with suitable power hardware.
+- [ ] Automate fresh Pi hotspot provisioning and document a clean-device installation.
+
+### Optional integrations and later extensions
+
+- [ ] Test a separate Bluetooth-to-radio receiver for audible music, navigation and calls.
+- [ ] Connect native projection equalizer settings where supported.
+- [ ] Verify Bluetooth cover art and audible AVRCP playback end to end.
+- [ ] Implement CarPlay/Autobox integration if it remains in scope.
+- [ ] Implement FM tuner playback with supported hardware.
+- [ ] Implement notification integration.
+- [ ] Replace the marketplace placeholder with a real catalog, or remove it from the release.
+- [ ] Review visual similarity, branding and all dependency/source-distribution obligations before a public binary release.
 
 CarPlay/Autobox, FM tuner playback, notification integration and a real marketplace catalog are not implemented. A visible menu entry does not prove its hardware integration exists.
 
+## Clean-room approach and legal basis
+
+**Our intended legal basis is independent implementation of behavior observed through authorized use, rather than redistribution of proprietary Hudiy code.** We treat the original as a black box, use its public documentation as a compatibility reference, write our implementation separately, and exclude proprietary source, binaries and assets. The default launcher runs our application; raw reference captures remain private. This is the process recorded in our [clean-room policy](CLEAN_ROOM_POLICY.md), not a claim of a formal legal audit.
+
+In the EU, software copyright protects a program's expression rather than its underlying ideas and principles, including those behind interfaces. Article 5(3) permits a person entitled to use a copy to observe, study or test its operation during authorized acts. These provisions support the observation-and-reimplementation approach; they do not automatically authorize copying every visual detail. See [Directive 2009/24/EC, Articles 1(2) and 5(3)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0024).
+
+Decompilation for interoperability has narrower conditions and restrictions, including on substantially similar expression; it is not a general cloning permission. See [Article 6 of the Directive](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0024) and [German UrhG §69e](https://www.gesetze-im-internet.de/urhg/__69e.html). Our documented method does not rely on proprietary decompilation.
+
+**Clean-room methods do not guarantee that a complete visual recreation is lawful.** Artwork, interface expression, names, trademarks and other rights require separate consideration; Article 8 preserves other legal protections. This project is an independent recreation and is not an official Hudiy release or a claim of endorsement. Our own code and the native dependency must also be distributed under their applicable licenses, described below. These are the reasons for our approach and its limits, not an unconditional legality certificate.
+
 ## License and public references
 
-This repository retains its [MIT license](LICENSE). Third-party packages keep their own licenses. The original Hudiy runtime is not distributed here, and this repository's license does not license that runtime.
+The separately distributed dashboard/backend retain the [MIT license](LICENSE). The linked native application is **GPL-3.0-or-later**; see [native licensing and source obligations](implementation/native/THIRD_PARTY.md) and [native LICENSE](implementation/native/LICENSE). Third-party packages keep their own licenses. The original Hudiy runtime is not distributed or required by the default launcher.
 
 - [Hudiy public API](https://github.com/wiboma/hudiy/blob/main/api/Api.proto) — native integration messages.
 - [Hudiy main configuration](https://github.com/wiboma/hudiy/blob/main/main_configuration.md) — native configuration compatibility target.
 - [Hudiy Raspberry Pi documentation](https://github.com/wiboma/hudiy/blob/main/raspberry_pi.md) — upstream installation reference.
+- [OpenAuto Prodigy](https://github.com/mrmees/openauto-prodigy) — separately licensed protocol engine dependency, pinned in our native build.
+- [Android Auto USB implementation research](https://github.com/solarkennedy/lineageos-pepito/blob/lineageos23.2/plans/PLAN-androidauto.md) — accessory identity used in our working USB check; public examples differ, so live handshake/video evidence is authoritative for this phone.
 
 Public upstream documentation can describe a different version from the tested 1.24/API 1.3 installation. Check compatibility before applying it to another runtime.

@@ -37,3 +37,6 @@ research/
 publication/
 tools/vendor/
 hudiy-recreation-test.tar.gz
+
+# Native build and fetched GPL protocol dependency
+implementation/native/build/

@@ -57,6 +57,7 @@ def read_devices(objects):
         if not ADDRESS.fullmatch(address): continue
         devices.append({'address': address, 'name': str(props.get('Alias', props.get('Name', address)))[:128],
                         'paired': bool(props.get('Paired')), 'connected': bool(props.get('Connected')),
+                        'phone': '0000112f-0000-1000-8000-00805f9b34fb' in [str(u).lower() for u in props.get('UUIDs',[])],
                         'serialPort': '00001101-0000-1000-8000-00805f9b34fb' in [str(u).lower() for u in props.get('UUIDs',[])],
                         'audioReceiver': '0000110b-0000-1000-8000-00805f9b34fb' in [str(u).lower() for u in props.get('UUIDs',[])]
                             and '0000112f-0000-1000-8000-00805f9b34fb' not in [str(u).lower() for u in props.get('UUIDs',[])],

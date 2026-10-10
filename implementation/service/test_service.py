@@ -79,6 +79,24 @@ class HTTPTests(unittest.TestCase):
     def test_false_integration_success_never_returned(self):
         with self.request('/api/action',{'action':'projection'}) as r:self.assertEqual(r.status,501)
         with self.request('/api/action',[]) as r:self.assertEqual(r.status,400)
+    def test_standalone_taskbar_change_retriggers_owned_wireless_only_after_save(self):
+        projection=Mock(enabled=True)
+        projection.snapshot.return_value={'options':{'taskbarVisible':True}}
+        projection.settings.return_value={'options':{'taskbarVisible':False}}
+        agent=Mock()
+        with patch.object(server,'STANDALONE',True),patch.object(server,'projection',projection),patch.object(server,'agent',agent):
+            with self.request('/api/action',{'action':'projection-settings','taskbarVisible':False}) as response:
+                self.assertEqual(response.status,200)
+            agent.reconnect_after_layout.assert_called_once_with()
+            agent.reset_mock()
+            projection.settings.return_value={'options':{'taskbarVisible':True}}
+            with self.request('/api/action',{'action':'projection-settings','autostart':True}) as response:
+                self.assertEqual(response.status,200)
+            agent.reconnect_after_layout.assert_not_called()
+            projection.settings.side_effect=ValueError('Invalid settings')
+            with self.request('/api/action',{'action':'projection-settings','taskbarVisible':'false'}) as response:
+                self.assertEqual(response.status,400)
+            agent.reconnect_after_layout.assert_not_called()
     def test_phone_actions_cannot_accept_caller_supplied_paths_or_missing_confirmation(self):
         with self.request('/api/action',{'action':'phone-call','number':'123456','confirmed':True}) as r:self.assertEqual(r.status,501)
         fake=Mock(enabled=True);fake.command.return_value={'accepted':True}

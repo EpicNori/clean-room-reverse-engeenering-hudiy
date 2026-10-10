@@ -13,7 +13,9 @@ export function resolveMedia(local, remote = {}, screen) {
     (screen === 'dashboard' && (isRemotePlayer(local.source) || (local.source === 'storage' && !local.title))));
   const empty = {source: isRemotePlayer(screen) ? screen : local.source, title: '', artist: '', album: '', playing: false, time: 0, duration: 0};
   const shownMedia = remoteSelected
-    ? {...remote, source, time: seconds(remote.position), duration: seconds(remote.duration)}
+    ? {...remote, source, time: seconds(remote.position), duration: seconds(remote.duration),
+        timeKnown: /^\d+(?::\d{2}){0,2}$/.test(String(remote.position)),
+        durationKnown: /^\d+(?::\d{2}){0,2}$/.test(String(remote.duration))}
     : isRemotePlayer(screen) || isRemotePlayer(local.source) ? empty : local;
   return {liveMedia: Boolean(remoteSelected), shownMedia,
     playerMedia: isRemotePlayer(screen) ? shownMedia : local};

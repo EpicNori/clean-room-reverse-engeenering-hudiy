@@ -46,3 +46,11 @@ test('Android Auto remains separate and malformed timelines display zero', () =>
   assert.equal(resolved.playerMedia.time,0);
   assert.equal(resolved.playerMedia.duration,3723);
 });
+
+test('missing Android Auto timelines are explicitly unknown while controls remain finite', () => {
+  const resolved = resolveMedia(local,{source:'android',title:'Phone track',position:'00:57',duration:'—'},'dashboard');
+  assert.equal(resolved.shownMedia.time,57);
+  assert.equal(resolved.shownMedia.timeKnown,true);
+  assert.equal(resolved.shownMedia.duration,0);
+  assert.equal(resolved.shownMedia.durationKnown,false);
+});

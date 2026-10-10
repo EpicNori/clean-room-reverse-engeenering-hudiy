@@ -42,7 +42,7 @@ export function BluetoothView({ mode, action }) {
   return <div className={mode === 'pair' ? 'bluetooth-pair-view' : undefined}>
     {mode === 'pair' && <>
       <header><h1>Pair</h1><button className="phonebook-refresh" disabled={busy || !data.available}
-        onClick={() => run('bluetooth-pair-menu')}><Icon name="link" />{busy ? 'Opening…' : 'Pair device'}</button></header>
+        onClick={() => run('bluetooth-pair-menu')}><Icon name="link" />{busy ? 'Working…' : data.pairingAvailable ? (scanActive ? 'Stop scanning' : 'Find devices') : 'Pair device'}</button></header>
       <p className="phonebook-status" role="status">{data.name}{scanActive ? ' · Scanning…' : ''}</p>
     </>}
     <div className={`bluetooth-device-list ${mode === 'pair' ? 'bluetooth-discovery-list' : ''} ${connections?'bluetooth-connections-list':''}`} ref={list}>
@@ -58,7 +58,8 @@ export function BluetoothView({ mode, action }) {
           <label><input type="checkbox" aria-label={`Automatically reconnect ${device.name}`} checked={(data.autoConnect || []).includes(device.address)} disabled={busy || !data.available}
             onChange={async event=>{const enabled=event.target.checked;const result=await run('bluetooth-autoconnect',{address:device.address,enabled});
               if(result)setData(current=>({...current,autoConnect:enabled?[...new Set([...(current.autoConnect || []),device.address])]:(current.autoConnect || []).filter(a=>a!==device.address)}));}}/>Automatic reconnect</label>
-        </div> : mode === 'remove' && <button className="bluetooth-device-action" aria-label={`Unpair ${device.name}`}
+        </div> : mode === 'pair' && data.pairingAvailable ? <button className="bluetooth-device-action" aria-label={`Pair ${device.name}`}
+          disabled={busy || Boolean(data.pairing)} onClick={() => run('bluetooth-pair',{address:device.address})}><Icon name="link" /></button> : mode === 'remove' && <button className="bluetooth-device-action" aria-label={`Unpair ${device.name}`}
           disabled={busy || !data.available} onClick={event => {
             if (mode === 'remove') { opener.current = event.currentTarget; setSelected(device); }
             else run('bluetooth-pair-menu');
@@ -68,6 +69,18 @@ export function BluetoothView({ mode, action }) {
       {data.available && !devices.length && (mode === 'remove' || connections) && <p className="bluetooth-empty">No paired devices.</p>}
       {data.available && !devices.length && mode === 'pair' && <p className="bluetooth-empty">{scanActive ? 'Searching for nearby devices…' : 'Tap Pair device to find and pair a device.'}</p>}
     </div>
+    {data.pairing && <div className="customize-backdrop"><div className="customize-menu" role="dialog" aria-modal="true" aria-label="Confirm Bluetooth pairing">
+      <strong>Pair {data.pairing.name}?</strong>
+      {data.pairing.kind === 'pin' ? <>
+        <p>Choose the PIN supplied with your adapter.</p>
+        {['1234','0000'].map(pin=><button key={pin} disabled={busy} onClick={()=>run('bluetooth-pair-confirm',{id:data.pairing.id,accepted:true,pin})}>Use {pin}</button>)}
+      </> : <>
+        {data.pairing.code && <p>Confirm that the phone shows {data.pairing.code}.</p>}
+        <button disabled={busy} onClick={()=>run('bluetooth-pair-confirm',{id:data.pairing.id,accepted:true})}>Confirm pairing</button>
+      </>}
+      <button disabled={busy} onClick={()=>run('bluetooth-pair-confirm',{id:data.pairing.id,accepted:false})}>Cancel</button>
+    </div></div>}
+    {data.pairingError && <p role="status">{data.pairingError}</p>}
     <div className="bluetooth-scroll-buttons">
       <button aria-label="Scroll devices up" onClick={() => list.current?.scrollBy({top:-300,behavior:'smooth'})}><Icon name="expand_less" /></button>
       <button aria-label="Scroll devices down" onClick={() => list.current?.scrollBy({top:300,behavior:'smooth'})}><Icon name="expand_more" /></button>

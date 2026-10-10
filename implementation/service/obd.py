@@ -29,6 +29,16 @@ class Transport:
             if not projection or not projection.enabled or not projection.snapshot().get('nativeOBDConnected'):
                 raise ConnectionError('Turn on the paired ELM327 and connect it in Hudiy')
             self.native=projection
+        elif re.fullmatch(r'bluetooth://(?:[0-9A-F]{2}:){5}[0-9A-F]{2}/(?:[1-9]|[12][0-9]|30)',port):
+            address, channel = port[len('bluetooth://'):].split('/')
+            self.sock=socket.socket(socket.AF_BLUETOOTH,socket.SOCK_STREAM,socket.BTPROTO_RFCOMM)
+            try:
+                self.sock.settimeout(3)
+                self.sock.connect((address,int(channel)))
+                self.sock.settimeout(.3)
+            except Exception:
+                self.sock.close()
+                raise
         elif re.fullmatch(r'tcp://127\.0\.0\.1:\d{1,5}',port):
             number=int(port.rsplit(':',1)[1])
             if not 1024<=number<=65535:
@@ -75,6 +85,7 @@ class OBD:
         self.worker=None
         self.transport=None
         self.auto_projection=None
+        self.independent_settings=None
         self.automatic=False
         self.supervisor=None
         self.shutdown=threading.Event()
@@ -95,6 +106,19 @@ class OBD:
             self.supervisor=threading.Thread(target=self._automatic_run,daemon=True)
             self.supervisor.start()
 
+    def start_independent(self,settings):
+        self.independent_settings=settings
+        self.automatic=True
+        if not self.supervisor:
+            self.supervisor=threading.Thread(target=self._automatic_run,daemon=True)
+            self.supervisor.start()
+
+    def reconnect_independent(self):
+        with self.lifecycle:
+            self._disconnect()
+            self.automatic=True
+            self.retry_at=0
+
     def _automatic_run(self):
         while not self.shutdown.is_set():
             self._automatic_tick()
@@ -102,6 +126,19 @@ class OBD:
 
     def _automatic_tick(self):
         with self.lifecycle:
+            if self.independent_settings:
+                if self.shutdown.is_set() or not self.automatic:return
+                port=self.independent_settings.port()
+                current=self.snapshot()
+                if not port:
+                    if current['connected']:self._disconnect()
+                    return
+                if current['connected'] or time.monotonic()<self.retry_at:return
+                self.retry_at=time.monotonic()+30
+                try:self._connect(port)
+                except (OSError,ValueError,RuntimeError) as exc:
+                    with self.lock:self.state.update(connected=False,mode='disconnected',values={},history=[],timestamp=None,error=str(exc)[:512])
+                return
             if self.shutdown.is_set() or not self.automatic or not self.auto_projection:return
             state=self.auto_projection.snapshot()
             ready=state.get('available') and state.get('nativeOBDConnected') and not state.get('exitRequested')
@@ -132,7 +169,7 @@ class OBD:
     def connect(self,port,projection=None):
         with self.lifecycle:
             self._connect(port,projection)
-            self.automatic=port=='hudiy' and self.auto_projection is not None
+            self.automatic=(port=='hudiy' and self.auto_projection is not None) or (self.independent_settings is not None and port.startswith('bluetooth://'))
             self.retry_at=time.monotonic()+30
 
     def _connect(self,port,projection=None):

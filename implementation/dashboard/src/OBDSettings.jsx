@@ -37,7 +37,7 @@ export function OBDSettings({action, status, demo, demoControl}) {
     {demoControl}
     <label className="setting-row obd-choice">Connection
       <select aria-label="OBD connection type" value={transport} onChange={e=>setTransport(e.target.value)}>
-        <option value="hudiy">Bluetooth through Hudiy</option><option value="serial">Serial / USB</option>
+        <option value="hudiy">Bluetooth ELM327</option><option value="serial">Serial / USB</option>
       </select>
     </label>
     {transport==='hudiy' ? <>
@@ -54,8 +54,8 @@ export function OBDSettings({action, status, demo, demoControl}) {
       </div></div>
       <div className="obd-actions">
         <button disabled={busy || !settings.available || !settings.devices.some(d=>d.address===address)}
-          onClick={()=>run('obd-native-settings',{address,channel})}>Save and reconnect Hudiy</button>
-        <button disabled={busy || !status.projection?.nativeOBDConnected}
+          onClick={()=>run('obd-native-settings',{address,channel})}>Save and connect ELM327</button>
+        <button disabled={busy || !settings.devices.some(d=>d.address===address)}
           onClick={()=>run('obd-connect',{port:'hudiy'})}>Read live sensors</button>
       </div>
       <p className="obd-details">{!settings.available ? 'Bluetooth OBD settings are available on the Pi.' :

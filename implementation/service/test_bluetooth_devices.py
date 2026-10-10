@@ -19,8 +19,10 @@ class BluetoothTests(unittest.TestCase):
         service,_,objects=self.service()
         objects[DEVICE]['org.bluez.Device1']['UUIDs']=['0000110b-0000-1000-8000-00805f9b34fb']
         service._refresh();self.assertTrue(service.snapshot()['devices'][0]['audioReceiver'])
+        self.assertFalse(service.snapshot()['devices'][0]['phone'])
         objects[DEVICE]['org.bluez.Device1']['UUIDs'].append('0000112f-0000-1000-8000-00805f9b34fb')
         service._refresh();self.assertFalse(service.snapshot()['devices'][0]['audioReceiver'])
+        self.assertTrue(service.snapshot()['devices'][0]['phone'])
 
     def test_connection_actions_are_paired_only_and_disconnect_disables_reconnect(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -126,7 +128,7 @@ class BluetoothTests(unittest.TestCase):
         objects['/unexpected/path']={'org.bluez.Device1':{'Address':ADDRESS,'Adapter':ADAPTER}}
         service._refresh()
         data=service.snapshot()
-        self.assertEqual(data['devices'],[{'name':'Phone','address':ADDRESS,'paired':True,'connected':True,'serialPort':False,'audioReceiver':False}])
+        self.assertEqual(data['devices'],[{'name':'Phone','address':ADDRESS,'paired':True,'connected':True,'phone':False,'serialPort':False,'audioReceiver':False}])
         data['devices'].clear()
         self.assertEqual(len(service.snapshot()['devices']),1)
         objects['/org/bluez/hci1']={'org.bluez.Adapter1':{'Powered':True}}
