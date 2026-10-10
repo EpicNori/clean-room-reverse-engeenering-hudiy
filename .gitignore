@@ -1,0 +1,39 @@
+# Dependencies, generated output and local development environments
+**/node_modules/
+**/dist/
+**/.venv/
+.venv/
+**/__pycache__/
+*.pyc
+**/.npm-cache/
+
+# Credentials and local device state
+.env
+.env.*
+*.pem
+*.key
+*.ppk
+**/credentials*
+**/*token*
+tools/hudiy.conf
+*.recreation-original
+*.recreation-*
+*.backup-*
+*.before-quit-*
+*.upload-*
+*.log
+*.tmp
+*.part
+
+# Raw observations can include phonebook entries, locations and device IDs
+research/
+**/qa/*.png
+**/qa/*.jpg
+**/qa/*.jpeg
+**/qa/*.webp
+**/qa/*.mp4
+**/qa/*.webm
+**/qa/*.json
+publication/
+tools/vendor/
+hudiy-recreation-test.tar.gz

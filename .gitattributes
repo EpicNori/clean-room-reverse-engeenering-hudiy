@@ -1,0 +1,2 @@
+# Keep portable source consistent across Windows and the Raspberry Pi.
+* text=auto eol=lf

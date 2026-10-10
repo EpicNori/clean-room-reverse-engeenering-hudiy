@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Local audio signal verification</title>
+<body><h1>Local audio signal verification</h1><pre id="results">Rendering test signals…</pre>
+<script type="module">
+import {createEqualizerGraph} from '/src/audio.js';
+const output=document.querySelector('#results');
+const lines=[];
+async function render({band=0,balance=0,volume=100,mute=false,amplitude=.1}={}) {
+  const context=new OfflineAudioContext(2,48000,48000);
+  const graph=createEqualizerGraph(context);
+  const equalizer=Array(15).fill(0);equalizer[8]=band;
+  graph.update({equalizer,balance,volume,mute});
+  const buffer=context.createBuffer(2,48000,48000);
+  for(let channel=0;channel<2;channel++) {
+    const data=buffer.getChannelData(channel);
+    for(let i=0;i<data.length;i++)data[i]=amplitude*Math.sin(2*Math.PI*1000*i/48000);
+  }
+  const source=context.createBufferSource();source.buffer=buffer;source.connect(graph.input);source.start();
+  const result=await context.startRendering();
+  const energy=channel=>{
+    const data=result.getChannelData(channel);let total=0;
+    for(let i=24000;i<data.length;i++)total+=data[i]**2;
+    return Math.sqrt(total/(data.length-24000));
+  };
+  return [energy(0),energy(1)];
+}
+function check(name,condition,value) {
+  lines.push(`${condition?'PASS':'FAIL'} ${name}: ${value}`);
+  if(!condition)throw Error(name);
+}
+try {
+  const flat=await render();check('Flat preserves amplitude',Math.abs(flat[0]-.1/Math.sqrt(2))<.002,flat[0].toFixed(5));
+  const boost=await render({band:6});const boostDb=20*Math.log10(boost[0]/flat[0]);check('1 kHz +6 dB changes the rendered signal',Math.abs(boostDb-6)<.15,boostDb.toFixed(2)+' dB');
+  const cut=await render({band:-6});const cutDb=20*Math.log10(cut[0]/flat[0]);check('1 kHz -6 dB changes the rendered signal',Math.abs(cutDb+6)<.15,cutDb.toFixed(2)+' dB');
+  const volume=await render({volume:50});check('Volume halves amplitude',Math.abs(volume[0]/flat[0]-.5)<.01,(volume[0]/flat[0]).toFixed(3));
+  const mute=await render({mute:true});check('Mute silences output',mute.every(value=>value<.00001),mute.join(', '));
+  const left=await render({balance:-100});check('Left balance silences right channel',left[1]<.00001&&left[0]>.05,left.map(v=>v.toFixed(5)).join(', '));
+  const right=await render({balance:100});check('Right balance silences left channel',right[0]<.00001&&right[1]>.05,right.map(v=>v.toFixed(5)).join(', '));
+  output.textContent=lines.join('\n')+'\nAll seven signal checks passed.';
+} catch(error) {output.textContent=lines.join('\n')+'\nERROR: '+error.message;}
+</script></body></html>
