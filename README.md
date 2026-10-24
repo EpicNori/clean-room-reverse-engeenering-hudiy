@@ -27,6 +27,7 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 - [Black startup](docs/BLACK_STARTUP.md)
 - [Microphones and audio capture](docs/AUDIO_INPUT.md)
 - [Architecture](#architecture)
+  - [Repository structure](#repository-structure)
 - [Run locally](#run-locally)
 - [Easy Pi installation](#easy-pi-installation)
 - [Run on the Raspberry Pi](#run-on-the-raspberry-pi)
@@ -200,18 +201,158 @@ flowchart LR
     API --> Pi[Panel backlight and owned audio route]
 ```
 
-| Path | Purpose |
-| --- | --- |
-| `implementation/dashboard/src/` | React interface, theme, touch gestures, layout, gauges and local audio graph |
-| `implementation/dashboard/tests/` | Contact-filter, layout, media-source and static-hosting tests |
-| `implementation/dashboard/worker/` and `.openai/` | Optional static frontend packaging; this does not host Pi hardware services |
-| `implementation/dashboard/qa/audio-dsp-check.html` | Local offline audio-graph check |
-| `implementation/service/` | Local API, owned native IPC, direct Bluetooth/serial OBD, Bluetooth agent, phonebook, calls and audio routing |
-| `implementation/native/` | GPL native fullscreen host, USB transport and pinned open-source Android Auto protocol dependency |
-| `implementation/launcher/` | Independent native launcher and reversible autostart installer; no proprietary-runtime fallback |
-| `docs/backend-rules.md` | Exact API boundaries, device checks and persistence rules |
-| `docs/VERIFICATION.md` | What was tested and what remains unverified |
-| `SECURITY.md` / `CLEAN_ROOM_POLICY.md` / `style.md` | Security constraints, observation policy and visual specification |
+### Repository structure
+
+The tree expands the tracked source and documentation. Test suites and gallery images are grouped by filename pattern. Generated builds, downloaded dependencies and private device data are excluded from this source map. The native executable and some internal IDs retain legacy names for [upgrade compatibility](docs/BRANDING.md).
+
+<details open>
+<summary>coscarOS source tree</summary>
+
+```text
+coscarOS/
+├── docs/  # Setup, integration, verification and legal guides
+│   ├── images/  # Public screenshots using synthetic/demo data
+│   │   └── *.jpg  # Public gallery captures
+│   ├── ASSET_PROVENANCE.md
+│   ├── AUDIO_INPUT.md
+│   ├── backend-rules.md
+│   ├── BLACK_STARTUP.md
+│   ├── BRANDING.md
+│   ├── CUSTOM_OBD.md
+│   ├── HOTSPOT_SETUP.md
+│   ├── HUDIY_DEPENDENCIES.md
+│   ├── INSTALL.md
+│   ├── LEGAL_REVIEW_AT_EU.md
+│   ├── OBD_CAPTURE.md
+│   ├── OBD_CAPTURE_VERIFICATION.md
+│   ├── OBD_LOGGING.md
+│   ├── OTA_UPDATES.md
+│   ├── STANDALONE.md
+│   └── VERIFICATION.md
+├── implementation/  # Application source and build definitions
+│   ├── dashboard/  # React touchscreen frontend
+│   │   ├── .openai/
+│   │   │   └── hosting.json  # Optional hosting metadata
+│   │   ├── public/
+│   │   │   └── THIRD_PARTY_NOTICES.txt  # Complete browser library/font licenses
+│   │   ├── qa/
+│   │   │   └── audio-dsp-check.html  # Offline browser audio-graph check
+│   │   ├── scripts/
+│   │   │   ├── licenses.mjs  # Generate notices from locked installed packages
+│   │   │   └── prepare-sites-build.mjs  # Optional static-hosting build packaging
+│   │   ├── src/  # Screens, components and browser-side behavior
+│   │   │   ├── App.jsx  # Dashboard, navigation, settings and taskbar
+│   │   │   ├── audio.js
+│   │   │   ├── AudioInput.jsx  # Microphone selection, gain and mute
+│   │   │   ├── audioPresets.mjs
+│   │   │   ├── BluetoothView.jsx
+│   │   │   ├── branding.mjs  # coscarOS labels with compatible stored IDs
+│   │   │   ├── CallButton.jsx
+│   │   │   ├── catalog.js  # Menu definitions and preferences
+│   │   │   ├── contactFilters.js
+│   │   │   ├── CustomizeMenu.jsx
+│   │   │   ├── customOBD.css
+│   │   │   ├── CustomOBD.jsx  # Custom dashboard editor and tile layout
+│   │   │   ├── customOBD.mjs  # Custom dashboard configuration helpers
+│   │   │   ├── DisplayBrightness.jsx
+│   │   │   ├── layout.js  # Persistent shortcuts and ordering
+│   │   │   ├── LicenseNotices.jsx  # In-app dependency/font license viewer
+│   │   │   ├── main.jsx  # React entry point
+│   │   │   ├── media.mjs
+│   │   │   ├── notifications.mjs
+│   │   │   ├── obdLogs.css
+│   │   │   ├── OBDLogs.jsx  # Diagnostic recording and export controls
+│   │   │   ├── OBDSettings.jsx
+│   │   │   ├── PhonebookView.jsx  # Contacts, favorites and call history
+│   │   │   ├── PhoneReconnect.jsx
+│   │   │   ├── RadioOutput.jsx
+│   │   │   ├── softwareUpdates.css
+│   │   │   ├── SoftwareUpdates.jsx  # OTA status and update preferences
+│   │   │   ├── startup.mjs  # Startup readiness acknowledgement
+│   │   │   ├── styles.css  # Shared responsive styling
+│   │   │   ├── Telemetry.jsx  # Standard OBD views and gauge rendering
+│   │   │   ├── theme.js
+│   │   │   ├── UpdateInterval.jsx
+│   │   │   ├── useDragScroll.js
+│   │   │   ├── useLongPress.js
+│   │   │   └── WirelessSettings.jsx
+│   │   ├── tests/  # Frontend, startup, license and hosting regressions
+│   │   │   └── *.test.mjs  # Frontend regression suites
+│   │   ├── worker/
+│   │   │   └── index.js  # Static frontend host; no Pi device services
+│   │   ├── .npmrc
+│   │   ├── AGENTS.md
+│   │   ├── index.html
+│   │   ├── package-lock.json  # Exact npm dependency versions
+│   │   ├── package.json  # Frontend commands and dependencies
+│   │   └── vite.config.mjs  # Development proxy and production build
+│   ├── launcher/  # Pi installation, session lifecycle and recovery
+│   │   ├── install_autostart.py  # Reversible user-session startup setup
+│   │   ├── install_black_boot.py  # Reversible quiet boot/session setup
+│   │   ├── install_pi.py  # Guided dependency/build/install orchestration
+│   │   ├── install_pi_system.py  # Bounded privileged OS setup
+│   │   ├── launcher.py  # Start and own the independent runtime
+│   │   ├── provision_hotspot.py  # Prepare protected, initially inactive car hotspot
+│   │   ├── session.py  # Car-session or ordinary-desktop selection
+│   │   └── update_supervisor.py  # Select releases and recover failed startup
+│   ├── native/  # GPL fullscreen Qt host and Android Auto integration
+│   │   ├── audio_dsp.hpp  # Projection equalizer and balance processing
+│   │   ├── audio_output.hpp  # Bounded audio worker and sink feeding
+│   │   ├── CMakeLists.txt  # Native targets and pinned protocol dependency
+│   │   ├── connection_policy.hpp  # Android Auto connection admission
+│   │   ├── LICENSE  # GPL-3.0-or-later license
+│   │   ├── main.cpp  # Web views, projection, audio, input and IPC
+│   │   ├── microphone_pcm.hpp  # Microphone PCM gain/mute
+│   │   ├── notice_overlay.hpp  # Notifications above projection
+│   │   ├── startup_gate.hpp  # Black cover until web views are ready
+│   │   ├── stress_audio_output.cpp  # Opt-in silent-sink stress probe
+│   │   ├── test_*.cpp  # Native CTest signal/policy/startup regressions
+│   │   ├── THIRD_PARTY.md  # Adaptations, source pins and distribution obligations
+│   │   ├── usb_transport.cpp  # Android USB accessory transport
+│   │   └── usb_transport.hpp  # USB transport interface
+│   ├── service/  # Python loopback API and device integrations
+│   │   ├── audio_route_support.py
+│   │   ├── audio_settings.py  # Native EQ/balance preferences
+│   │   ├── bluetooth_devices.py  # Discovery, pairing and reconnection settings
+│   │   ├── bluez_agent.py  # Bluetooth pairing confirmation/PIN agent
+│   │   ├── calls.py  # oFono call integration
+│   │   ├── custom_obd.py  # Custom PID definitions and formula validation
+│   │   ├── diagnostic_sweep.py  # Paced diagnostic discovery and capture
+│   │   ├── display.py  # Physical backlight control
+│   │   ├── driving_stats.py  # Derived driving statistics
+│   │   ├── elm_frames.py  # ECU response and multi-frame parsing
+│   │   ├── independent_audio_route.py  # Optional radio output routing
+│   │   ├── independent_obd.py  # Direct Bluetooth/serial adapter ownership
+│   │   ├── independent_wireless.py  # Owned car hotspot configuration
+│   │   ├── input_settings.py  # Microphone preference validation/persistence
+│   │   ├── layout.py  # Durable shared UI layout storage
+│   │   ├── live_media.py  # Addressed Bluetooth media metadata
+│   │   ├── obd.py  # Allowlisted live ELM327 polling
+│   │   ├── obd_logging.py  # Private sessions, recording limits and exports
+│   │   ├── ota_state.py  # Managed release state and rollback metadata
+│   │   ├── phonebook.py  # Phonebook synchronization
+│   │   ├── requirements.txt  # Python dependency requirements
+│   │   ├── runtime_support.py  # Private settings, routes and wireless handshake
+│   │   ├── server.py  # HTTP API and built-frontend serving
+│   │   ├── software_update.py  # Fixed GitHub source, preparation and parked activation
+│   │   ├── standalone_projection.py  # Owned native IPC and projection status
+│   │   ├── test_*.py  # Backend, API, transport and installer regressions
+│   │   ├── updates.py  # Music/contact refresh intervals
+│   │   └── usb_recovery.py
+│   └── OTA_PROTOCOL  # Managed release protocol version
+├── CLEAN_ROOM_POLICY.md  # Observation and implementation policy
+├── design-qa.md  # Design verification notes
+├── install.sh  # One-line Raspberry Pi installer entry point
+├── LEGAL.md  # Legal documentation and release-review index
+├── LICENSE  # Dashboard/backend MIT license
+├── README.md  # Introduction, architecture, setup and remaining work
+├── SECURITY.md  # Security boundaries and reporting
+└── style.md  # Themes, layout, gauges and visual conventions
+```
+
+</details>
+
+Start with [`App.jsx`](implementation/dashboard/src/App.jsx) for UI navigation, [`server.py`](implementation/service/server.py) for API routes, [`main.cpp`](implementation/native/main.cpp) for the fullscreen receiver, and [`launcher.py`](implementation/launcher/launcher.py) for runtime ownership. Device and persistence boundaries are in [backend rules](docs/backend-rules.md); hardware acceptance and historical results are in [verification](docs/VERIFICATION.md). [LEGAL.md](LEGAL.md) indexes licensing, provenance and the Austrian/EU assessment.
 
 ## Run locally
 
