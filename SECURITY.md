@@ -52,3 +52,8 @@ Projection PCM crosses a bounded, locked mailbox to our dedicated Qt output work
 ### Notification boundary
 
 The local notification action uses the existing protected HTTP/Unix-socket path. Only fixed notice kinds, bounded plain text, 1–15-second integer durations and hex RGB colors are accepted; no HTML, URL, arbitrary stylesheet or executable command is used. Native Qt plain-text rendering provides a second boundary. One label/timer retains transient text only; no phone data is written to a history or new diagnostics. Frontend switch/duration/Unicode/timer tests and HTTP command/schema rejection pass. Native widget and touchscreen acceptance are pending because the Pi powered off before upload. This is a scoped review, not a claim that every repository vulnerability has been excluded.
+
+
+## Publication dependency check — 24 October 2026
+
+The restored audio-worker and notification revision was recovered from saved local staging and regression-tested before publication. Vite is pinned at 6.4.5 in the manifest and lockfile, replacing 6.4.3 after npm reported affected development-server/editor middleware advisories. One upstream reference is [GHSA-r825-w8mm-5pxw](https://github.com/advisories/GHSA-r825-w8mm-5pxw). The complete npm audit reports zero known vulnerabilities at this check; this is not a guarantee against undisclosed or future issues. The production build and frontend/backend tests are checked separately. The new Qt overlay still requires Pi compilation and real device acceptance; this publication does not claim that verification or include the unfinished microphone integration.
