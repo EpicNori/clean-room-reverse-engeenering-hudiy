@@ -10,3 +10,10 @@
 8. Public or documented APIs may be treated as compatibility targets.
 9. Unknown behavior is marked `Unknown` rather than guessed.
 10. The goal is behavioral compatibility, not copying implementation.
+
+
+## Evidence limits and asset licensing
+
+This policy describes an observation-based reimplementation, not a claim that formally isolated observation/implementation teams were used. The same development process saw reference screens and implemented the interface. Preserve the distinction between evidence of independent code and separate review of visual expression, branding, contracts and dependency licenses. A popular clone project is not legal clearance.
+
+Fonts/icons/libraries require their own provenance and notices. Every dashboard build regenerates `public/THIRD_PARTY_NOTICES.txt` from the installed locked dependencies; Vite copies it beside the distributed browser assets. Do not crop or trace proprietary artwork, reuse original binaries/activation material, or advertise the linked GPL native program as MIT-only. The product is named coscarOS; original Hudiy references identify the historical observation target only.

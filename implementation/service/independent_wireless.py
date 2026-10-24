@@ -14,7 +14,7 @@ class IndependentWireless:
         self.projection=projection
         self.path=path or Path.home()/'.local/share/hudiy-recreation/wireless.json'
         self.lock=threading.RLock()
-        self.data={'enabled':False,'ssid':'Hudiy Recreation','ipAddress':'192.168.12.1','port':5277}
+        self.data={'enabled':False,'ssid':'coscarOS','ipAddress':'192.168.12.1','port':5277}
         try:
             if self.path.stat().st_size>2048:raise ValueError('Wireless preferences exceed limit')
             data=json.loads(self.path.read_text())

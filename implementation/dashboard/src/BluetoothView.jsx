@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 const Icon = ({ name }) => <span className="material-symbols-rounded" aria-hidden="true">{name}</span>;
 
 export function BluetoothView({ mode, action }) {
-  const [data, setData] = useState({available: false, devices: [], name: 'Hudiy', error: 'Loading Bluetooth devices…'});
+  const [data, setData] = useState({available: false, devices: [], name: 'coscarOS', error: 'Loading Bluetooth devices…'});
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
   const list = useRef(null), cancel = useRef(null), confirm = useRef(null), opener = useRef(null);
@@ -18,7 +18,7 @@ export function BluetoothView({ mode, action }) {
         if (!response.ok) throw Error();
         const result = await response.json();
         if (!closed) setData(result);
-      } catch { if (!closed) setData({available:false, devices:[], name:'Hudiy', error:'Live Bluetooth is available on the Pi'}); }
+      } catch { if (!closed) setData({available:false, devices:[], name:'coscarOS', error:'Live Bluetooth is available on the Pi'}); }
       finally { active = false; clearTimeout(deadline); }
     };
     poll();

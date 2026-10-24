@@ -156,7 +156,7 @@ export function SoftwareUpdates() {
       <header>
         <div>
           <h1>Software updates</h1>
-          <p>Hudiy · GitHub OTA</p>
+          <p>coscarOS · GitHub OTA</p>
         </div>
         <span className="software-version">
           {short(state?.installedRevision)}
@@ -456,7 +456,7 @@ export function SoftwareUpdates() {
         </p>
         <p>
           Updates come only from{" "}
-          {state?.repository || "EpicNori/clean-room-reverse-engeenering-hudiy"}{" "}
+          {state?.repository || "EpicNori/coscarOS"}{" "}
           · main. They build in a separate directory as the desktop user. At
           least 4 GiB free space and the installer’s build dependencies are
           required. No OS packages are installed automatically.

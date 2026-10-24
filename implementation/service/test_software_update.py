@@ -157,7 +157,7 @@ class Fixture(unittest.TestCase):
         archive=self.base/'fixture.tar.gz'
         with tarfile.open(archive,'w:gz') as tar:
             for name,body in {'implementation/OTA_PROTOCOL':'1','implementation/service/server.py':'# fixture','implementation/dashboard/package.json':'{}','implementation/dashboard/tests/a.test.mjs':'','implementation/native/CMakeLists.txt':''}.items():
-                member=tarfile.TarInfo('clean-room-reverse-engeenering-hudiy-'+B+'/'+name);encoded=body.encode();member.size=len(encoded);tar.addfile(member,io.BytesIO(encoded))
+                member=tarfile.TarInfo('coscarOS-'+B+'/'+name);encoded=body.encode();member.size=len(encoded);tar.addfile(member,io.BytesIO(encoded))
         self.update.cache['latestRevision']=B;commands=[]
         def get(url,stream,limit,cancel):stream.write(archive.read_bytes());return 'c'*64
         def run(args,cwd,env,timeout=3600):
@@ -199,7 +199,7 @@ class ArchiveAndNetworkTests(unittest.TestCase):
     def test_archive_rejects_escape_links_and_wrong_revision_before_extraction(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
-            for name,link in (('wrong/file',False),('clean-room-reverse-engeenering-hudiy-'+B+'/../escape',False),('clean-room-reverse-engeenering-hudiy-'+B+'/link',True)):
+            for name,link in (('wrong/file',False),('coscarOS-'+B+'/../escape',False),('coscarOS-'+B+'/link',True)):
                 archive=root/'source.tgz'
                 with tarfile.open(archive,'w:gz') as tar:
                     member=tarfile.TarInfo(name)
@@ -207,6 +207,30 @@ class ArchiveAndNetworkTests(unittest.TestCase):
                     tar.addfile(member)
                 with self.assertRaises(ValueError):unpack(archive,root/'destination',B)
             self.assertFalse((root/'escape').exists())
+
+    def test_renamed_repository_archive_extracts_and_old_or_foreign_root_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for prefix in ('coscarOS-', 'clean-room-reverse-engeenering-hudiy-', 'other-'):
+                archive = root/'source.tgz'
+                with tarfile.open(archive, 'w:gz') as tar:
+                    member = tarfile.TarInfo(prefix+B+'/README.md'); member.size = 7
+                    tar.addfile(member, io.BytesIO(b'fixture'))
+                target = root/prefix; target.mkdir()
+                if prefix == 'coscarOS-':
+                    unpack(archive, target, B)
+                    self.assertEqual((target/'README.md').read_bytes(), b'fixture')
+                else:
+                    with self.assertRaises(ValueError): unpack(archive, target, B)
+                    self.assertEqual(list(target.iterdir()), [])
+
+    def test_new_repository_redirect_is_allowed_but_prefix_spoofing_is_not(self):
+        import urllib.request
+        handler = HTTPSOnly(); request = urllib.request.Request('https://api.github.com/repos/EpicNori/coscarOS/git/ref/heads/main')
+        for url in ('https://api.github.com/repos/EpicNori/coscarOS/git/ref/heads/main', 'https://codeload.github.com/EpicNori/coscarOS/tar.gz/'+B):
+            self.assertEqual(handler.redirect_request(request, None, 302, '', {}, url).full_url, url)
+        for url in ('https://codeload.github.com/EpicNori/coscarOS-evil/tar.gz/'+B, 'https://api.github.com/repos/EpicNori/coscarOS-evil/git/ref/heads/main'):
+            with self.assertRaises(ValueError): handler.redirect_request(request, None, 302, '', {}, url)
 
     def test_wired_route_is_allowed_during_wireless_projection_but_shared_wifi_is_not(self):
         projection={'connected':True,'transport':'wifi'}

@@ -1,6 +1,6 @@
 # Black startup until Hudiy is ready
 
-Normal startup is intended to be **black boot → black car session → ready Hudiy dashboard and taskbar**. The Raspberry Pi is powered off, so this revision has not yet been built/deployed or cold-boot verified on the actual device.
+Normal startup is intended to be **black boot → black car session → ready Hudiy dashboard and taskbar**. The reference Bookworm Pi has now built/deployed the runtime and passed its startup-gate CTest and live UI readiness check. The complete cold-boot visual sequence remains unverified; see [deployment evidence](VERIFICATION.md#existing-pi-deployment-and-review--24-october-2026).
 
 ## What changes
 
@@ -40,7 +40,7 @@ The car session is configured under `~/.config/hudiy-recreation/labwc/`; `deskto
 
 ## Verification still needed on the Pi
 
-- [ ] Build the updated native executable and run CTest, including `black-startup-gate` and `android-auto-connection-policy`.
+- [x] Build the updated native executable on the reference Bookworm Pi and pass all six CTests, including `black-startup-gate` and `android-auto-connection-policy` (24 October 2026).
 - [ ] Record a complete cold boot on the actual display: no desktop/panel, OS logo, login flash, cursor or white web page before Hudiy is painted.
 - [ ] Verify the black Plymouth theme/initramfs and the effective LightDM car-session selection on both supported OS images.
 - [ ] Test delayed backend/fonts, one failed web view, Retry and Return to desktop, and the emergency Quit shortcut.

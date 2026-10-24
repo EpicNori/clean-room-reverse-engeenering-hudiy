@@ -49,7 +49,7 @@ class OBDRecorder:
         self.lock = threading.RLock()
         self.export_lock = threading.Lock()
         self.export_write_lock = threading.Lock()
-        self.export_root = Path(export_root) if export_root else Path.home()/'Downloads/Hudiy-OBD-Logs'
+        self.export_root = Path(export_root) if export_root else Path.home()/'Downloads/coscarOS-OBD-Logs'
         self.active = None
         self.jobs = None
         self.thread = None
@@ -360,4 +360,4 @@ class OBDRecorder:
                 tmp.replace(path)
             except Exception:
                 tmp.unlink(missing_ok=True);raise
-        return {'filename':name,'directory':'Downloads/Hudiy-OBD-Logs'}
+        return {'filename':name,'directory':'Downloads/coscarOS-OBD-Logs'}

@@ -1,6 +1,6 @@
 # Software updates over the air
 
-Open **Applications → Hudiy → Settings → System → Software updates**. The app checks the fixed public GitHub repository `EpicNori/clean-room-reverse-engeenering-hudiy`, branch `main`. It never accepts a caller-supplied repository, branch, shell command or download URL.
+Open **Applications → Hudiy → Settings → System → Software updates**. The app checks the fixed public GitHub repository `EpicNori/coscarOS`, branch `main`. It never accepts a caller-supplied repository, branch, shell command or download URL.
 
 ![OTA settings with clearly labelled simulated update data](images/software-updates-preview.jpg)
 
@@ -71,6 +71,6 @@ This is a fixed-repository, HTTPS/commit-pinned source updater. It executes that
 
 Local automated checks cover strict settings/API boundaries, route/metering policy, source extraction, build-path stability, ready markers, activation rollback, confirmation/interlocks, startup health, repeated updates, restoration after crash/timeout/launch failure, and normal-installer selection. An actual public GitHub reference/archive download and bounded extraction succeeded without executing the downloaded source. UI checks use an explicitly simulated updater.
 
-Native ARM64 compilation and a complete update/rollback/power-cycle with real Pi hardware have **not** been performed for this revision. OTA requires a one-time deployment of this new code; an older published repository version without the protocol marker cannot be silently activated as an OTA release. See [backend rules](backend-rules.md) and [verification](VERIFICATION.md).
+Native ARM64 compilation and all six CTests now pass on the existing reference Bookworm Pi. A complete OTA update/rollback/power-cycle remains **unverified**; a normal baseline deployment is not an OTA acceptance test. OTA requires a one-time deployment of this new code; an older published repository version without the protocol marker cannot be silently activated as an OTA release. See [backend rules](backend-rules.md) and [verification](VERIFICATION.md).
 
 Protocol endpoints follow GitHub's [Git references API](https://docs.github.com/en/rest/git/refs#get-a-reference) and [source archive documentation](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives). No repository credentials are required for the public project.

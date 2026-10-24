@@ -29,7 +29,7 @@ export function WirelessSettings({action,standalone=false}) {
     <button className="layout-reset" disabled={!state.available || busy} onClick={()=>setConfirm(true)}>{state.enabled?'Disable car hotspot':'Enable car hotspot'}</button>
     <p className="setting-note">Pair your phone over Bluetooth, then connect over the Pi’s Wi-Fi. USB is not required. No home router or internet connection is needed for the connection. Maps and streaming may still need mobile data.</p>
     {state.enabled && state.connection && <p className="setting-note" role="status">{state.connection.error || stages[state.connection.stage] || 'Ready for a wireless connection.'}</p>}
-    {state.enabled && state.ssid && <p className="setting-note">Network: {state.ssid}. {standalone ? 'Pair your phone, then choose Connect Wi-Fi in Android Auto. USB is not required.' : 'Pair your phone with Hudiy, then choose Connect Wi-Fi. USB is not required.'}</p>}
+    {state.enabled && state.ssid && <p className="setting-note">Network: {state.ssid}. {standalone ? 'Pair your phone, then choose Connect Wi-Fi in Android Auto. USB is not required.' : 'Pair your phone with coscarOS, then choose Connect Wi-Fi. USB is not required.'}</p>}
     {confirm && <div className="customize-backdrop"><div className="customize-menu" role="dialog" aria-modal="true" aria-label="Change car Wi-Fi hotspot" onKeyDown={event=>{
       if(event.key==='Escape' && !busy){event.preventDefault();event.stopPropagation();setConfirm(false);}
       if(event.key==='Tab'){
@@ -40,7 +40,7 @@ export function WirelessSettings({action,standalone=false}) {
       <strong>{state.enabled?'Disable':'Enable'} the car hotspot?</strong>
       <p>{standalone
         ? state.enabled ? 'Wireless Android Auto will disconnect. The dashboard stays running.' : 'The Pi’s current Wi-Fi connection can disconnect. Use Ethernet for remote maintenance; the touchscreen stays available.'
-        : state.enabled ? 'Hudiy will restart and wireless Android Auto will disconnect.' : 'Hudiy will restart. The Pi’s current Wi-Fi connection can disconnect; use Ethernet for remote maintenance. You can still use the touchscreen and Quit stops the hotspot.'}</p>
+        : state.enabled ? 'coscarOS will restart and wireless Android Auto will disconnect.' : 'coscarOS will restart. The Pi’s current Wi-Fi connection can disconnect; use Ethernet for remote maintenance. You can still use the touchscreen and Quit stops the hotspot.'}</p>
       <button ref={cancel} disabled={busy} onClick={()=>setConfirm(false)}>Cancel</button>
       <button ref={apply} disabled={busy} onClick={async()=>{
         generation.current++;setBusy(true);try{const result=await action('wireless-hotspot',{enabled:!state.enabled,confirmed:true});if(result?.saved){setState(current=>({...current,enabled:!current.enabled}));setConfirm(false);}}

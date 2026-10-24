@@ -199,7 +199,7 @@ def inspect(network, path=STATE):
     return {**hardware, 'installed': True, 'enabled': state['enabled'], 'ssid': state['ssid']}
 
 
-def prepare(network, path=STATE, ssid='Hudiy Recreation', user=None, running=app_running):
+def prepare(network, path=STATE, ssid='coscarOS', user=None, running=app_running):
     validate_ssid(ssid)
     current = inspect(network, path)
     if current['installed']: return {**current, 'changed': False}
@@ -232,7 +232,7 @@ def setup_lock(directory):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true', help='Prepare an inactive profile; never activate Wi-Fi.')
-    parser.add_argument('--ssid', default='Hudiy Recreation', help='Name for a fresh installation only.')
+    parser.add_argument('--ssid', default='coscarOS', help='Name for a fresh installation only.')
     args = parser.parse_args()
     if sys.platform != 'linux': parser.error('Run on the Pi as its graphical-login user.')
     if os.geteuid() == 0: parser.error('Run as the graphical-login user, without sudo.')

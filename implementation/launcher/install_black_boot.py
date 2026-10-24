@@ -15,7 +15,7 @@ END = '# END HUDIY BLACK BOOT'
 THEME = 'hudiy-black'
 MANIFEST = 'var/lib/hudiy-recreation/black-boot.json'
 PLYMOUTH = '''[Plymouth Theme]
-Name=Hudiy black startup
+Name=coscarOS black startup
 Description=Black startup until the car application is ready
 ModuleName=script
 [script]
@@ -102,13 +102,13 @@ def managed_files(config, cmdline, launcher, select_session=True, lightdm=''):
         'usr/share/plymouth/themes/hudiy-black/hudiy-black.plymouth': PLYMOUTH,
         'usr/share/plymouth/themes/hudiy-black/hudiy-black.script': SCRIPT,
         'usr/share/wayland-sessions/hudiy-recreation.desktop':
-            '[Desktop Entry]\nName=Hudiy recreation\nComment=Black startup and independent car dashboard\n'
+            '[Desktop Entry]\nName=coscarOS\nComment=Black startup and independent car dashboard\n'
             'Type=Application\nDesktopNames=labwc\nExec=/usr/bin/python3 ' + desktop_quote(launcher.as_posix()) + '\n',
     }
     if select_session:
         files['etc/lightdm/lightdm.conf']=lightdm_session(lightdm)
         files['etc/lightdm/lightdm.conf.d/99-hudiy-recreation-session.conf'] = (
-            '# Hudiy dedicated session; login authentication is configured separately.\n'
+            '# coscarOS dedicated session; login authentication is configured separately.\n'
             '[Seat:*]\nautologin-session=hudiy-recreation\n')
     return files
 
@@ -148,9 +148,35 @@ class BlackBoot:
         if self.manifest.exists():
             state=self._load()
             self._verify(state)
-            if set(files)!=set(state['files']) or any(hashlib.sha256(content.encode()).hexdigest()!=state['files'][name]['installed'] for name,content in files.items()):
+            if set(files)!=set(state['files']):
                 raise ValueError('Black boot target changed; restore the saved setup before applying a different target')
-            return False
+            previous = {name: checked_path(self.root, name).read_bytes() for name in files}
+            replacements = {
+                'usr/share/plymouth/themes/hudiy-black/hudiy-black.plymouth': (b'Name=Hudiy black startup', b'Name=coscarOS black startup'),
+                'usr/share/wayland-sessions/hudiy-recreation.desktop': (b'Name=Hudiy recreation', b'Name=coscarOS'),
+                'etc/lightdm/lightdm.conf.d/99-hudiy-recreation-session.conf': (b'# Hudiy dedicated session;', b'# coscarOS dedicated session;'),
+            }
+            for name, content in files.items():
+                allowed = previous[name]
+                if name in replacements: allowed = allowed.replace(*replacements[name])
+                if allowed != content.encode():
+                    raise ValueError('Black boot target changed; restore the saved setup before applying a different target')
+            if all(previous[name] == content.encode() for name, content in files.items()): return False
+            if self.run(['plymouth-set-default-theme']) != THEME:
+                raise ValueError('The boot theme was changed after installation; preserve it before upgrading')
+            manifest_before = self.manifest.read_bytes()
+            try:
+                for name, content in files.items():
+                    atomic(checked_path(self.root, name), content.encode())
+                    state['files'][name]['installed'] = hashlib.sha256(content.encode()).hexdigest()
+                self.run(['plymouth-set-default-theme', '-R', THEME])
+                atomic(self.manifest, json.dumps(state).encode(), 0o600)
+            except Exception:
+                for name, data in previous.items(): atomic(checked_path(self.root, name), data)
+                atomic(self.manifest, manifest_before, 0o600)
+                self.run(['plymouth-set-default-theme', '-R', THEME])
+                raise
+            return True
         previous_theme = self.run(['plymouth-set-default-theme'])
         if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', previous_theme): raise ValueError('Unknown previous Plymouth theme')
         state = {'theme': previous_theme, 'files': {}}

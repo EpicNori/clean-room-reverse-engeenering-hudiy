@@ -17,7 +17,7 @@ import urllib.request
 
 from ota_state import SHA, private_directory, read_json, write_json, selection, release_path, activate
 
-REPOSITORY='EpicNori/clean-room-reverse-engeenering-hudiy'
+REPOSITORY='EpicNori/coscarOS'
 API=f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/main'
 DEFAULTS={'autoCheck':True,'notifyUpdates':True,'mode':'notify','checkIntervalHours':6,'prepareDuringAndroidAuto':True,'allowMetered':False,'keepVersions':2}
 
@@ -52,7 +52,7 @@ class HTTPSOnly(urllib.request.HTTPRedirectHandler):
 
 def download(url,target=None,limit=65536,cancel=None):
     opener=urllib.request.build_opener(HTTPSOnly)
-    request=urllib.request.Request(url,headers={'User-Agent':'Hudiy-Recreation-Updater','Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2026-03-10'})
+    request=urllib.request.Request(url,headers={'User-Agent':'coscarOS-Updater','Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2026-03-10'})
     result=bytearray();digest=hashlib.sha256();total=0
     with opener.open(request,timeout=30) as response:
         while True:
@@ -68,7 +68,7 @@ def download(url,target=None,limit=65536,cancel=None):
 
 
 def unpack(archive,target,revision):
-    prefix='clean-room-reverse-engeenering-hudiy-'+revision
+    prefix='coscarOS-'+revision
     with tarfile.open(archive,'r:gz') as tar:
         members=[];total=0
         for member in tar:

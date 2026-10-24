@@ -51,7 +51,7 @@ This does not expose every proprietary module or undocumented manufacturer signa
 
 Stop a session before exporting:
 
-- **Export CSV** writes a spreadsheet-friendly file to `~/Downloads/Hudiy-OBD-Logs/`. It contains UTC timestamps, elapsed time, event types, commands, ECU headers, sources, values, units, errors, raw replies and structured JSON. Additional `reading` rows flatten numerical dashboard/custom/derived samples for plotting. Numeric negative values remain numbers; formula-like textual cells are escaped.
+- **Export CSV** writes a spreadsheet-friendly file to `~/Downloads/coscarOS-OBD-Logs/`. It contains UTC timestamps, elapsed time, event types, commands, ECU headers, sources, values, units, errors, raw replies and structured JSON. Additional `reading` rows flatten numerical dashboard/custom/derived samples for plotting. Numeric negative values remain numbers; formula-like textual cells are escaped.
 - **Export JSONL** saves the complete event stream to that same fixed directory. Each line is an independent JSON event. Sensor definitions/settings and connection events help interpret the readings. Interrupted files retain their original bytes, including any incomplete final record.
 - **Download JSONL** is available in a regular browser. The native Pi application can use the filesystem export buttons without relying on a browser download dialog.
 

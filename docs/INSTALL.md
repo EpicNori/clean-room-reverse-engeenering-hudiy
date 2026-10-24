@@ -10,7 +10,7 @@ images are not supported by this installer.
 Open a terminal as your ordinary desktop user and paste:
 
 ```sh
-bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/clean-room-reverse-engeenering-hudiy/main/install.sh | bash'
+bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'
 ```
 
 The command downloads and executes this repository's installer as your user.
@@ -26,10 +26,10 @@ Git/Python and an existing checkout; it does not install packages or clone one.
 
 1. Checks the Pi, 64-bit OS, supported release, desktop/labwc and free disk space.
    It refuses root execution and installation while our car app is running.
-2. Clones to `~/hudiy-recreation`, or updates an existing clean `main` checkout
+2. Clones to `~/coscarOS` (reuses an existing `~/hudiy-recreation` checkout), or updates an existing clean `main` checkout
    from the exact project remote with a fast-forward only. Another remote,
    branch, dirty checkout or symlinked target is retained and refused. Set
-   `HUDIY_INSTALL_DIR` if you need a different directory.
+   `COSCAROS_INSTALL_DIR` (legacy `HUDIY_INSTALL_DIR` is also accepted) if you need a different directory.
 3. Installs native build dependencies, BlueZ/OBEX/oFono, NetworkManager/DHCP,
    PipeWire/WirePlumber, Python OS packages and the standard Android USB rules.
 4. Downloads the current official **Node 22 ARM64** release into our private user

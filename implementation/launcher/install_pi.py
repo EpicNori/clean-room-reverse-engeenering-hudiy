@@ -203,7 +203,7 @@ def main():
     args = parser.parse_args()
     try:
         release, running = preflight()
-        print('Hudiy recreation — independent Raspberry Pi car software')
+        print('coscarOS — independent Raspberry Pi car software')
         print('OS:', release['VERSION_CODENAME'], '| source:', ROOT)
         print('Black startup: quiet boot and a panel-free car session (unless --skip-black-boot).')
         print('Plan: install OS dependencies; verified user-private Node 22; build/test frontend and native receiver;')

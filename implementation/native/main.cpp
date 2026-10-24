@@ -168,7 +168,7 @@ public:
 
 oaa::SessionConfig capabilities(int margin, const QString& adapterAddress, const QString& wifiBssid) {
     oaa::SessionConfig config;
-    config.headUnitName = "Hudiy recreation"; config.manufacturer = "EpicNori";
+    config.headUnitName = "coscarOS"; config.manufacturer = "EpicNori";
     config.model = "Independent car software"; config.carModel = "Universal";
     config.carYear = "2026"; config.carSerial = "hudiy-recreation";
     config.swBuild = "standalone-1"; config.swVersion = "1.0";
@@ -233,7 +233,7 @@ class CarRuntime final : public QWidget {
     Q_OBJECT
 public:
     explicit CarRuntime(const QString& implementation) {
-        setWindowTitle("Hudiy recreation");
+        setWindowTitle("coscarOS");
         QPalette startupPalette = palette(); startupPalette.setColor(QPalette::Window, Qt::black);
         setPalette(startupPalette); setAutoFillBackground(true);
         setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -277,7 +277,7 @@ public:
         startupCover_->setStyleSheet("#startup-cover { background: #000; color: #fff; } #startup-cover QLabel { color: #fff; font-size: 24px; } #startup-cover QPushButton { color: #fff; background: #222; padding: 16px; min-height: 48px; font-size: 20px; }");
         auto* recovery = new QVBoxLayout(startupCover_);
         recovery->addStretch();
-        startupError_ = new QLabel("Hudiy could not finish loading.", startupCover_);
+        startupError_ = new QLabel("coscarOS could not finish loading.", startupCover_);
         startupError_->setWordWrap(true); startupError_->setAlignment(Qt::AlignCenter);
         startupRetry_ = new QPushButton("Retry loading", startupCover_);
         startupDesktop_ = new QPushButton("Return to desktop", startupCover_);
@@ -768,7 +768,8 @@ int main(int argc, char** argv) {
     // Protocol info/debug messages may contain phone metadata or raw payloads.
     QLoggingCategory::setFilterRules("*.debug=false\n*.info=false");
     QApplication application(argc, argv);
-    application.setApplicationName("hudiy-recreation"); application.setDesktopFileName("hudiy-recreation");
+    application.setApplicationName("hudiy-recreation");
+    application.setApplicationDisplayName("coscarOS"); application.setDesktopFileName("hudiy-recreation");
     if (argc != 2 || !QFile::exists(QString::fromLocal8Bit(argv[1]) + "/service/server.py")) {
         qCritical("Pass the implementation directory"); return 2;
     }

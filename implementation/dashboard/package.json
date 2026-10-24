@@ -1,11 +1,11 @@
 {
-  "name": "dashboard",
+  "name": "coscaros-dashboard",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prepare-sites-build.mjs",
+    "build": "node scripts/licenses.mjs && vite build && node scripts/prepare-sites-build.mjs",
     "preview": "vite preview",
     "test:sites": "node --test tests/sites-worker.test.mjs"
   },

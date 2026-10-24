@@ -48,7 +48,7 @@ export const menus = {
     ["Gauges 2", "speed", "gauges-2"],
     ["My OBD", "dashboard_customize", "custom-obd"],
     ["OBD Logs", "description", "obd-logs"],
-    ["Hudiy Marketpl", "storefront", "marketplace"],
+    ["Extensions", "storefront", "marketplace"],
   ],
   System: [
     ["Theme", "palette", "theme"],

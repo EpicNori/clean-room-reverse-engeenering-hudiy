@@ -1,3 +1,4 @@
+import {categoryLabel} from "./branding.mjs";
 import {startupIdentity, reportStartup} from "./startup.mjs";
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import "@material-symbols/font-600/rounded.css";
@@ -27,6 +28,7 @@ import { CallButton } from "./CallButton";
 import { WirelessSettings } from "./WirelessSettings";
 import { PhoneReconnect } from "./PhoneReconnect";
 import { RadioOutput } from "./RadioOutput";
+import { LicenseNotices } from "./LicenseNotices";
 import { AudioInput } from "./AudioInput";
 import { resolveMedia, isRemotePlayer } from "./media.mjs";
 import { NoticeCenter, TrackObserver } from "./notifications.mjs";
@@ -866,7 +868,7 @@ export function App() {
       <>
         <DisplayBrightness action={action}/>
         {toggle("blackStartup", "Black screen during startup")}
-        <p className="setting-note">Keep the screen black until Hudiy and its taskbar are ready. Applies next startup. Turning this off uses the normal desktop session when installed.</p>
+        <p className="setting-note">Keep the screen black until coscarOS and its taskbar are ready. Applies next startup. Turning this off uses the normal desktop session when installed.</p>
         {radio("timeFormat", "Time format", ["24h", "12h"])}
         {toggle("showClock", "Show clock")}
         {slider("barHeight", "Bottom bar height", { min: 65, max: 100 })}
@@ -1185,7 +1187,7 @@ export function App() {
                       }
                     >
                       <Icon name={icon} />
-                      <span>{label}</span>
+                      <span>{categoryLabel(label)}</span>
                     </button>
                   ),
                 )}
@@ -1623,15 +1625,17 @@ export function App() {
             </div>
           )}
           {screen === "about" && (
-            <div className="about">
-              <h1>Hudiy recreation</h1>
-              <p>Independent dashboard based on observed Hudiy 1.24 screens.</p>
+            <div className="about about-project">
+              <h1>coscarOS</h1>
+              <p>Independent Raspberry Pi car software.</p>
               <p>
                 Original project:{" "}
                 <a href="https://hudiy.eu" target="_blank" rel="noreferrer">
                   www.hudiy.eu
                 </a>
               </p>
+              <p>Independent project; not affiliated with or endorsed by the original Hudiy authors.</p>
+              <LicenseNotices/>
               <p>Version 0.1 · Raspberry Pi touchscreen</p>
             </div>
           )}
@@ -1710,9 +1714,9 @@ function Marketplace({ tell }) {
   return (
     <div className="marketplace">
       <header>
-        <small>✦ HUDIY SETTINGS</small>
-        <h1>Hudiy Marketplace</h1>
-        <p>Community extensions for your Hudiy dashboard.</p>
+        <small>✦ coscarOS SETTINGS</small>
+        <h1>coscarOS Extensions</h1>
+        <p>Community extensions for your coscarOS dashboard.</p>
         <div className="market-actions">
           <span>No catalog connected</span>
           <button onClick={() => tell("No community catalog is configured.")}>
@@ -1730,7 +1734,7 @@ function Marketplace({ tell }) {
       <div className="market-banner">
         <Icon name="apps" />
         <div>
-          <strong>Opened in Hudiy</strong>
+          <strong>Opened in coscarOS</strong>
           <p>Marketplace view within the normal settings</p>
         </div>
         <span>Community-made · unverified</span>

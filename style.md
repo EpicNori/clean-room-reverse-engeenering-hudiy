@@ -1,4 +1,4 @@
-# Hudiy recreation styles
+# coscarOS styles
 
 Visual reference: the user's Hudiy 1.24 installation, captured on 2026-10-03 at 1280 × 720.
 
@@ -220,3 +220,14 @@ Keep the existing Android Auto settings layout, theme and controls. State explic
 The Audio category gains an `Audio input` tile using the existing rounded `mic` Material Symbol. Sound links to the same page instead of displaying browser-only input controls. The page uses Roboto, existing theme tokens (`--selected`, `--active`, `--primary`, `--primary-text`, `--text`, `--muted`), the existing switch and rounded settings buttons. No fixed pink accents, new bitmap assets or external fonts are introduced.
 
 Device selector, Refresh and Save/Discard controls wrap within the settings scroll region and reserve its existing scroll-button gutter. Selects/buttons/range controls keep 48px touch targets. The slider uses a visible percentage and accessible label/value; mute exposes a labeled switch. Native status and unsaved drafts use polite status text. Missing/unsupported devices are named explicitly; a disabled preview/offline state never resembles active capture. Focus has a visible theme-colored outline. No new animation or motion is added.
+
+
+## About-page provenance and licenses
+
+The existing About screen adds one plain non-affiliation paragraph and an expandable local viewer for the complete browser license notices, using its current text/link styling and theme. No name, logo, layout, palette, font, image or other screen is redesigned. The notice text ships locally with the assets and does not require an external website.
+
+## coscarOS product identity
+
+Display the name exactly as **coscarOS**, including the lowercase initial c and uppercase OS. Use it in About, the application menu, OTA settings, native window title and fresh Bluetooth/Wi-Fi defaults. The extension screen is “coscarOS Extensions”. Existing Roboto typography, Material Symbols, responsive dimensions, themes and accent colors remain the style system; no original Hudiy logo is used. Historical source attribution may still name Hudiy. Stable stored menu IDs and application IDs are compatibility identifiers, not displayed branding.
+
+All 11 public gallery screenshots were retaken after the rename using the production build and isolated synthetic fixtures. The gallery cover illustration now reads coscarOS; the application menu and OTA screenshots show the new name.

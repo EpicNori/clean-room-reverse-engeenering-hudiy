@@ -62,6 +62,59 @@ class BlackStartupTests(unittest.TestCase):
             self.assertFalse((Path(folder)/'etc/lightdm/lightdm.conf.d/99-hudiy-recreation-session.conf').exists())
             self.assertTrue(manager.manifest.with_name('black-boot.restored.json').exists())
 
+    def legacy_branding(self, manager):
+        import hashlib
+        state = manager._load()
+        for name, saved in state['files'].items():
+            path = manager.root/name
+            data = path.read_bytes().replace(b'Name=coscarOS black startup', b'Name=Hudiy black startup').replace(b'Name=coscarOS', b'Name=Hudiy recreation').replace(b'# coscarOS dedicated session;', b'# Hudiy dedicated session;')
+            path.write_bytes(data)
+            saved['installed'] = hashlib.sha256(data).hexdigest()
+        boot.atomic(manager.manifest, json.dumps(state).encode(), 0o600)
+        return state
+
+    def test_branding_upgrade_retains_restore_backups_and_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            manager, runner, firmware = self.fixture(folder)
+            original = (firmware/'config.txt').read_bytes()
+            launcher = Path('/source/session.py')
+            manager.apply(launcher)
+            before = self.legacy_branding(manager)
+            self.assertTrue(manager.apply(launcher))
+            after = manager._load()
+            for name in before['files']:
+                self.assertEqual(before['files'][name]['before'], after['files'][name]['before'])
+                self.assertEqual(before['files'][name]['mode'], after['files'][name]['mode'])
+            self.assertIn('Name=coscarOS', (manager.root/'usr/share/wayland-sessions/hudiy-recreation.desktop').read_text())
+            self.assertFalse(manager.apply(launcher))
+            manager.restore()
+            self.assertEqual((firmware/'config.txt').read_bytes(), original)
+            self.assertEqual(runner.theme, 'pix')
+
+    def test_branding_upgrade_failure_restores_old_install_and_manifest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            manager, runner, _ = self.fixture(folder)
+            launcher = Path('/source/session.py'); manager.apply(launcher)
+            self.legacy_branding(manager)
+            manifest = manager.manifest.read_bytes()
+            before = {name: (manager.root/name).read_bytes() for name in manager._load()['files']}
+            runner.fail = True
+            with self.assertRaises(RuntimeError): manager.apply(launcher)
+            self.assertEqual(manager.manifest.read_bytes(), manifest)
+            for name, data in before.items(): self.assertEqual((manager.root/name).read_bytes(), data)
+            manager._verify(manager._load())
+
+    def test_branding_upgrade_refuses_admin_changes_and_new_launcher(self):
+        with tempfile.TemporaryDirectory() as folder:
+            manager, _, firmware = self.fixture(folder)
+            launcher = Path('/source/session.py'); manager.apply(launcher)
+            self.legacy_branding(manager)
+            with self.assertRaises(ValueError): manager.apply(Path('/other/session.py'))
+            path = firmware/'config.txt'; path.write_text(path.read_text()+'# admin change\n')
+            before = path.read_bytes()
+            with self.assertRaises(ValueError): manager.apply(launcher)
+            self.assertEqual(path.read_bytes(), before)
+
     def test_failed_initramfs_update_rolls_back_system_files_and_theme(self):
         with tempfile.TemporaryDirectory() as folder:
             manager,runner,firmware=self.fixture(folder)

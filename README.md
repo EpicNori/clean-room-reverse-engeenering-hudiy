@@ -1,6 +1,6 @@
-# Hudiy recreation
+# coscarOS
 
-**An independent Raspberry Pi car dashboard, rebuilt from observed Hudiy behavior.**
+**Independent Raspberry Pi car software with a configurable touchscreen dashboard.**
 
 React touchscreen UI · Python hardware service · Qt fullscreen host · USB & wireless Android Auto
 
@@ -11,6 +11,7 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 ## Contents
 
 - [Introduction](#introduction)
+- [coscarOS branding and upgrade compatibility](docs/BRANDING.md)
 - [Screenshot gallery](#screenshot-gallery)
 - [What we rebuilt and corrected from Hudiy](#what-we-rebuilt-and-corrected-from-hudiy)
   - [Observing the original](#1-observed-the-original-application)
@@ -37,6 +38,8 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 
 ## Introduction
 
+**coscarOS** is our independent product name. Earlier versions used “Hudiy recreation”; references to the original Hudiy below describe the historical observation target. See [branding and upgrade compatibility](docs/BRANDING.md).
+
 The project started with the owner's original Hudiy installation: inspect its screens and interactions, document what they do, and implement a usable car application independently. The aim is to preserve that familiar dashboard while making touch navigation, customization and device integration practical on our Pi.
 
 A touchscreen car dashboard built from observations of a running Hudiy installation and its public documentation. The interface is React and CSS, the gauges are drawn in code, and a Python service connects it to supported Pi and phone services.
@@ -49,11 +52,11 @@ The reference installation was Hudiy **1.24 / native API 1.3**, on a Raspberry P
 
 ## Screenshot gallery
 
-Every screenshot below was **retaken on 24 October 2026** from the current production build of our React application at 1280×720. This refresh replaces all previous gallery images, including the full-area My OBD layout and logging/update documentation images. The light theme follows the observed Hudiy reference; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
+Every screenshot below was **retaken on 24 October 2026** from the current production build of our React application at 1280×720. This coscarOS refresh replaces all 11 gallery images, including application branding, demo cover art and the OTA screen. The light theme follows our documented reference observations; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
 
 | 🌙 Dark dashboard | 🧭 Application menu |
 | --- | --- |
-| [![Dark amber dashboard with synthetic media, sample navigation and demo phone](docs/images/dashboard-dark.jpg)](docs/images/dashboard-dark.jpg) | [![Recreated Hudiy application menu and persistent taskbar](docs/images/applications.jpg)](docs/images/applications.jpg) |
+| [![Dark amber dashboard with synthetic media, sample navigation and demo phone](docs/images/dashboard-dark.jpg)](docs/images/dashboard-dark.jpg) | [![coscarOS application menu and persistent taskbar](docs/images/applications.jpg)](docs/images/applications.jpg) |
 | Same clock, navigation, music and phone layout with a different palette. | Rebuilt category navigation, settings entry and OBD view selection. |
 
 | 🎨 Theme controls | 🚗 OBD gauges — DEMO |
@@ -240,7 +243,7 @@ Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/). Vite proxies `/api` to th
 On **64-bit Raspberry Pi OS Desktop (Bookworm or Trixie)**, open a terminal as your ordinary desktop user:
 
 ```sh
-bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/clean-room-reverse-engeenering-hudiy/main/install.sh | bash'
+bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'
 ```
 
 The guided installer shows its plan, installs OS dependencies, checks/downloads a private Node runtime, builds/tests our frontend and native receiver, configures Bluetooth/audio/device access, selects startup and prepares an inactive protected hotspot. Default setup enables desktop autologin; `--no-autologin` preserves login authentication. It does not reboot or switch Wi-Fi automatically. See [installation, options and recovery](docs/INSTALL.md). A full freshly flashed image/reboot test is still pending.
@@ -287,7 +290,7 @@ The updated installer and native runtime implement a quiet black boot/car sessio
 
 **Settings → System → Software updates** adds selectable notify/manual or automatic-idle updates from this project's GitHub `main`. Check frequency, notifications, background preparation during Android Auto, metered routes and retained versions are configurable. Builds/tests run in a separate managed copy; activation restarts the app and verifies startup with automatic rollback. Ethernet can supply Internet while wireless Android Auto uses Wi-Fi; an existing free Wi-Fi Internet route is supported too. Network profiles remain unchanged.
 
-Install this OTA-capable revision once before using the updater. OS/package or incompatible bootstrap changes still use the normal installer. See the [OTA guide](docs/OTA_UPDATES.md) for initial deployment, source trust, parked/idle conditions and recovery. Real Pi OTA acceptance is pending. Local verification for this revision passes 214 backend tests (four platform skips), 33 frontend/packaging tests and the production build; the dependency audit reports zero known vulnerabilities.
+Install this OTA-capable revision once before using the updater. OS/package or incompatible bootstrap changes still use the normal installer. See the [OTA guide](docs/OTA_UPDATES.md) for initial deployment, source trust, parked/idle conditions and recovery. Real Pi OTA acceptance is pending. Local verification for this revision passes 214 backend tests (four platform skips), 34 frontend/packaging tests and the production build; the dependency audit reports zero known vulnerabilities.
 
 ## Settings and privacy
 
@@ -298,6 +301,9 @@ Phonebook and current-call data stay in bounded memory; temporary PBAP transfers
 The backend binds to **127.0.0.1** and is designed for a local application, not an internet service. It checks Host/origin, limits JSON action bodies to 4096 bytes and validates fixed actions/device ownership. No external Firebase/Supabase rules are involved. Read the full [backend rules](docs/backend-rules.md) and [security notes](SECURITY.md) before changing those boundaries.
 
 ## Tests and observed results
+
+**coscarOS rename (24 October 2026):** production build and all 35 frontend/packaging tests pass. The 219-test backend suite passes with four Linux-only checks skipped on Windows. New regressions cover shortcut persistence through the display-name change, exact managed startup migration/rollback, and fixed-repository OTA archives/redirects. The production dependency audit reports zero known vulnerabilities. All 11 public screenshots were retaken with synthetic fixtures. Native rebuild and hardware acceptance for this rename remain pending; the existing Pi app was left running because it reports an active diagnostic recording. See [upgrade instructions](docs/BRANDING.md).
+
 
 From the repository root:
 
@@ -326,15 +332,22 @@ Unchecked items are still incomplete or require hardware verification. The galle
 
 ### Black startup acceptance
 
-- [ ] Rebuild/test and deploy the new native startup cover and one-time black boot/session setup on the Pi.
-- [ ] Record cold boot through Hudiy readiness and verify there is no OS desktop/panel, logo, login flash, cursor or white loading page.
+- [x] Build/test the native startup cover and install reversible black boot/session configuration on the existing reference Pi. Cold boot acceptance remains open.
+- [ ] Record cold boot through coscarOS readiness and verify there is no OS desktop/panel, logo, login flash, cursor or white loading page.
 - [ ] Verify slow/failed loads, Retry, Quit/desktop recovery, the persisted startup switch, Android Auto during startup, OTA rollback and restoration of the previous boot configuration. See [the full checklist](docs/BLACK_STARTUP.md#verification-still-needed-on-the-pi).
+
+### Legal review and distribution
+
+- [ ] Complete independent review of GUI expression, dependency distribution and the new coscarOS name before a release.
+- [x] Prepare complete font/library notice packaging and an in-app About viewer with an artifact regression check.
+- [ ] Choose independent branding and assess distinctive copied interface arrangements; an Artcraft comparison is not legal clearance.
+- [ ] Review accepted original terms/entitlement and complete native binary/image licensing before distributing binaries or appliances.
 
 ### Microphones and audio capture
 
 - [x] Add **Settings → Audio → Audio input**: real native microphone enumeration, explicit Save/Discard, refresh, system-default or saved-device selection, input volume and mute. Preferences survive app restart; the Sound page links to these controls.
 - [x] Validate device IDs/settings, reject unknown or unsupported new selections, roll back runtime preferences on a failed disk write, and migrate the Audio menu without resetting shortcut order. Local API/persistence tests use synthetic devices, with no real capture.
-- [ ] Build the current native receiver and run CTest on the Pi, including `microphone-gain-mute`. The Pi remains off; Windows has no native Qt toolchain.
+- [x] Build the native receiver on the reference Bookworm Pi and run all six CTests, including `microphone-gain-mute` with Release assertions enabled. All passed on 24 October 2026; real capture/hotplug tests remain open.
 - [ ] Verify USB microphone enumeration, selection, gain/mute, refresh, and persistence after a full Pi reboot. Check an unsupported capture format and no-device state.
 - [ ] Verify unplug/replug and a changed system default: a specifically selected missing mic must not silently fall back; settings alone must not record. Confirm capture starts/stops only with an actual Android Auto voice request, including muted startup and live device switching.
 - [ ] Pair a microphone-capable Bluetooth device and verify it appears only when its system audio profile exposes capture. Bluetooth radio output is a separate feature.
@@ -347,7 +360,7 @@ See [microphone setup and scope](docs/AUDIO_INPUT.md).
 - [ ] Deploy the current receiver/backend and cold-boot the Pi with the Fold4 already paired, Bluetooth/Wi-Fi enabled and **USB unplugged for the entire test**. Verify projection starts through Bluetooth discovery and the Pi hotspot; no wired session should be needed first.
 - [ ] Repeat with automatic connection Off and tap Connect Wi-Fi directly. Test delayed hotspot startup, Resume after a previous USB session, Quit and reconnect, and multiple paired phones. Keep automatic-opening Off during one run and confirm the dashboard stays visible.
 
-The owner confirmed the Pi is still switched off. The missing-handoff/manual bootstrap and readiness fixes were verified only with mocks and a real local socket exchange; device acceptance remains open. See [direct wireless setup and test limits](docs/STANDALONE.md#direct-wireless-startup-without-usb).
+The Pi is now deployed and its native build/tests pass; direct wireless cold-start acceptance remains open. The missing-handoff/manual bootstrap and readiness fixes were verified only with mocks and a real local socket exchange; device acceptance remains open. See [direct wireless setup and test limits](docs/STANDALONE.md#direct-wireless-startup-without-usb).
 
 ### Android Auto automatic connection acceptance
 
@@ -391,6 +404,7 @@ The Pi was switched off during this change. Local persistence, validation and re
 CarPlay/Autobox, FM tuner playback, notification integration and a real marketplace catalog are not implemented. A visible menu entry does not prove its hardware integration exists.
 
 ## Clean-room approach and legal basis
+
 
 **Our intended legal basis is independent implementation of behavior observed through authorized use, rather than redistribution of proprietary Hudiy code.** We treat the original as a black box, use its public documentation as a compatibility reference, write our implementation separately, and exclude proprietary source, binaries and assets. The default launcher runs our application; raw reference captures remain private. This is the process recorded in our [clean-room policy](CLEAN_ROOM_POLICY.md), not a claim of a formal legal audit.
 

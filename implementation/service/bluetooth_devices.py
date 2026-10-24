@@ -74,7 +74,7 @@ def read_devices(objects):
                         '_path': str(path)})
         if len(devices) >= 128: break
     devices.sort(key=lambda item: item['address'])
-    return adapter, {'name': str(info.get('Alias', info.get('Name', 'Hudiy')))[:128],
+    return adapter, {'name': str(info.get('Alias', info.get('Name', 'coscarOS')))[:128],
                      'discovering': bool(info.get('Discovering'))}, devices
 
 
@@ -96,7 +96,7 @@ class BluetoothDevices:
         self.phone_connection_ready = lambda: True
         self.last_attempt = {}
         self.scan_until = 0
-        self.data = {'available': False, 'name': 'Hudiy', 'discovering': False,
+        self.data = {'available': False, 'name': 'coscarOS', 'discovering': False,
                      'scanActive': False, 'devices': [], 'error': 'Bluetooth is available on the Pi'}
 
     def snapshot(self):
