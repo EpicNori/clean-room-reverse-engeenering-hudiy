@@ -1,0 +1,40 @@
+# Asset and dependency provenance
+
+Recorded 24 October 2026 for the coscarOS source distribution. This is an inventory of the browser packages, public gallery and identified native dependency chain, not a complete bill of materials for every possible OS image or proof of GUI clearance.
+
+## Browser libraries, fonts and icons
+
+Packages are installed from npm through the committed lockfile. Fonts/icons are obtained from their open-license packages rather than extracted from Hudiy. The visible interface imports Roboto and the Material Symbols Rounded font-600 package. The installed but unused font-400 package is not an additional font embedded by these imports. The Vite entry covers its browser helper and bundled license inventory, not an assertion that all build-time tools ship in the UI.
+
+| Package | Recorded installed version | License | Source |
+| --- | --- | --- | --- |
+| `react` | 19.2.0 | MIT | [Upstream](https://github.com/facebook/react) |
+| `react-dom` | 19.2.0 | MIT | [Upstream](https://github.com/facebook/react) |
+| `scheduler` | 0.27.0 | MIT | [Upstream](https://github.com/facebook/react) |
+| `chart.js` | 4.5.1 | MIT | [Upstream](https://github.com/chartjs/Chart.js) |
+| `@kurkle/color` | 0.3.4 | MIT | [Upstream](https://github.com/kurkle/color) |
+| `@fontsource/roboto` | 5.3.0 | OFL-1.1 | [Upstream](https://github.com/fontsource/font-files) |
+| `@material-symbols/font-600` | 0.47.6 | Apache-2.0 | [Upstream](https://github.com/marella/material-symbols) |
+| `vite` | 6.4.5 | MIT plus bundled third-party notices | [Upstream](https://github.com/vitejs/vite) |
+
+The [complete notice artifact](../implementation/dashboard/public/THIRD_PARTY_NOTICES.txt) contains the installed copyright/license texts and available NOTICE files. [The build generator](../implementation/dashboard/scripts/licenses.mjs) fails if a required license file is missing. [The artifact test](../implementation/dashboard/tests/distribution-licenses.test.mjs) compares versions and full texts with installed packages and production output. The lockfile and build output, rather than this dated table, determine the versions of a later release. Preserve licenses and attribution when redistributing or modifying these materials.
+
+## Public screenshots and gallery artwork
+
+`docs/images/*.jpg` are viewport captures of our rendered application, retaken on 24 October 2026. They are not photographs or screen captures of the original Hudiy software. The demo album illustration was created for this gallery and displays coscarOS; media, route and phone labels are synthetic fixtures. These captures do not contain a real phonebook, original album cover, real map location, Wi-Fi key or device address. The project's license covers its own contributions, subject to the independently applicable font/icon/dependency licenses and any unresolved rights in reproduced GUI expression.
+
+The [style specification](../style.md) describes the reference observations and intentional changes. The visual layout and gauge inspiration are disclosed in the [README comparison](../README.md#what-we-rebuilt-and-corrected-from-hudiy). Creating screenshot pixels from our own code does not establish originality of the arrangement. Raw reference captures remain private; a raw capture is not licensed merely because it is kept private.
+
+## Native code and protocol dependencies
+
+Our native source is GPL-3.0-or-later. The capability builder adapts the identified upstream ServiceDiscoveryBuilder; it is not represented as an entirely original protocol implementation. [Native notices](../implementation/native/THIRD_PARTY.md) identify OpenAuto Prodigy `3afc5dd8bbacb5ce68e109189b18b14b251fabef` and Open Android Auto protobuf submodule `5ff4aa218dd33913237993f2968bf70e16dc464e`. The [CMake configuration](../implementation/native/CMakeLists.txt) pins the protocol dependency. Preserve upstream notices and provide applicable corresponding source when conveying binaries.
+
+Qt, FFmpeg, libusb, OpenSSL, Protobuf and installed OS/device packages keep their respective terms. Their actual versions, build options, linked components and license files must be inventoried for a redistributed binary/image. The browser notice artifact does not purport to cover them. The mathematical EQ reference is the W3C Audio EQ Cookbook as recorded in native notices.
+
+## Names and external references
+
+coscarOS is the chosen project name, not a cleared registered mark. Hudiy is named only as the historical observation target/attribution and in stable compatibility identifiers. Android Auto and upstream project names identify relevant external products or technologies; this repository does not claim their endorsement, trademark ownership or certification. See [the legal assessment](LEGAL_REVIEW_AT_EU.md) and [branding notes](BRANDING.md).
+
+## Future contributions
+
+For every new visual/media asset, record the path, author/creator, original source, license and any changes; include the required license/NOTICE files. Do not add original product captures, phone media, logos or external artwork merely because they can be viewed publicly. Review source provenance and the license obligations for each new dependency. Update this inventory and the actual notice generator when the shipped browser assets change.

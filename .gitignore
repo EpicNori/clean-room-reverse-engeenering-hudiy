@@ -52,6 +52,5 @@ software-updates/
 .ota-release.json
 .ota-incomplete.json
 
-# Private legal assessment and diagnostic exports
-docs/LEGAL_REVIEW_AT_EU.md
+# Private diagnostic exports
 coscarOS-OBD-Logs/

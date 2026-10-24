@@ -33,6 +33,7 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 - [Settings and privacy](#settings-and-privacy)
 - [Tests and observed results](#tests-and-observed-results)
 - [Remaining work checklist](#remaining-work)
+- [Legal documentation, Austrian/EU review and provenance](LEGAL.md)
 - [Clean-room approach and legal basis](#clean-room-approach-and-legal-basis)
 - [License and public references](#license-and-public-references)
 
@@ -405,12 +406,14 @@ CarPlay/Autobox, FM tuner playback, notification integration and a real marketpl
 
 ## Clean-room approach and legal basis
 
+See the [public legal documentation](LEGAL.md), [Austrian/EU review and Artcraft comparison](docs/LEGAL_REVIEW_AT_EU.md), and [asset/dependency provenance](docs/ASSET_PROVENANCE.md). They distinguish implemented measures from unresolved rights and release obligations; publishing them is not legal clearance.
+
 
 **Our intended legal basis is independent implementation of behavior observed through authorized use, rather than redistribution of proprietary Hudiy code.** We treat the original as a black box, use its public documentation as a compatibility reference, write our implementation separately, and exclude proprietary source, binaries and assets. The default launcher runs our application; raw reference captures remain private. This is the process recorded in our [clean-room policy](CLEAN_ROOM_POLICY.md), not a claim of a formal legal audit.
 
-In the EU, software copyright protects a program's expression rather than its underlying ideas and principles, including those behind interfaces. Article 5(3) permits a person entitled to use a copy to observe, study or test its operation during authorized acts. These provisions support the observation-and-reimplementation approach; they do not automatically authorize copying every visual detail. See [Directive 2009/24/EC, Articles 1(2) and 5(3)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0024).
+In the EU, software copyright protects a program's expression rather than its underlying ideas and principles, including those behind interfaces. Article 5(3) permits a person entitled to use a copy to observe, study or test its operation during authorized acts; the Austrian provision is [UrhG §40d(3)(2)](https://www.ris.bka.gv.at/eli/bgbl/1936/111/P40d/NOR12036607). These provisions support the observation-and-reimplementation approach; they do not automatically authorize copying every visual detail. See [Directive 2009/24/EC, Articles 1(2) and 5(3)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0024).
 
-Decompilation for interoperability has narrower conditions and restrictions, including on substantially similar expression; it is not a general cloning permission. See [Article 6 of the Directive](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0024) and [German UrhG §69e](https://www.gesetze-im-internet.de/urhg/__69e.html). Our documented method does not rely on proprietary decompilation.
+Decompilation for interoperability has narrower conditions and restrictions, including on substantially similar expression; it is not a general cloning permission. See [Article 6 of the Directive](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0024) and [Austrian UrhG §40e](https://www.ris.bka.gv.at/eli/bgbl/1936/111/P40e/NOR12036608). Our documented method does not rely on proprietary decompilation.
 
 **Clean-room methods do not guarantee that a complete visual recreation is lawful.** Artwork, interface expression, names, trademarks and other rights require separate consideration; Article 8 preserves other legal protections. This project is an independent recreation and is not an official Hudiy release or a claim of endorsement. Our own code and the native dependency must also be distributed under their applicable licenses, described below. These are the reasons for our approach and its limits, not an unconditional legality certificate.
 
