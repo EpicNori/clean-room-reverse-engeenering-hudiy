@@ -159,3 +159,25 @@ Native IPC adds only `audio-input` settings and bounded `audioInput` status: at 
 ## coscarOS rename compatibility
 
 The OTA source is fixed to `EpicNori/coscarOS` and its exact HTTPS API/codeload paths; source archives must use `coscarOS-<verified revision>`. Other repositories, unsafe entries and changed trust domains remain rejected. Existing releases/state and their rollback paths are retained. Old updater installations need the one-time source migration in BRANDING.md. New diagnostic exports use `Downloads/coscarOS-OBD-Logs`. Existing saved logs/settings and internal `HUDIY_*`, app/profile/menu IDs remain compatible; no new route, privilege, Origin allowance or cloud rule is introduced.
+
+## Automatic model-independent diagnostic capture — 24 October 2026
+
+The existing guarded `POST /api/obd-logs` additionally accepts exactly
+`{"action":"mark"}` while a recording is active. It saves a fixed fault marker
+and expedites known read requests. Extra fields, arbitrary labels/commands,
+cross-origin requests and marks outside active recording are rejected.
+
+The ELM allowlist adds `ATH1` and fixed read-only UDS `1901FF`, `1902FF`,
+`1904<DTC>FF`, `1906<DTC>FF` (exactly six uppercase hex DTC digits). UDS requests
+require a physical standard CAN diagnostic target; the scheduler derives targets
+only from actual standard responders. No new generic command API, authentication,
+session change, clearing, ECU write, actuator command, package, privilege, cloud
+rule or listener is introduced. Generic queries restore functional addressing.
+
+Replies are bounded to 64 KiB. Raw and oversized structured events are split into
+ordered reconstructable parts; partial transport bytes and incomplete framing
+remain explicitly marked. Structured events have a 1 MiB ceiling, queues remain
+bounded, and existing private storage/export/path/Host/Origin limits still apply.
+Coverage and saved summaries distinguish empty/partial captures from finished
+files. See [automatic capture](OBD_CAPTURE.md) for address derivation, 32-ECU/
+64-DTC-detail limits, protocol scope, timing and chunk reconstruction.

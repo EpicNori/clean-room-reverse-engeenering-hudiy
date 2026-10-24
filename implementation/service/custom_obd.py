@@ -42,7 +42,7 @@ def formula_tree(expression):
             continue
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
             continue
-        raise ValueError('Formulas allow A–H, numbers and arithmetic/bitwise operators only')
+        raise ValueError('Formulas allow Aâ€“H, numbers and arithmetic/bitwise operators only')
     return tree
 
 
@@ -115,7 +115,7 @@ def validate_config(value):
                 raise ValueError('Tiles cannot overlap')
     settings=value['range']
     if not isinstance(settings,dict) or set(settings)!={'tankLitres','fuelLevel','fuelRate'}: raise ValueError('Invalid range settings')
-    if settings['tankLitres'] is not None and (type(settings['tankLitres']) not in (int,float) or not math.isfinite(settings['tankLitres']) or not 1<=settings['tankLitres']<=250): raise ValueError('Tank capacity must be 1–250 litres')
+    if settings['tankLitres'] is not None and (type(settings['tankLitres']) not in (int,float) or not math.isfinite(settings['tankLitres']) or not 1<=settings['tankLitres']<=250): raise ValueError('Tank capacity must be 1â€“250 litres')
     for field in ('fuelLevel','fuelRate'):
         if settings[field] is not None and settings[field] not in sources-{'errors'}-{'derived:'+id for id in DERIVED}:
             raise ValueError('Range inputs must refer to existing sensor readings')
@@ -157,27 +157,7 @@ class CustomOBDStore:
             return self.snapshot()
 
 
-def response_payloads(response,prefix):
-    """Separate ECU replies; join only explicitly numbered ELM ISO-TP lines."""
-    frames=[]; current=None
-    for line in response.upper().replace('>','\n').splitlines():
-        line=line.strip()
-        numbered=re.fullmatch(r'([0-9A-F]+):\s*([0-9A-F ]+)',line)
-        if numbered:
-            index=int(numbered[1],16); body=re.sub(r'\s+','',numbered[2])
-            if index==0:
-                if current is not None:frames.append(current)
-                current=body if body.startswith(prefix) else None
-            elif current is not None:current+=body
-            continue
-        if current is not None:frames.append(current);current=None
-        compact=re.sub(r'\s+','',line)
-        # ATH0 owns normal framing; tolerate a displayed CAN header in fixtures
-        # and old adapters without merging the following ECU's separate reply.
-        found=re.search(re.escape(prefix)+r'[0-9A-F]*$',compact)
-        if found:frames.append(found[0])
-    if current is not None:frames.append(current)
-    return frames
+from elm_frames import response_payloads
 
 
 def decode_sensor(sensor,response):

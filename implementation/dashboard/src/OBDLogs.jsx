@@ -48,7 +48,7 @@ const captureFields = [
   ["freezeFrame", "Freeze frame 0 · Mode 02"],
   ["monitorTests", "CAN monitor results · Mode 06"],
   ["vehicleInfo", "Vehicle information · Mode 09"],
-  ["faultCodes", "Stored, pending and permanent fault codes"],
+  ["faultCodes", "Fault codes · standard and discovered CAN ECUs"],
 ];
 const numberFields = [
   [
@@ -440,15 +440,23 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
           </summary>
           <p>
             All ECU-advertised live PIDs, freeze frame 0, CAN monitor data,
-            vehicle information, stored/pending/permanent fault codes, all
+            vehicle information, stored/pending/permanent fault codes, read-only
+            UDS fault status and available fault details from discovered CAN ECUs, all
             configured custom sensors, session estimates and raw adapter
             replies. Unsupported or undecoded data stays marked or raw.
           </p>
           <p>
             Reads share one adapter and are paced. More supported PIDs mean a
-            longer sweep; this is not simultaneous sampling. Manufacturer-only
-            data needs a mapping.
+            longer sweep; each reading keeps its own acquisition time. Discovery
+            requires no car model. Proprietary live signals still need definitions;
+            a generic OBD connection cannot expose every vehicle module.
           </p>
+          <p>
+            First sweep: {state?.coverage?.queriedReadings ?? 0} / {state?.coverage?.scheduledReadings ?? 0} readings queried
+            {state?.coverage?.firstSweepComplete ? " · finished" : " · incomplete"}.
+            {" "}{state?.coverage?.ecuHeaders?.length ?? 0} CAN ECUs discovered.
+          </p>
+          {state?.coverage?.limitations?.map((message) => <p key={message}>{message}</p>)}
           {Object.entries(supported).map(([mode, pids]) => (
             <p key={mode}>
               <strong>Mode {mode}</strong> · {pids.length} PIDs{" "}
@@ -471,6 +479,12 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
           {size(state?.limits?.totalBytes ?? 268435456)} total. Recording stops
           visibly at the limit; saved logs are never automatically erased.
         </p>
+        {active && (
+          <button disabled={busy || state?.finishing} onClick={() => run({ action: "mark" })}>
+            <Icon name="flag" />
+            Mark fault / power loss
+          </button>
+        )}
         {active && (
           <button onClick={() => showPreview(active.id)}>
             <Icon name="visibility" />
@@ -526,6 +540,13 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
                   · {size(session.bytes)} · {session.events ?? "Unknown"} events
                 </p>
                 <small>{session.reason || session.id}</small>
+                {session.captureSummary && (
+                  <p>
+                    {!session.captureSummary.hasVehicleData
+                      ? "No usable vehicle responses recorded"
+                      : `${session.captureSummary.queriedReadings} / ${session.captureSummary.scheduledReadings} readings queried · ${session.captureSummary.firstSweepComplete ? "first sweep finished" : "partial capture"} · ${session.captureSummary.unavailableReadings} unavailable`}
+                  </p>
+                )}
               </div>
               <div className="obd-log-actions">
                 <button

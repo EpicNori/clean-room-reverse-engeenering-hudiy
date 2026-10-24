@@ -61,6 +61,8 @@ class OBDRecorder:
         self.last_sample = None
         self.coverage = {}
         self.generation = 0
+        self.marker_generation = 0
+        self.has_vehicle_data = False
         try:
             self._directory()
             path = self.root/'settings.json'
@@ -120,10 +122,11 @@ class OBDRecorder:
                         item.update({key:data[key] for key in item if key in data})
                         if 'captureSettings' in data:item['captureSettings']=validate_settings(data['captureSettings'])
                         if type(data.get('sessionLimitBytes')) is int:item['sessionLimitBytes']=data['sessionLimitBytes']
+                        if isinstance(data.get('captureSummary'),dict):item['captureSummary']=data['captureSummary']
             except (OSError, ValueError): pass
             item['bytes'] = path.stat().st_size
             found.append(item)
-        return found
+        return sorted(found,key=lambda item:(item.get('startedAt') or 0,item['id']),reverse=True)
 
     def snapshot(self):
         with self.lock:
@@ -177,14 +180,16 @@ class OBDRecorder:
             except Exception:
                 stream.close(); path.unlink(); raise
             self.active = item; self.error = None; self.coverage = {}; self.generation += 1
+            self.has_vehicle_data = False
             self.session_settings=copy.deepcopy(self.settings);self.last_sample=None
             jobs = queue.Queue(maxsize=256); self.jobs = jobs
             budget = min(self.max_file, self.max_total-sum(s['bytes'] for s in sessions))
             item['sessionLimitBytes']=budget
             item['captureSettings']=copy.deepcopy(self.session_settings)
             self.thread = threading.Thread(target=self._write, args=(stream, jobs, item, budget), daemon=True)
-            self.record('session', {'version':1, 'context':context or {}, 'readOnly':True,
-                        'scope':'Advertised 01/02/06/09 data, 03/07/0A codes, configured 01/22 sensors, raw exchanges and session estimates'})
+            self.record('session', {'version':2, 'context':context or {}, 'readOnly':True,
+                        'captureSettings':copy.deepcopy(self.session_settings),
+                        'scope':'Advertised 01/02/06/09, 03/07/0A, discovered CAN ECU UDS fault status/details, configured 01/22, raw exchanges and per-reading times'})
             self.thread.start()
         return self.snapshot()
 
@@ -198,11 +203,23 @@ class OBDRecorder:
                 now=time.monotonic()
                 if self.last_sample is not None and now-self.last_sample<settings['sampleIntervalSeconds']:return
                 self.last_sample=now
+                if any(type(value) in (int,float) and math.isfinite(value) for value in data.get('values',{}).values()):
+                    self.has_vehicle_data=True
+            if kind=='diagnostic' and not data.get('error'):self.has_vehicle_data=True
             event = {'timestamp':time.time(), 'elapsed':round(time.time()-self.active['startedAt'], 6), 'type':kind, 'data':copy.deepcopy(data)}
             try:
                 line = json.dumps(event, allow_nan=False, separators=(',', ':')).encode('utf-8')+b'\n'
-                if len(line) > 24576: raise ValueError('Diagnostic event exceeded size limit')
-                self.jobs.put_nowait(line)
+                if len(line)<=24576:self.jobs.put_nowait(line)
+                else:
+                    # Long decoded responses remain reconstructable in bounded events.
+                    serialized=json.dumps(data,allow_nan=False,separators=(',',':'))
+                    if len(serialized)>1024*1024:raise ValueError('Diagnostic event exceeded size limit')
+                    chunks=[serialized[i:i+4096] for i in range(0,len(serialized),4096)]
+                    event_id=uuid.uuid4().hex
+                    for index,chunk in enumerate(chunks):
+                        part={**event,'type':kind+'-part','data':{'eventId':event_id,'part':index,
+                              'parts':len(chunks),'encoding':'json','content':chunk}}
+                        self.jobs.put_nowait(json.dumps(part,separators=(',',':')).encode()+b'\n')
             except (queue.Full, ValueError, TypeError):
                 self.finishing = True
                 self.error = 'Recording stopped: diagnostic queue or event limit exceeded; session is incomplete'
@@ -227,7 +244,10 @@ class OBDRecorder:
                 if time.monotonic()-last_sync >= 1:
                     stream.flush(); os.fsync(stream.fileno()); last_sync = time.monotonic()
             reason = reason or item.get('reason') or 'Stopped by user'
-            end = json.dumps({'timestamp':time.time(), 'type':'end', 'data':{'reason':reason}}, separators=(',', ':')).encode()+b'\n'
+            with self.lock:
+                summary=self._capture_summary()
+                item['captureSummary']=summary
+            end = json.dumps({'timestamp':time.time(), 'type':'end', 'data':{'reason':reason,'captureSummary':summary}}, separators=(',', ':')).encode()+b'\n'
             if item['bytes']+len(end) <= budget:
                 stream.write(end); item['bytes'] += len(end); item['events'] += 1
             stream.flush(); os.fsync(stream.fileno())
@@ -254,6 +274,24 @@ class OBDRecorder:
 
     def close(self): self.stop('Service shutdown')
 
+    def _capture_summary(self):
+        coverage=self.coverage
+        return {'hasVehicleData':self.has_vehicle_data or coverage.get('hasVehicleData',False),
+                'firstSweepComplete':coverage.get('firstSweepComplete',False),
+                'scheduledReadings':coverage.get('scheduledReadings',0),
+                'queriedReadings':coverage.get('queriedReadings',0),
+                'successfulReadings':coverage.get('successfulReadings',0),
+                'unavailableReadings':len(coverage.get('unavailable',{})),
+                'ecuCount':len(coverage.get('ecuHeaders',[])),
+                'scope':'Exposed read-only diagnostics; not all proprietary vehicle data'}
+
+    def mark(self):
+        with self.lock:
+            if not self.active or self.finishing:raise ValueError('Start recording before marking a fault')
+            self.marker_generation+=1
+            self.record('marker',{'label':'Power loss / engine warning','marker':self.marker_generation})
+        return self.snapshot()
+
     def connection(self, connected, mode, error=None):
         if connected and self.auto_record and not self.active and not self.finishing:
             try: self.start({'connected':True, 'mode':mode, 'automatic':True})
@@ -270,11 +308,23 @@ class OBDRecorder:
         self.record('connection-attempt',{'mode':mode})
 
     def exchange(self, command, response=None, error=None, header=None, started=None):
-        self.record('exchange', {'command':command, 'ecuHeader':header, 'requestedAt':started,
-                                'response':response[:4096] if response else None, 'responseTruncated':bool(response and len(response)>4096), 'error':str(error)[:512] if error else None})
+        received=time.time()
+        # Preserve long/partial traffic in bounded events; parts share one exchange ID.
+        exchange_id=uuid.uuid4().hex
+        truncated=bool(response and len(response)>65536) or bool(error)
+        response=response[:65536] if response else None
+        chunks=[response[i:i+4096] for i in range(0,len(response),4096)] if response else [None]
+        for index,chunk in enumerate(chunks):
+            self.record('exchange', {'command':command, 'ecuHeader':header, 'requestedAt':started,
+                                    'receivedAt':received,'durationSeconds':max(0,received-started) if started is not None else None,
+                                    'exchangeId':exchange_id,'part':index,'parts':len(chunks),
+                                    'response':chunk,'responseTruncated':truncated,'responseComplete':not truncated,
+                                    'error':str(error)[:512] if error else None})
 
     def set_coverage(self, coverage):
-        with self.lock: self.coverage = copy.deepcopy(coverage)
+        with self.lock:
+            self.coverage = copy.deepcopy(coverage)
+            if self.active:self.active['captureSummary']=self._capture_summary()
 
     def remove(self, identifier, confirmed):
         if confirmed is not True: raise ValueError('Confirm removal of this saved recording')
@@ -335,7 +385,12 @@ class OBDRecorder:
                         if type(value) not in (int,float):continue
                         key=source.split(':',1)[-1]
                         unit=custom_units.get(key,'') if source.startswith('custom:') else derived_units.get(key,'') if source.startswith('derived:') else builtin_units.get(key,'')
-                        cells=[stamp,event.get('elapsed'),'reading','','',source if ':' in source else 'builtin:'+source,value,unit,'','','']
+                        acquired=data.get('acquiredAt',{}).get(source,event['timestamp'])
+                        if type(acquired) not in (int,float) or not math.isfinite(acquired):acquired=event['timestamp']
+                        reading_stamp=datetime.fromtimestamp(acquired,timezone.utc).isoformat()
+                        elapsed=event.get('elapsed')
+                        if type(elapsed) in (int,float):elapsed=round(elapsed+acquired-event['timestamp'],6)
+                        cells=[reading_stamp,elapsed,'reading','','',source if ':' in source else 'builtin:'+source,value,unit,'','','']
                         writer.writerow([safe_cell(cell) if index!=6 else value for index,cell in enumerate(cells)])
             except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
                 writer.writerow(['','','invalid_record','','','','','','Truncated or invalid record retained in JSONL','',''])

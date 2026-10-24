@@ -231,3 +231,15 @@ The existing About screen adds one plain non-affiliation paragraph and an expand
 Display the name exactly as **coscarOS**, including the lowercase initial c and uppercase OS. Use it in About, the application menu, OTA settings, native window title and fresh Bluetooth/Wi-Fi defaults. The extension screen is “coscarOS Extensions”. Existing Roboto typography, Material Symbols, responsive dimensions, themes and accent colors remain the style system; no original Hudiy logo is used. Historical source attribution may still name Hudiy. Stable stored menu IDs and application IDs are compatibility identifiers, not displayed branding.
 
 All 11 public gallery screenshots were retaken after the rename using the production build and isolated synthetic fixtures. The gallery cover illustration now reads coscarOS; the application menu and OTA screenshots show the new name.
+
+## Diagnostic capture coverage and fault markers — 24 October 2026
+
+OBD Logs adds a **Mark fault / power loss** button using the existing themed
+button, Material Symbols `flag` icon, text sizing and focus/touch styles. It is
+shown only for an active recording and disabled during finishing or an action.
+Coverage uses existing paragraph/details styles for queried/scheduled counts,
+discovered ECUs, incomplete captures and unavailable responses. Saved sessions
+show a concise capture summary, including an explicit no-vehicle-response state.
+No new colors, fonts, images, spacing system, motion or external assets are added.
+Labels describe automatic discovery without asking for a vehicle model and
+state the limits of exposed diagnostics instead of promising every vehicle signal.

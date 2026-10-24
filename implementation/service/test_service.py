@@ -96,9 +96,13 @@ class HTTPTests(unittest.TestCase):
                 with self.request('/api/obd-logs',{'action':'start'},headers={'Origin':'https://evil.example'}) as response:self.assertEqual(response.status,403)
                 with self.request('/api/obd-logs',{'action':'settings','settings':{**DEFAULT_SETTINGS,'autoRecord':True}}) as response:self.assertTrue(json.load(response)['autoRecord'])
                 with self.request('/api/obd-logs',{'action':'start'}) as response:identifier=json.load(response)['active']['id']
+                with self.request('/api/obd-logs',{'action':'mark'},headers={'Origin':'https://evil.example'}) as response:self.assertEqual(response.status,403)
+                with self.request('/api/obd-logs',{'action':'mark','command':'04'}) as response:self.assertEqual(response.status,400)
+                with self.request('/api/obd-logs',{'action':'mark'}) as response:self.assertTrue(json.load(response)['recording'])
                 with self.request('/api/obd-logs/'+identifier+'/jsonl') as response:self.assertEqual(response.status,400)
                 rec.exchange('010D','410D3C>')
                 with self.request('/api/obd-logs',{'action':'stop'}) as response:self.assertFalse(json.load(response)['recording'])
+                with self.request('/api/obd-logs',{'action':'mark'}) as response:self.assertEqual(response.status,400)
                 with self.request('/api/obd-logs/'+identifier+'/jsonl') as response:
                     self.assertEqual(response.status,200);self.assertIn('attachment',response.headers['Content-Disposition']);self.assertIn(b'410D3C',response.read())
                 with self.request('/api/obd-logs/'+identifier+'/preview') as response:self.assertTrue(json.load(response)['events'])

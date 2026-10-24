@@ -72,3 +72,14 @@ Tests cover strict settings/action schemas, command/write rejection, advertised-
 Powered-vehicle/ELM327 support, physical touchscreen input, Pi deployment and power-cut recovery on actual hardware remain unverified for this revision. A log helps investigation; the software does not establish a repair diagnosis from codes alone.
 
 Protocol scope was checked against the [ELM327 manufacturer's data sheet](https://elmelectronics.com/wp-content/uploads/2020/05/ELM327DSL.pdf), [python-OBD command documentation](https://python-obd.readthedocs.io/en/latest/Command%20Tables/), and [Snap-on service-mode documentation](https://www.snapon.com/DiagnosticsManuals/PDL/7100/EG/Content/Common/SMX_Scanner/OBDII%20Service%20Modes.htm). The implementation is our own and adds no python-OBD runtime dependency.
+
+## Automatic capture improvements — 24 October 2026
+
+Recording now retains ECU identity, validates multi-frame replies, preserves
+long/partial traffic and per-reading acquisition times, prioritizes fault reads,
+and automatically requests read-only UDS fault/status/details from discovered
+standard CAN responders without a vehicle profile. Saved coverage distinguishes
+an incomplete scan or connection-only recording from a finished file. Use
+**Mark fault / power loss** to timestamp a symptom and expedite known reads.
+See [automatic diagnostic capture](OBD_CAPTURE.md) for exact scope, limits,
+reconstruction of split events and manufacturer-data limitations.

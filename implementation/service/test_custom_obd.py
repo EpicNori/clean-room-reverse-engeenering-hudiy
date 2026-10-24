@@ -81,7 +81,7 @@ class CustomOBDTests(unittest.TestCase):
         self.assertEqual(decode_codes('43 02 01 33 04 20>'),['P0133','P0420'])
         self.assertEqual(decode_codes('43 00 00 00 00 00 00>'),[])
         self.assertEqual(decode_codes('43 01 33 00 00 00 00\r43 04 20 00 00 00 00>'),['P0133','P0420'])
-        self.assertEqual(decode_sensor(sensor(mode='22',pid='1234',bytes=4,formula='D'),'008\r0: 62 12 34 11 22\r1: 33 44>'),68)
+        self.assertEqual(decode_sensor(sensor(mode='22',pid='1234',bytes=4,formula='D'),'007\r0: 62 12 34 11 22\r1: 33 44>'),68)
         with self.assertRaises(ValueError):decode_codes('NO DATA>')
 
 

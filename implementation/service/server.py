@@ -165,6 +165,7 @@ class Handler(BaseHTTPRequestHandler):
                     current=obd.snapshot()
                     return self.send(200,obd_logs.start({'connected':current['connected'],'mode':current['mode']}))
                 if action=='stop' and set(data)=={'action'}:return self.send(200,obd_logs.stop())
+                if action=='mark' and set(data)=={'action'}:return self.send(200,obd_logs.mark())
                 if action=='settings' and set(data)=={'action','settings'}:return self.send(200,obd_logs.set_settings(data['settings']))
                 if action=='settings' and set(data)=={'action','autoRecord'}:return self.send(200,obd_logs.set_auto(data['autoRecord']))
                 if action=='export' and set(data)=={'action','id','format'}:return self.send(200,obd_logs.save_export(data['id'],data['format']))

@@ -8,6 +8,7 @@ import time
 from custom_obd import decode_sensor, decode_codes
 from driving_stats import DrivingStats
 from diagnostic_sweep import DiagnosticSweep
+from elm_frames import response_payloads
 
 PIDS={'04':('load',1,lambda b:b[0]*100/255),'05':('coolant',1,lambda b:b[0]-40),'0C':('rpm',2,lambda b:(b[0]*256+b[1])/4),'0D':('speed',1,lambda b:b[0]),'11':('throttle',1,lambda b:b[0]*100/255),'42':('voltage',2,lambda b:(b[0]*256+b[1])/1000)}
 
@@ -15,12 +16,11 @@ def decode(pid,response):
     """Locate a valid sensor frame, including echoed commands and CAN headers."""
     if pid not in PIDS:
         raise ValueError('Unsupported PID')
-    compact=re.sub(r'\s+','',response.upper())
     _,size,formula=PIDS[pid]
-    match=re.search('41'+pid+r'([0-9A-F]{'+str(size*2)+'})',compact)
-    if not match:
-        return None
-    return round(formula(bytes.fromhex(match.group(1))),2)
+    for frame in response_payloads(response,'41'+pid):
+        raw=frame[4:]
+        if len(raw)>=size*2:return round(formula(bytes.fromhex(raw[:size*2])),2)
+    return None
 
 class Transport:
     def __init__(self,port):
@@ -55,13 +55,16 @@ class Transport:
         else:
             raise ValueError('Choose /dev/ttyUSBn, /dev/ttyACMn, /dev/rfcommn, COMn, or a loopback simulator')
     def query(self,command):
-        if not isinstance(command,str) or (command not in {'ATZ','ATE0','ATL0','ATH0','ATS0','ATSP0','ATDPN','03','07','0A'} and not re.fullmatch(r'01[0-9A-F]{2}|02[0-9A-F]{2}00|(?:06|09)[0-9A-F]{2}|22[0-9A-F]{4}|ATSH(?:[0-7][0-9A-F]{2}|[01][0-9A-F]{7})',command)):
+        if not isinstance(command,str) or (command not in {'ATZ','ATE0','ATL0','ATH0','ATH1','ATS0','ATSP0','ATDPN','03','07','0A','1901FF','1902FF'} and not re.fullmatch(r'01[0-9A-F]{2}|02[0-9A-F]{2}00|(?:06|09)[0-9A-F]{2}|22[0-9A-F]{4}|19(?:04|06)[0-9A-F]{6}FF|ATSH(?:[0-7][0-9A-F]{2}|[01][0-9A-F]{7})',command)):
             raise ValueError('Command is not in the read-only sensor allowlist')
+        if command.startswith('19') and (getattr(self,'protocol',None) not in {'6','7','8','9'} or
+                not re.fullmatch(r'7E[0-7]|18DA[0-9A-F]{2}F1',getattr(self,'header',None) or '')):
+            raise ValueError('UDS fault reads require a discovered physical CAN ECU')
         started=time.time()
         try:
             result=self._query(command)
         except Exception as exc:
-            if self.observer:self.observer.exchange(command,error=exc,header=self.header,started=started)
+            if self.observer:self.observer.exchange(command,getattr(exc,'response',None),error=exc,header=self.header,started=started)
             raise
         if self.observer:self.observer.exchange(command,result,header=self.header,started=started)
         return result
@@ -71,16 +74,22 @@ class Transport:
         if self.sock:self.sock.sendall(data)
         else:self.serial.write(data)
         result=b''
-        deadline=time.monotonic()+3
-        while time.monotonic()<deadline and len(result)<4096:
+        started=time.monotonic();deadline=started+3;hard_deadline=started+30
+        while time.monotonic()<min(deadline,hard_deadline) and len(result)<65536:
             try:
                 part=self.sock.recv(512) if self.sock else self.serial.read(512)
             except socket.timeout:
                 continue
-            if not part and self.sock:raise ConnectionError('ELM327 connection closed')
+            if not part and self.sock:
+                error=ConnectionError('ELM327 connection closed')
+                error.response=result.decode('ascii',errors='replace')
+                raise error
             result+=part
             if b'>' in result:return result.decode('ascii',errors='replace')
-        raise TimeoutError('ELM327 did not return a prompt')
+            if part:deadline=time.monotonic()+3
+        error=TimeoutError('ELM327 reply limit reached' if len(result)>=65536 else 'ELM327 did not return a prompt')
+        error.response=result.decode('ascii',errors='replace')
+        raise error
     def select_header(self,header=None):
         if header==self.header:return
         if self.protocol is None:
@@ -195,7 +204,9 @@ class OBD:
         try:
             identity=transport.query('ATZ')
             if 'ELM' not in identity.upper():raise RuntimeError('Device did not identify as ELM327')
-            for command in ('ATE0','ATL0','ATH0','ATS0','ATSP0'):transport.query(command)
+            for command in ('ATE0','ATL0','ATH1','ATS0','ATSP0'):
+                reply=transport.query(command)
+                if command=='ATH1' and 'OK' not in reply.upper():transport.query('ATH0')
         except Exception as exc:
             if self.recorder:self.recorder.connection(False,'disconnected',str(exc))
             transport.close()
@@ -226,11 +237,25 @@ class OBD:
                         custom={};due={};sensor_signature=config['config']['sensors']
                     signature=(config['config']['range'],config['config']['sensors'])
                     if signature!=stats_signature:stats.reset(); stats_signature=signature
-                if config:transport.select_header(None)
+                # Always restore functional addressing, including without a custom dashboard.
+                transport.select_header(None)
                 values={}
+                acquired={}
                 for pid,(key,_,_) in PIDS.items():
                     if stop.is_set():return
-                    values[key]=decode(pid,transport.query('01'+pid))
+                    command='01'+pid;requested=time.time()
+                    response=transport.query(command)
+                    received=time.time();acquired[key]=received
+                    values[key]=decode(pid,response)
+                    if logging and sweep:sweep.ingest(command,response,requested,received)
+                    # Interleave discovery with the normal reads instead of one extra
+                    # query only after a complete six-sensor dashboard pass.
+                    if logging and sweep:
+                        observation=sweep.step(transport)
+                        if observation and observation.get('source')=='stored-codes':
+                            diagnostics={'codes':observation.get('codes',[]),'error':observation.get('error'),'timestamp':time.time()}
+                    transport.select_header(None)
+                motion_custom=copy.deepcopy(custom)
                 if config:
                     dashboard=config['config']
                     wanted={w['source'] for w in dashboard['widgets']}|{dashboard['range']['fuelLevel'],dashboard['range']['fuelRate']}
@@ -252,18 +277,23 @@ class OBD:
                         try:diagnostics={'codes':decode_codes(transport.query('03')),'error':None,'timestamp':time.time()}
                         except ValueError as exc:diagnostics={'codes':[],'error':str(exc)[:160],'timestamp':time.time()}
                 stamp=time.time()
-                derived=stats.update(stamp,values,custom,config['config']['range']) if config else {}
-                for key,value in derived.items():values['derived:'+key]=value
+                # Derived motion belongs to the speed acquisition, not to the end
+                # of a potentially slow sweep. Future custom samples are rejected.
+                derived_stamp=acquired.get('speed',stamp)
+                derived=stats.update(derived_stamp,values,motion_custom,config['config']['range']) if config else {}
+                for key,value in derived.items():
+                    values['derived:'+key]=value;acquired['derived:'+key]=derived_stamp
                 if config:
                     for sensor in config['config']['sensors']:
                         sample=custom.get(sensor['id'],{})
                         if sample.get('timestamp') and stamp-sample['timestamp']>max(3,sensor['interval']*2):
                             sample={'value':None,'error':'Reading is stale','timestamp':sample['timestamp']}; custom[sensor['id']]=sample
                         values['custom:'+sensor['id']]=sample.get('value')
+                        acquired['custom:'+sensor['id']]=sample.get('timestamp')
                 history.append({'timestamp':stamp,'customRevision':mapping_revision,**values})
                 with self.lock:self.state.update(values=values,history=list(history),timestamp=stamp,custom=copy.deepcopy(custom),customRevision=mapping_revision,derived=derived,diagnostics=copy.deepcopy(diagnostics))
                 if logging:
-                    self.recorder.record('sample',{'timestamp':stamp,'mode':self.snapshot()['mode'],'values':values,'custom':custom,'derived':derived,'diagnostics':diagnostics,'mappingRevision':mapping_revision})
+                    self.recorder.record('sample',{'timestamp':stamp,'acquiredAt':acquired,'mode':self.snapshot()['mode'],'values':values,'custom':custom,'derived':derived,'diagnostics':diagnostics,'mappingRevision':mapping_revision})
                     if sweep:
                         observation=sweep.step(transport)
                         if observation and observation.get('source')=='stored-codes':
