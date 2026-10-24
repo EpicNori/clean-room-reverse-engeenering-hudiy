@@ -2,7 +2,7 @@
 // Protocol channel construction is adapted from OpenAuto Prodigy's
 // ServiceDiscoveryBuilder.cpp. See THIRD_PARTY.md for the pinned source.
 #include "usb_transport.hpp"
-#include "audio_dsp.hpp"
+#include "audio_output.hpp"
 #include <QApplication>
 #include <QAudioSink>
 #include <QAudioSource>
@@ -327,19 +327,7 @@ public:
             connect(audio_[i], &oaa::hu::AudioChannelHandler::streamStarted, this, [this,i](int) { startAudio(i); });
             connect(audio_[i], &oaa::hu::AudioChannelHandler::streamStopped, this, [this,i] { stopAudio(i); });
             connect(audio_[i], &oaa::hu::AudioChannelHandler::audioDataReceived, this, [this,i](const QByteArray& bytes, uint64_t) {
-                if (!audioDevice_[i]) return;
-                maximumAudioPacket_=qMax<qint64>(maximumAudioPacket_,bytes.size());
-                if (bytes.size()>1024*1024) {error_="Audio packet exceeds size limit"; return;}
-                const auto processed=dsp_[i].process(reinterpret_cast<const unsigned char*>(bytes.constData()),bytes.size());
-                drainAudio(i);
-                const int maximum=(i==2 ? 16000 : 48000)*(i==0 ? 2 : 1)*2;
-                if (audioPending_[i].size()+qint64(processed.size())>maximum) {
-                    droppedAudioBytes_+=audioPending_[i].size()+processed.size();
-                    audioPending_[i].clear(); dsp_[i].reset(i==2 ? 16000 : 48000,i==0 ? 2 : 1);
-                    error_="Audio output could not keep up"; return;
-                }
-                audioPending_[i].append(reinterpret_cast<const char*>(processed.data()),processed.size());
-                drainAudio(i);
+                audioOutput_.enqueue(i,bytes);
             });
         }
         mic_.setCaptureController([this](bool open) { return microphone(open); });
@@ -481,31 +469,8 @@ private:
             video_->image = image; video_->update(); ++frames_;
         }
     }
-    void startAudio(int index) {
-        stopAudio(index);
-        dsp_[index].reset(index==2 ? 16000 : 48000,index==0 ? 2 : 1);
-        auto device = QMediaDevices::defaultAudioOutput();
-        auto format = audioFormat(index == 2 ? 16000 : 48000, index == 0 ? 2 : 1);
-        if (device.isNull() || !device.isFormatSupported(format)) { error_ = "Select a compatible audio output"; return; }
-        sinks_[index] = new QAudioSink(device, format, this); sinks_[index]->setBufferSize(format.bytesForDuration(100000));
-        audioDevice_[index] = sinks_[index]->start();
-        if (!audioTimer_.isActive()) {
-            connect(&audioTimer_,&QTimer::timeout,this,[this] {for(int i=0;i<3;++i) drainAudio(i);});
-            audioTimer_.start(10);
-        }
-    }
-    void drainAudio(int index) {
-        if (!audioDevice_[index] || !sinks_[index] || audioPending_[index].isEmpty()) return;
-        const qint64 amount=qMin<qint64>(sinks_[index]->bytesFree(),audioPending_[index].size());
-        if (amount<=0) return;
-        const auto written=audioDevice_[index]->write(audioPending_[index].constData(),amount);
-        if (written>0) {audioBytes_+=written; audioPending_[index].remove(0,written);}
-    }
-    void stopAudio(int index) {
-        audioDevice_[index] = nullptr;
-        audioPending_[index].clear();
-        if (sinks_[index]) { sinks_[index]->stop(); delete sinks_[index]; sinks_[index] = nullptr; }
-    }
+    void startAudio(int index) { audioOutput_.start(index); }
+    void stopAudio(int index) { audioOutput_.stop(index); }
     bool microphone(bool open) {
         if (micSource_) { micSource_->stop(); delete micSource_; micSource_ = nullptr; }
         if (!open) return true;
@@ -542,7 +507,7 @@ private:
                     gains[i]=bands[i].toDouble();
                     valid=valid && bands[i].isDouble() && std::isfinite(gains[i]) && gains[i]>=-12 && gains[i]<=12;
                 }
-                if (valid) {for(auto& processor:dsp_) processor.configure(gains,balance.toInt()); audioSettings_=settings;}
+                if (valid) {audioOutput_.configure(gains,balance.toInt()); audioSettings_=settings;}
                 else error_="Invalid projection audio settings";
             } else if (op == "exit") { QTimer::singleShot(150, qApp, &QApplication::quit); }
             else if (op == "quit") { requested_ = false; admission_ = false; showProjection(false); if (session_) session_->stop(); }
@@ -583,15 +548,27 @@ private:
     }
     void publish() {
         if (!client_) return;
+        const auto audio=audioOutput_.snapshot();
+        qint64 written=0, queued=0, dropped=0; QString audioError; QJsonArray audioChannels;
+        for (const auto& c:audio.channel) {
+            written+=c.written; queued+=c.pending; dropped+=c.dropped;
+            if (!c.error.isEmpty()) audioError=c.error;
+            else if (c.overflow && audioError.isEmpty()) audioError="Audio output could not keep up";
+            audioChannels.append(QJsonObject{{"active",c.active},{"receivedBytes",qint64(c.received)},
+                {"writtenBytes",qint64(c.written)},{"queuedBytes",c.pending},{"droppedBytes",qint64(c.dropped)},
+                {"highWaterBytes",c.highWater},{"overflows",qint64(c.overflows)},{"underruns",qint64(c.underruns)},
+                {"sinkState",c.sinkState},{"sinkError",c.sinkError}});
+        }
         QJsonObject state{{"event","state"}, {"connected",active_}, {"visible",visible_}, {"phase",phase_},
-            {"route",route_}, {"revision",revision_}, {"error",error_}, {"transport",transportName_},
-            {"frames",static_cast<qint64>(frames_)}, {"audioBytes",static_cast<qint64>(audioBytes_)}, {"runtimePid",QCoreApplication::applicationPid()},
+            {"route",route_}, {"revision",revision_}, {"error",error_.isEmpty() ? audioError : error_}, {"transport",transportName_},
+            {"frames",static_cast<qint64>(frames_)}, {"audioBytes",written}, {"runtimePid",QCoreApplication::applicationPid()},
             {"lastDisconnectPhase",lastDisconnectPhase_},
             {"microphoneAvailable",microphoneAvailable_},
             {"audioDSP",audioSettings_},
-            {"audioQueuedBytes",audioPending_[0].size()+audioPending_[1].size()+audioPending_[2].size()},
-            {"audioDroppedBytes",static_cast<qint64>(droppedAudioBytes_)},
-            {"maximumAudioPacket",maximumAudioPacket_},
+            {"audioQueuedBytes",queued},
+            {"audioDroppedBytes",dropped},
+            {"maximumAudioPacket",audio.maximumPacket},
+            {"audioChannels",audioChannels},{"maximumAudioFeedGapMs",audio.maximumFeedGapMs},
             {"media",mediaState_}, {"navigation",navigationState_}, {"signal",signal_}, {"wirelessListening",tcp_.isListening()},
             {"taskbarVisible",options_.value("taskbarVisible").toBool(true)}};
         if (client_->bytesToWrite() > 65536) { client_->disconnectFromServer(); return; }
@@ -611,14 +588,12 @@ private:
     oaa::hu::NavigationChannelHandler navigation_; oaa::hu::PhoneStatusChannelHandler phone_;
     PairedBluetoothChannel bluetooth_; oaa::hu::WiFiChannelHandler* wifi_ = nullptr;
     oaa::hu::AVInputChannelHandler mic_; oaa::hu::AudioChannelHandler* audio_[3]{};
-    QAudioSink* sinks_[3]{}; QIODevice* audioDevice_[3]{}; QAudioSource* micSource_ = nullptr;
-    AudioDsp dsp_[3]; QByteArray audioPending_[3]; QTimer audioTimer_; QJsonObject audioSettings_;
+    ProjectionAudio audioOutput_; QAudioSource* micSource_ = nullptr; QJsonObject audioSettings_;
     AVCodecContext* codec_ = nullptr; AVFrame* frame_ = nullptr; SwsContext* scaler_ = nullptr;
     QJsonObject options_, mediaState_, navigationState_;
     QString route_ = "dashboard", error_, transportName_; int revision_ = 0, phase_ = 0, lastDisconnectPhase_ = 0, signal_ = -1, coverVersion_ = 0;
     bool active_ = false, visible_ = false, requested_ = false, admission_ = true, microphoneAvailable_ = false;
-    uint64_t frames_ = 0, audioBytes_ = 0, droppedAudioBytes_ = 0;
-    qint64 maximumAudioPacket_=0;
+    uint64_t frames_ = 0;
 };
 
 int main(int argc, char** argv) {

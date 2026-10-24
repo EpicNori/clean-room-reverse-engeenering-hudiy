@@ -105,6 +105,8 @@ class StandaloneProjection:
                     'audioQueuedBytes': self.state.get('audioQueuedBytes',0),
                     'audioDroppedBytes': self.state.get('audioDroppedBytes',0),
                     'maximumAudioPacket': self.state.get('maximumAudioPacket',0),
+                    'audioChannels': copy.deepcopy(self.state.get('audioChannels',[])),
+                    'maximumAudioFeedGapMs': self.state.get('maximumAudioFeedGapMs',0),
                     'runtimePid': self.state.get('runtimePid'),
                     'microphoneAvailable': self.state.get('microphoneAvailable') is True,
                     'videoReady': self.state.get('connected') is True and self.state.get('frames', 0) > 0,

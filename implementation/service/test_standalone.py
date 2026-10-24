@@ -35,6 +35,22 @@ class StandaloneTests(unittest.TestCase):
             for event in ([],{}, {'event':'state','connected':'yes','visible':False}):
                 with self.assertRaises(ValueError):bridge._event(event)
 
+    def test_audio_diagnostics_preserve_real_counters_and_isolate_snapshots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bridge=self.projection(directory)
+            channels=[{'active':True,'receivedBytes':8192,'writtenBytes':4096,
+                       'queuedBytes':4096,'droppedBytes':0,'overflows':0,'sinkError':0}]
+            bridge._event({'event':'state','connected':True,'visible':False,
+                           'audioChannels':channels,'maximumAudioFeedGapMs':7})
+            snapshot=bridge.snapshot()
+            self.assertEqual(snapshot['audioChannels'],channels)
+            self.assertEqual(snapshot['maximumAudioFeedGapMs'],7)
+            snapshot['audioChannels'][0]['droppedBytes']=100
+            self.assertEqual(bridge.snapshot()['audioChannels'][0]['droppedBytes'],0)
+            bridge._event({'event':'state','connected':False,'visible':False})
+            self.assertEqual(bridge.snapshot()['audioChannels'],[])
+            self.assertEqual(bridge.snapshot()['maximumAudioFeedGapMs'],0)
+
     def test_quit_routes_and_media_use_only_private_bounded_commands(self):
         with tempfile.TemporaryDirectory() as directory:
             bridge=self.projection(directory)

@@ -158,6 +158,8 @@ Sound can optionally save a separate paired Bluetooth A2DP receiver for the car 
 
 No radio receiver was selected for the final checks. Audible music, navigation and calls through such a receiver remain unverified. The native projection output now processes the same 15-band equalizer curve and stereo balance. Media/speech/system PCM use owned processors with peak bounds; balance leaves mono speech intact. Settings save privately, synchronize across our two web views, and reload on app restart. Flat is signal-identical in tests. Our practical preset curves replace the previous placeholder curves; they are not claimed to match proprietary Hudiy preset values. Multichannel fade/subwoofer hardware, Bluetooth AVRCP DSP, FM tuner audio and CarPlay/Autobox integration remain incomplete.
 
+Native projection audio now feeds its sinks from a dedicated worker, separate from GUI/video decoding. A silent-sink test with repeated 120 ms GUI stalls reproduced 391,808 dropped bytes in the old implementation; the worker delivered every submitted byte with no drops and an empty final queue. The reference Pi was restarted into this revision and wireless video/audio counters recovered with our taskbar intact. These are transport/buffering checks, not audible car-radio evidence. See [audio verification](docs/STANDALONE.md#dedicated-audio-worker--10-october-2026).
+
 ## Architecture
 
 ```mermaid
@@ -270,7 +272,7 @@ node --test tests/*.test.mjs
 npm audit --omit=dev --audit-level=high
 ```
 
-Earlier checkpoints passed 79 backend/13 frontend and 96 backend/14 frontend checks. The standalone-only cleanup passed 92 backend checks. The installer adds 11 checks: all 103 current backend checks pass on a clean Pi source snapshot; Windows skips the three Linux/symlink checks. The unchanged frontend has **16 frontend/packaging tests**. Previous native checks include a native CTest signal check, plus the previously recorded real Pi native compilation. Tests for the removed licensed bridge were retired; their OBD/audio regressions now exercise our direct transports. The same DSP signal check passed with AddressSanitizer and UndefinedBehaviorSanitizer on the Pi. The production dependency audit was rerun on 10 October 2026 and reported zero known vulnerabilities. A passing test suite is not a guarantee that the application has no security bugs.
+Earlier checkpoints passed 79 backend/13 frontend and 96 backend/14 frontend checks. The standalone-only cleanup passed 92 backend checks. The installer adds 11 checks: all 103 installer-era backend checks passed on a clean Pi source snapshot. The audio-worker revision passes all 104 backend checks directly in the cleaned Pi deployment; Windows skips the three Linux/symlink checks. The unchanged frontend has **16 frontend/packaging tests**. The current native revision compiles on the reference Pi and passes both CTest checks: DSP signals and bounded audio queues. An explicit opt-in silent-sink stress probe covers delivery during GUI stalls. Tests for the removed licensed bridge were retired; their OBD/audio regressions now exercise our direct transports. The same DSP signal check passed with AddressSanitizer and UndefinedBehaviorSanitizer on the Pi. The production dependency audit was rerun on 10 October 2026 and reported zero known vulnerabilities. A passing test suite is not a guarantee that the application has no security bugs.
 
 Tests cover bounded sensor/protocol handling, source changes and artwork invalidation, connection recovery, preference validation and rollback, layout persistence, calls with mocks, phonebook session ownership, audio routing ownership, host/origin/injection rejection and touch-filter grouping. Automated tests do not place real calls, remove real pairings or verify vehicle hardware.
 
@@ -292,7 +294,8 @@ Unchecked items are still incomplete or require hardware verification. The galle
 - [x] Add independent protected hotspot preparation with an inactive profile, private settings, conflict checks and owned rollback. See [setup verification](docs/HOTSPOT_SETUP.md).
 - [x] Add guided one-line setup for dependencies, builds/tests, device/audio configuration, desktop autologin/startup and inactive hotspot preparation.
 - [ ] Verify the complete one-line installer, hotspot activation and phone/audio services on freshly flashed Bookworm and Trixie images.
-- [ ] Verify sustained native audio output and correct the queue overflow observed in a longer live session.
+- [x] Reproduce GUI-stall audio overflow and replace GUI-thread feeding with a bounded independent worker; verify the silent-sink regression and live projection counters.
+- [ ] Verify extended audible media/navigation/conversation output through actual hardware, including clock drift and output-device recovery.
 
 ### Optional integrations and later extensions
 
