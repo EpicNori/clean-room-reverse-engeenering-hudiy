@@ -41,6 +41,10 @@ class BluezAgent:
         self.connection=None
         self.connection_thread=None
         self.restart_thread=None
+        self.reconnect_thread=None
+        self.last_reconnect=float("-inf")
+        self.manual_until=0
+        self.paused=False
         self.transport_preference='auto'
         self.connection_lock=threading.RLock()
         self.wireless_status={'connected':False,'lastMessage':None,'credentialRequests':0,'error':''}
@@ -112,8 +116,15 @@ class BluezAgent:
     def start(self):
         if self.bluetooth.enabled and not self.worker:
             self.worker=threading.Thread(target=self._run,daemon=True);self.worker.start()
+            self.reconnect_thread=threading.Thread(target=self._reconnect_loop,daemon=True)
+            self.reconnect_thread.start()
 
     def _run(self):
+        while not self.stop.is_set():
+            self._run_once()
+            self.stop.wait(2)
+
+    def _run_once(self):
         agent_manager=profile_manager=None
         registered_agent=registered_profile=False
         try:
@@ -186,6 +197,7 @@ class BluezAgent:
         except Exception:
             with self.lock:self.error='Independent Bluetooth agent could not register';self.ready=False
         finally:
+            self.ready=False
             self._close_connection()
             if registered_profile:
                 try:profile_manager.UnregisterProfile(PROFILE_PATH,timeout=3)
@@ -200,7 +212,50 @@ class BluezAgent:
         return wifi_frame(1,field(1,credentials['ipAddress'])+field(2,credentials['port']))
 
     def wireless_allowed(self):
-        with self.lock:return self.transport_preference!='usb' and self.wireless.credentials().get('enabled') is True
+        state=self.projection.snapshot()
+        with self.lock:return (not self.paused and self.transport_preference!='usb' and self.wireless.credentials().get('enabled') is True
+            and (state.get('connectionAllowed') is True or time.monotonic()<self.manual_until))
+
+    def automatic_reconnect(self):
+        state=self.projection.snapshot()
+        if (not self.ready or state.get('available') is not True or
+            state.get('automaticConnectionAllowed') is not True or state.get('options',{}).get('autoConnect',True) is False or state.get('connected') or
+            state.get('sessionStarting') or not self.wireless_allowed()):return
+        now=time.monotonic()
+        with self.lock:
+            if now-self.last_reconnect<30:return
+            self.last_reconnect=now
+        with self.connection_lock:connected=self.connection is not None
+        try:
+            if connected:self.retrigger()
+            else:self.bluetooth.retry_android_auto()
+        except OSError:pass
+
+    def _reconnect_loop(self):
+        while not self.stop.is_set():
+            try:self.automatic_reconnect()
+            except Exception:
+                with self.lock:self.wireless_status['error']='Automatic connection is waiting for Bluetooth'
+            self.stop.wait(5)
+
+    def request_connection(self):
+        with self.lock:
+            self.manual_until=time.monotonic()+5
+            self.paused=False
+
+    def pause_connection(self):
+        with self.lock:
+            self.manual_until=0
+            self.paused=True
+        self._close_connection()
+
+    def connection_settings(self, enabled):
+        with self.lock:
+            self.manual_until=0
+            self.last_reconnect=float("-inf")
+            if enabled:
+                self.paused=False
+                self.transport_preference="auto"
 
     def select_transport(self,transport):
         if transport not in ('usb','wifi'):raise ValueError('Select USB or Wi-Fi')
@@ -269,3 +324,4 @@ class BluezAgent:
         with self.condition:self.answer=False;self.condition.notify_all()
         self._close_connection()
         if self.worker:self.worker.join(timeout=4)
+        if self.reconnect_thread:self.reconnect_thread.join(timeout=4)

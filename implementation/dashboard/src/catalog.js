@@ -59,6 +59,7 @@ export const menus = {
     ["About", "info", "about"],
     ["Music", "library_music", "music-settings"],
     ["Contacts", "contacts", "contacts-settings"],
+    ["Software updates", "system_update", "software-update"],
   ],
   Projections: [
     ["Android Auto", "navigation", "android-settings"],
@@ -96,6 +97,7 @@ export const defaults = {
   volumeOverlay: "None",
   xStep: 1,
   yStep: 1,
+  androidAutoConnect: true,
   androidAutostart: false,
   androidTaskbar: true,
   musicRefreshSeconds: 5,

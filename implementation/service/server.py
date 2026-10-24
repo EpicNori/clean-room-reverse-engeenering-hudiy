@@ -1,5 +1,6 @@
 """Loopback-only dashboard server with an explicit, bounded action API."""
 import argparse
+import signal
 import json
 import mimetypes
 import os
@@ -10,6 +11,7 @@ import sys
 from urllib.parse import unquote,urlsplit
 from obd import OBD
 from obd_logging import OBDRecorder
+from software_update import SoftwareUpdate
 from custom_obd import CustomOBDStore, RevisionConflict, DEFAULT_CONFIG, validate_config, calculate
 from phonebook import Phonebook
 from layout import LayoutStore
@@ -42,8 +44,14 @@ native_obd=IndependentOBDSettings(bluetooth,obd)
 display=DisplayBrightness(enabled=projection.enabled)
 calls=PhoneCalls(enabled=projection.enabled)
 wireless=IndependentWireless(projection)
+def automatic_phone_allowed():
+    state=projection.snapshot()
+    return (state.get('automaticConnectionAllowed') is True and state.get('options',{}).get('autoConnect',True) is not False and state.get('available') is True
+        and wireless.snapshot().get('enabled') is True)
+bluetooth.automatic_phone_allowed=automatic_phone_allowed
 agent=BluezAgent(bluetooth,wireless,projection) if projection.enabled else None
 radio_output=IndependentAudioRoute(bluetooth,projection,calls,enabled=projection.enabled)
+software_update=SoftwareUpdate(projection,obd,calls,obd_logs)
 ALLOWED_PORTS={8766,4173}
 
 class Handler(BaseHTTPRequestHandler):
@@ -77,6 +85,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/api/bluetooth':return self.send(200,{**bluetooth.snapshot(),**(agent.snapshot() if agent else {})})
         if path=='/api/display':return self.send(200,display.snapshot())
         if path=='/api/audio-route':return self.send(200,radio_output.snapshot())
+        if path=='/api/software-update':return self.send(200,software_update.snapshot())
         if path=='/api/obd-logs':return self.send(200,obd_logs.snapshot())
         if path.startswith('/api/obd-logs/'):
             parts=path.split('/')
@@ -122,6 +131,20 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:valid=False
             if not valid:return self.send(403,{'error':'Cross-origin actions are forbidden'})
         if self.headers.get('Content-Type','').split(';')[0]!='application/json':return self.send(415,{'error':'Use application/json'})
+        if self.path=='/api/software-update':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=4096:return self.send(413,{'error':'Update body must be 1–4096 bytes'})
+                data=json.loads(self.rfile.read(length))
+                if not isinstance(data,dict):raise ValueError('Update action must be an object')
+                action=data.get('action')
+                if action in ('check','prepare','cancel') and set(data)=={'action'}:return self.send(200,software_update.request(action))
+                if action=='settings' and set(data)=={'action','settings'}:return self.send(200,software_update.save(data['settings']))
+                if action in ('install','rollback') and set(data)=={'action','parked'}:return self.send(200,software_update.install(data['parked'],rollback=action=='rollback'))
+                if action=='healthy' and set(data)=={'action'}:return self.send(200,software_update.healthy())
+                raise ValueError('Unknown update action or unexpected fields')
+            except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+            except Exception:return self.send(503,{'error':'Software-update service is unavailable'})
         if self.path=='/api/obd-logs':
             try:
                 length=int(self.headers.get('Content-Length','0'))
@@ -244,6 +267,8 @@ class Handler(BaseHTTPRequestHandler):
                 settings={key:value for key,value in data.items() if key!='action'}
                 previous=projection.snapshot()['options']
                 result=projection.settings(settings)
+                if agent and result['options'].get('autoConnect',True)!=previous.get('autoConnect',True):
+                    agent.connection_settings(result['options']['autoConnect'])
                 if STANDALONE and result['options']['taskbarVisible']!=previous['taskbarVisible']:
                     agent.reconnect_after_layout()
                 return self.send(200,result)
@@ -278,6 +303,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not projection.enabled:return self.send(501,{'error':'Android Auto requires our native Pi application'})
                 if data.get('projection','android')!='android':raise ValueError('Only Android Auto is supported by this application')
                 result=projection.action(data.get('operation'))
+                if agent and data.get('operation') in {'usb','wifi','resume'}:agent.request_connection()
+                if agent and data.get('operation')=='quit':agent.pause_connection()
                 if agent and data.get('operation') in {'usb','wifi'}:agent.select_transport(data['operation'])
                 if agent and data.get('operation') in {'resume','wifi'}:
                     state=projection.snapshot()
@@ -295,12 +322,15 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:return self.send(503,{'error':str(exc)})
 
 def main():
+    def request_shutdown(signum,frame):raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM,request_shutdown)
     parser=argparse.ArgumentParser()
     parser.add_argument('--port',type=int,default=8766)
     args=parser.parse_args()
     if args.port not in ALLOWED_PORTS:parser.error('Supported ports: 8766 or 4173')
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
     projection.start()
+    software_update.start()
     if projection.enabled:obd.start_independent(native_obd)
     phonebook.start()
     bluetooth.start()
@@ -313,6 +343,7 @@ def main():
     try:server.serve_forever()
     except KeyboardInterrupt:pass
     finally:
+        software_update.close()
         if agent:agent.close()
         radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();obd_logs.close();server.server_close()
 if __name__=='__main__':main()

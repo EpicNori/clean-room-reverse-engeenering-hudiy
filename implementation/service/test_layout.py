@@ -18,7 +18,7 @@ class LayoutTests(unittest.TestCase):
             path.write_text(__import__('json').dumps(old))
             restored = LayoutStore(True, path).snapshot()
             self.assertEqual(restored['taskbar'], old['taskbar'])
-            self.assertEqual(restored['menus']['System'], old['menus']['System'] + ['music-settings', 'contacts-settings'])
+            self.assertEqual(restored['menus']['System'], old['menus']['System'] + ['music-settings', 'contacts-settings', 'software-update'])
 
     def test_previous_catalog_gains_custom_obd_without_losing_shortcuts_or_order(self):
         old=copy.deepcopy(DEFAULT_LAYOUT)

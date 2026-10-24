@@ -53,6 +53,21 @@ class SensorTests(unittest.TestCase):
         finally:obd.disconnect();simulator.shutdown();simulator.server_close()
 
 class HTTPTests(unittest.TestCase):
+    def test_ota_api_has_fixed_actions_and_keeps_host_origin_body_boundaries(self):
+        with patch.object(server,'software_update') as update:
+            update.snapshot.return_value={'available':False}
+            update.request.return_value={'busy':True}
+            update.save.return_value={'saved':True}
+            update.install.return_value={'accepted':True}
+            with self.request('/api/software-update') as response:self.assertFalse(json.load(response)['available'])
+            with self.request('/api/software-update',{'action':'check'}) as response:self.assertEqual(response.status,200)
+            update.request.assert_called_once_with('check')
+            for body in ({'action':'prepare','url':'https://evil.example'},{'action':'install','parked':True,'revision':'a'*40},{'action':'shell','command':'sudo apt upgrade'}):
+                with self.request('/api/software-update',body) as response:self.assertEqual(response.status,400)
+            with self.request('/api/software-update',{'action':'check'},headers={'Origin':'https://evil.example'}) as response:self.assertEqual(response.status,403)
+            with self.request('/api/software-update',{'action':'install','parked':True}) as response:self.assertTrue(json.load(response)['accepted'])
+            update.install.assert_called_once_with(True,rollback=False)
+
     def test_diagnostic_logs_validate_actions_exports_and_local_boundaries(self):
         import tempfile
         from pathlib import Path
@@ -177,6 +192,22 @@ class HTTPTests(unittest.TestCase):
             with self.request('/api/action',{'action':'projection-settings','taskbarVisible':'false'}) as response:
                 self.assertEqual(response.status,400)
             agent.reconnect_after_layout.assert_not_called()
+    def test_auto_connection_api_applies_policy_only_after_successful_durable_save(self):
+        projection=Mock(enabled=True)
+        projection.snapshot.return_value={'options':{'taskbarVisible':True,'autoConnect':False}}
+        projection.settings.return_value={'options':{'taskbarVisible':True,'autoConnect':True}}
+        agent=Mock()
+        with patch.object(server,'projection',projection),patch.object(server,'agent',agent):
+            with self.request('/api/action',{'action':'projection-settings','autoConnect':True}) as response:
+                self.assertEqual(response.status,200)
+            projection.settings.assert_called_once_with({'autoConnect':True})
+            agent.connection_settings.assert_called_once_with(True)
+            agent.reset_mock()
+            projection.settings.side_effect=ValueError('Boolean required')
+            with self.request('/api/action',{'action':'projection-settings','autoConnect':'true'}) as response:
+                self.assertEqual(response.status,400)
+            agent.connection_settings.assert_not_called()
+
     def test_phone_actions_cannot_accept_caller_supplied_paths_or_missing_confirmation(self):
         with self.request('/api/action',{'action':'phone-call','number':'123456','confirmed':True}) as r:self.assertEqual(r.status,501)
         fake=Mock(enabled=True);fake.command.return_value={'accepted':True}

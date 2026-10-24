@@ -8,6 +8,16 @@ import threading
 import time
 from runtime_support import save_json
 
+PHONE_UUIDS = frozenset({'0000112f-0000-1000-8000-00805f9b34fb',
+    '0000111f-0000-1000-8000-00805f9b34fb', '00001112-0000-1000-8000-00805f9b34fb',
+    '4de17a00-52cb-11e6-bdf4-0800200c9a66'})
+AA_UUID = '4de17a00-52cb-11e6-bdf4-0800200c9a66'
+
+def is_phone(props):
+    uuids = {str(u).lower() for u in props.get('UUIDs', [])}
+    device_class = props.get('Class', 0)
+    return bool(uuids & PHONE_UUIDS) or (isinstance(device_class, int) and (device_class >> 8) & 31 == 2)
+
 ADDRESS = re.compile(r'(?:[0-9A-F]{2}:){5}[0-9A-F]{2}')
 DEVICE_PATH = re.compile(r'/org/bluez/hci\d+/dev_(?:[0-9A-F]{2}_){5}[0-9A-F]{2}')
 ADAPTER_PATH = re.compile(r'/org/bluez/hci\d+')
@@ -57,10 +67,10 @@ def read_devices(objects):
         if not ADDRESS.fullmatch(address): continue
         devices.append({'address': address, 'name': str(props.get('Alias', props.get('Name', address)))[:128],
                         'paired': bool(props.get('Paired')), 'connected': bool(props.get('Connected')),
-                        'phone': '0000112f-0000-1000-8000-00805f9b34fb' in [str(u).lower() for u in props.get('UUIDs',[])],
+                        'phone': is_phone(props),
                         'serialPort': '00001101-0000-1000-8000-00805f9b34fb' in [str(u).lower() for u in props.get('UUIDs',[])],
                         'audioReceiver': '0000110b-0000-1000-8000-00805f9b34fb' in [str(u).lower() for u in props.get('UUIDs',[])]
-                            and '0000112f-0000-1000-8000-00805f9b34fb' not in [str(u).lower() for u in props.get('UUIDs',[])],
+                            and not is_phone(props),
                         '_path': str(path)})
         if len(devices) >= 128: break
     devices.sort(key=lambda item: item['address'])
@@ -81,13 +91,16 @@ class BluetoothDevices:
         self.media = {}
         self.preferences = preferences or Path.home()/'.local/share/hudiy-recreation/bluetooth-connections.json'
         self.automatic = set()
+        self.manual_phones = set()
+        self.automatic_phone_allowed = lambda: False
         self.last_attempt = {}
         self.scan_until = 0
         self.data = {'available': False, 'name': 'Hudiy', 'discovering': False,
                      'scanActive': False, 'devices': [], 'error': 'Bluetooth is available on the Pi'}
 
     def snapshot(self):
-        with self.lock: return {**copy.deepcopy(self.data),'autoConnect':sorted(self.automatic)}
+        effective=self._automatic_addresses()
+        with self.lock: return {**copy.deepcopy(self.data),'autoConnect':sorted(self.automatic), 'manualPhones':sorted(self.manual_phones), 'effectiveAutoConnect':sorted(effective)}
 
     def connection(self, operation, address, enabled=None, confirmed=False):
         if operation not in ('connect','disconnect','automatic'): raise ValueError('Unknown connection action')
@@ -103,11 +116,17 @@ class BluetoothDevices:
             if operation in ('automatic','disconnect'):
                 with self.lock:
                     updated=set(self.automatic)
+                    manual=set(self.manual_phones)
+                    if selected.get("phone"):
+                        if operation=="automatic" and enabled: manual.discard(address)
+                        else: manual.add(address)
                     if operation=='automatic' and enabled: updated.add(address)
                     else: updated.discard(address)
+                    if len(manual)>128: raise ValueError('Too many saved phone choices')
                     if len(updated)>16: raise ValueError('Choose at most 16 automatic connections')
-                    save_json(self.preferences,{'addresses':sorted(updated)})
+                    save_json(self.preferences,{'addresses':sorted(updated),'manualPhones':sorted(manual)})
                     self.automatic=updated
+                    self.manual_phones=manual
                     self.last_attempt.pop(address,None)
             if operation!='automatic':
                 device=self.dbus.Interface(self.bus.get_object('org.bluez',selected['_path']),'org.bluez.Device1')
@@ -120,17 +139,50 @@ class BluetoothDevices:
 
     def _load_connections(self):
         try:
-            if self.preferences.stat().st_size>2048:return
+            if self.preferences.stat().st_size>8192:return
             saved=json.loads(self.preferences.read_text())
-            addresses=saved.get('addresses') if isinstance(saved,dict) and set(saved)=={'addresses'} else None
+            addresses=saved.get('addresses') if isinstance(saved,dict) and set(saved) in ({'addresses'}, {'addresses','manualPhones'}) else None
             if isinstance(addresses,list) and len(addresses)<=16 and all(isinstance(a,str) and ADDRESS.fullmatch(a) for a in addresses):
-                with self.lock:self.automatic=set(addresses)
+                manual=saved.get('manualPhones',[])
+                if not isinstance(manual,list) or len(manual)>128 or not all(isinstance(a,str) and ADDRESS.fullmatch(a) for a in manual):return
+                with self.lock:
+                    self.automatic=set(addresses)
+                    self.manual_phones=set(manual)
         except (OSError,ValueError):pass
+
+    def _automatic_addresses(self):
+        allowed=self.automatic_phone_allowed()
+        with self.lock:return self._selected_addresses(allowed)
+
+    def _selected_addresses(self, allowed):
+        addresses=set(self.automatic)
+        if allowed:
+            phones=[d for d in self.devices if d['paired'] and d.get('phone')]
+            # With several phones require an explicit per-phone choice.
+            if len(phones)==1 and phones[0]['address'] not in self.manual_phones:
+                addresses.add(phones[0]['address'])
+        return addresses
+
+    def retry_android_auto(self):
+        """Ask only one eligible connected paired phone; never disconnect/pair it."""
+        if not self.enabled or not self.bus or not self.automatic_phone_allowed():return
+        if not self.operation_lock.acquire(blocking=False):return
+        try:
+            self._refresh()
+            addresses=self._automatic_addresses()
+            with self.lock:
+                phones=[d for d in self.devices if d['paired'] and d.get('phone') and d['connected']]
+                if len(phones)!=1 or phones[0]['address'] not in addresses:return
+                path=phones[0]['_path']
+            try:self.dbus.Interface(self.bus.get_object('org.bluez',path),'org.bluez.Device1').ConnectProfile(AA_UUID,timeout=3)
+            except Exception:pass # A phone may expose only an incoming wireless profile.
+        finally:self.operation_lock.release()
 
     def _reconnect(self):
         now=time.monotonic()
+        addresses=self._automatic_addresses()
         with self.lock:
-            selected=next((d for d in self.devices if d['paired'] and not d['connected'] and d['address'] in self.automatic and now-self.last_attempt.get(d['address'],float('-inf'))>=30),None)
+            selected=next((d for d in self.devices if d['paired'] and not d['connected'] and d['address'] in addresses and now-self.last_attempt.get(d['address'],float('-inf'))>=30),None)
         if selected:
             self.last_attempt[selected['address']]=now
             try:self.dbus.Interface(self.bus.get_object('org.bluez',selected['_path']),'org.bluez.Device1').Connect(timeout=3)
@@ -207,6 +259,11 @@ class BluetoothDevices:
             self.worker.start()
 
     def _run(self):
+        while not self.stop.is_set():
+            self._run_once()
+            self.stop.wait(2)
+
+    def _run_once(self):
         try:
             import dbus
             self.dbus = dbus

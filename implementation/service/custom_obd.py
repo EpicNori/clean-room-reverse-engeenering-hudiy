@@ -104,7 +104,7 @@ def validate_config(value):
         if not isinstance(widget,dict) or set(widget)!={'id','source','title','view','x','y','w','h'}: raise ValueError('Invalid tile fields')
         if not isinstance(widget['id'],str) or not IDENTIFIER.fullmatch(widget['id']) or widget['id'] in used: raise ValueError('Invalid or duplicate tile ID')
         used.add(widget['id']); text(widget['title'],40,'tile title',True)
-        if widget['source'] not in sources or widget['view'] not in ('value','gauge','graph'): raise ValueError('Choose an available data source and display')
+        if widget['source'] not in sources or widget['view'] not in ('value','gauge','gauge2','graph'): raise ValueError('Choose an available data source and display')
         if widget['source']=='errors' and widget['view']!='value': raise ValueError('Messages use the block display')
         for field,low,high in (('x',0,3),('y',0,7),('w',1,2),('h',1,2)):
             if type(widget[field]) is not int or not low<=widget[field]<=high: raise ValueError('Tile is outside the grid')

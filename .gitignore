@@ -46,3 +46,8 @@ obd-logs/
 Hudiy-OBD-Logs/
 obd-*.jsonl
 obd-*.csv
+
+# Private managed OTA releases and activation metadata
+software-updates/
+.ota-release.json
+.ota-incomplete.json

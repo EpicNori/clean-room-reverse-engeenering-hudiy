@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   KEY,
   STOCK,
@@ -16,6 +16,7 @@ import {
   validateSensor,
 } from "./customOBD.mjs";
 import "./customOBD.css";
+import { Gauge } from "./Telemetry.jsx";
 
 const Icon = ({ name }) => (
   <span className="material-symbols-rounded" aria-hidden="true">
@@ -321,8 +322,66 @@ export function CustomOBD({
     grid = useRef(null),
     dragRef = useRef(null),
     suppressClick = useRef(0),
-    recovered = useRef(null);
+    recovered = useRef(null),
+    previousRects = useRef(null);
   current.current = config;
+  useLayoutEffect(() => {
+    const element = grid.current,
+      root = element?.closest(".custom-obd"),
+      header = root?.querySelector(".obd-page-header");
+    if (!root || !header) return;
+    const measure = () => {
+      const outer = root.getBoundingClientRect(),
+        box = element.getBoundingClientRect();
+      const inset = parseFloat(getComputedStyle(root).paddingBottom) || 0;
+      const available = Math.max(
+        120,
+        root.clientHeight - (box.top - outer.top + root.scrollTop) - inset,
+      );
+      element.style.setProperty("--obd-available-height", `${available}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    observer.observe(header);
+    measure();
+    return () => observer.disconnect();
+  }, [editing, libraryOpen, error, loaded]);
+
+  useLayoutEffect(() => {
+    const before = previousRects.current;
+    previousRects.current = null;
+    if (
+      !before ||
+      !grid.current ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const root = grid.current.getBoundingClientRect();
+    for (const tile of grid.current.querySelectorAll("[data-obd-widget-id]")) {
+      const old = before.get(tile.dataset.obdWidgetId),
+        next = tile.getBoundingClientRect();
+      const dx = old ? old.x - (next.x - root.x) : 0,
+        dy = old ? old.y - (next.y - root.y) : 0;
+      tile.getAnimations().forEach((animation) => animation.cancel());
+      if (old && (Math.abs(dx) > 1 || Math.abs(dy) > 1))
+        tile.animate(
+          [
+            { transform: `translate(${dx}px,${dy}px)` },
+            { transform: "translate(0,0)" },
+          ],
+          { duration: 280, easing: "cubic-bezier(.2,.8,.2,1)" },
+        );
+      else if (!old)
+        tile.animate(
+          [
+            { opacity: 0, transform: "translateY(12px) scale(.96)" },
+            { opacity: 1, transform: "translateY(0) scale(1)" },
+          ],
+          { duration: 220, easing: "ease-out" },
+        );
+    }
+  }, [config.widgets]);
+
   useEffect(() => {
     state.current.alive = true;
     request()
@@ -424,6 +483,20 @@ export function CustomOBD({
     }
   }
   function change(next) {
+    if (grid.current) {
+      const root = grid.current.getBoundingClientRect();
+      previousRects.current = new Map(
+        [...grid.current.querySelectorAll("[data-obd-widget-id]")].map(
+          (tile) => {
+            const r = tile.getBoundingClientRect();
+            return [
+              tile.dataset.obdWidgetId,
+              { x: r.x - root.x, y: r.y - root.y },
+            ];
+          },
+        ),
+      );
+    }
     current.current = next;
     setConfig(next);
     setError("");
@@ -538,6 +611,14 @@ export function CustomOBD({
         py: e.clientY,
         startX: e.clientX,
         startY: e.clientY,
+        offsetX: Math.min(
+          100,
+          e.clientX -
+            (
+              e.currentTarget.closest("article") || e.currentTarget
+            ).getBoundingClientRect().left,
+        ),
+        offsetY: 24,
         moved: false,
         cell: null,
       };
@@ -797,9 +878,9 @@ export function CustomOBD({
               {libraryOpen ? "Hide data sources" : "Add data"}
             </button>
           )}
-          <button onClick={onLogs}>
+          <button onClick={onLogs} aria-label="OBD Logs">
             <Icon name="description" />
-            Logs
+            <span className="obd-action-label">Logs</span>
           </button>
           <button onClick={onSettings} aria-label="OBD connection settings">
             <Icon name="settings" />
@@ -1011,8 +1092,10 @@ export function CustomOBD({
                     )}
                   </div>
                 ) : (
-                  <div className="obd-reading">
-                    {widget.view !== "value" && (
+                  <div
+                    className={`obd-reading ${["gauge", "gauge2"].includes(widget.view) ? "obd-gauge-reading" : ""}`}
+                  >
+                    {widget.view === "graph" && (
                       <Plot
                         values={values}
                         times={
@@ -1028,10 +1111,22 @@ export function CustomOBD({
                         palette={palette}
                       />
                     )}
-                    <div className="obd-number">
-                      <strong>{value}</strong>
-                      <span>{def.unit}</span>
-                    </div>
+                    {["gauge", "gauge2"].includes(widget.view) && (
+                      <div className="obd-original-gauge">
+                        <Gauge
+                          value={valid ? data.value : null}
+                          definition={def}
+                          variant={widget.view === "gauge2" ? 2 : 1}
+                          palette={palette}
+                        />
+                      </div>
+                    )}
+                    {!["gauge", "gauge2"].includes(widget.view) && (
+                      <div className="obd-number">
+                        <strong>{value}</strong>
+                        <span>{def.unit}</span>
+                      </div>
+                    )}
                     {data.error && <small>{data.error}</small>}
                     {widget.source.startsWith("derived:") && (
                       <small>
@@ -1111,12 +1206,24 @@ export function CustomOBD({
       </section>
       {drag?.moved && (
         <div
-          className="obd-drag-label"
-          style={{ left: drag.px + 12, top: drag.py + 12 }}
+          className="obd-drag-preview"
+          aria-hidden="true"
+          style={{ left: drag.px - drag.offsetX, top: drag.py - drag.offsetY }}
         >
-          {drag.kind === "source"
-            ? reading(config, drag.id)?.label
-            : "Move tile"}
+          <Icon name="drag_indicator" />
+          <strong>
+            {drag.kind === "source"
+              ? reading(config, drag.id)?.label
+              : (() => {
+                  const tile = config.widgets.find((w) => w.id === drag.id);
+                  return (
+                    tile?.title ||
+                    reading(config, tile?.source || "")?.label ||
+                    "Move tile"
+                  );
+                })()}
+          </strong>
+          <span>{drag.cell ? "Release to place" : "Choose a position"}</span>
         </div>
       )}
       {dialog && (
@@ -1416,7 +1523,8 @@ export function CustomOBD({
                       }
                     >
                       <option value="value">Block</option>
-                      <option value="gauge">Gauge</option>
+                      <option value="gauge">Original gauge · arc</option>
+                      <option value="gauge2">Original gauge · ticks</option>
                       <option value="graph">Chart</option>
                     </select>
                   </label>

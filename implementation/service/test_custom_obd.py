@@ -139,6 +139,14 @@ class PollingIntegrationTests(unittest.TestCase):
         finally:obd.close();fake.shutdown();fake.server_close()
 
 
+class GaugeVariantTests(unittest.TestCase):
+    def test_original_arc_and_tick_gauges_are_accepted_without_breaking_old_layouts(self):
+        cfg=copy.deepcopy(DEFAULT_CONFIG)
+        for view in ('gauge','gauge2'):
+            cfg['widgets'][0]['view']=view
+            self.assertEqual(validate_config(cfg)['widgets'][0]['view'],view)
+
+
 class StatisticsTests(unittest.TestCase):
     def test_acceleration_requires_continuous_valid_speed_and_gaps_reset(self):
         stats=DrivingStats(); opts=DEFAULT_CONFIG['range']

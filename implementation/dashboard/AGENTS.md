@@ -25,3 +25,11 @@ The owner requests My OBD: custom read-only sensors/PIDs/formulas and a separate
 The owner requests a dedicated OBD Logs option inside all OBD views. Record the broadest supported read-only diagnostic stream, custom mappings, raw replies, errors and connection lifecycle independently of visible tiles; provide bounded private sessions, clear storage/unsupported-data states, local CSV/JSONL export and explicit manual/automatic recording controls. Never promise every manufacturer signal or fabricate diagnostic data.
 
 The owner wants operating choices to be configurable rather than fixed by the developer. Provide both automatic and manual OBD recording; expose relevant capture categories, refresh/sample intervals and storage limits with durable settings. Apply this preference to future features while retaining strict read-only validation and bounded resource limits.
+
+The owner requests selectable notify/manual and automatic-idle OTA updates from our GitHub repository, with durable preferences in Hudiy settings. Use existing Ethernet/Wi-Fi routes without switching away from wireless Android Auto; stage/build separately and preserve a previous runtime for startup rollback. My OBD must use the original arc/tick gauge renderers and modern drag/drop motion while preserving touch scrolling and reduced-motion accessibility.
+
+OTA notification preference is separate from check/install policy; notify through the existing themed notice system once per new version/prepared state. Keep original gauge values legible even in small custom tiles while retaining the reference typography on dedicated gauge screens.
+
+My OBD must maximize usable display area like the existing OBD pages. Keep outer gutters and gaps small, reserve Back space only in the header, and size rows from the actual available content area above the taskbar. Do not leave a wide empty gutter around the custom grid. Preserve readable gauges, touch targets, edit controls and responsive scrolling.
+
+Android Auto needs a visible persistent automatic-connection master switch, separate from automatic screen opening and per-phone Bluetooth selection. Do not require contact-sharing permission to recognize phones for reconnect controls. Respect explicit Quit/manual disconnect and avoid stealing focus during background reconnection.

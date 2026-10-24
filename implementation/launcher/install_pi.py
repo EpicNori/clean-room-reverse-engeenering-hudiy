@@ -250,6 +250,9 @@ def main():
             system = [sys.executable, ROOT / 'implementation/launcher/install_pi_system.py', '--user', user]
             if args.no_autologin: system.append('--no-autologin')
             run(['sudo', *system])
+            sys.path.insert(0,str(ROOT/'implementation/service'))
+            from ota_state import select_rebuilt_baseline
+            select_rebuilt_baseline(state/'software-updates')
             run([sys.executable, ROOT / 'implementation/launcher/install_autostart.py', '--apply'])
             hotspot_error = None
             if not args.skip_hotspot:

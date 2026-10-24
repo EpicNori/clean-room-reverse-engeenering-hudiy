@@ -74,3 +74,14 @@ The silent-sink probe is built when `BUILD_TESTING` is on but is deliberately ex
 The original Notifications controls now govern output/input/track notices and their 1–15-second duration. Action/error toasts retain their separate Toast duration. Popups follow the selected light/dark accent, and position/cover-art polling or reconnecting the same song does not repeat a track announcement. Disabling a switch clears its own current notice. Compact switches have 48px touch targets. Sound output volume/mute use the existing PipeWire action in either web view.
 
 An application-owned, plain-text Qt overlay has been implemented so notices can appear above Android Auto and the taskbar instead of being clipped by the taskbar's short web view. It has an offscreen CTest for bounds, priority, colors, timeout and plain-text/input behavior. **That new native test and receiver compilation have not run yet:** the Pi sent a shutdown message before deployment. No new build was uploaded or restarted. Browser UI/drag scrolling and backend schema checks are verified locally; native projection/touch behavior is pending. Input level/mute remain saved preferences, not verified microphone controls. Source publication does not establish device acceptance.
+
+
+## Automatic connection versus automatic opening
+
+Android Auto settings now expose **Connect Android Auto automatically** independently of **Open Android Auto automatically**. The former controls USB discovery/admission and wireless recovery; the latter controls showing the projection screen. Enable both for unattended startup, or leave opening Off to receive background metadata. Existing sessions are preserved when connection is turned Off. Quit pauses retries, manual USB/Wi-Fi/Resume remains available with connection Off, and toggling connection Off/On resumes automatic admission. Choices are saved on the device.
+
+Car Wi-Fi is still required for wireless use. A single paired phone is the default Bluetooth target unless explicitly disabled; choose targets when several phones are paired. Recognition uses phonebook, hands-free or phone-class information rather than requiring contact-sharing consent. Automatic wireless recovery runs on a five-second scheduler with a 30-second attempt limit, waits while sessions are connecting/active, retriggers an existing handoff or asks BlueZ for the selected phone's AA profile. Some phones support only incoming handoffs, so end-to-end recovery must still be checked on the actual phone.
+
+This change was implemented with the Pi off and is **not yet deployed or hardware verified**. The native admission policy is included in CTest; compile it and follow [the README acceptance checklist](../README.md#android-auto-automatic-connection-acceptance) before treating cold-boot reconnect as verified.
+
+![Current Android Auto automatic connection and opening settings, captured in a local preview](images/android-auto-connection.jpg)

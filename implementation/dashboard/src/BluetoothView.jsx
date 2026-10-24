@@ -55,9 +55,9 @@ export function BluetoothView({ mode, action }) {
             if(device.connected){opener.current=event.currentTarget;setSelected(device);}
             else run('bluetooth-connect',{address:device.address});
           }}>{device.connected?'Disconnect':'Connect'}</button>
-          <label><input type="checkbox" aria-label={`Automatically reconnect ${device.name}`} checked={(data.autoConnect || []).includes(device.address)} disabled={busy || !data.available}
+          <label><input type="checkbox" aria-label={`Automatically reconnect ${device.name}`} checked={(data.effectiveAutoConnect || data.autoConnect || []).includes(device.address)} disabled={busy || !data.available}
             onChange={async event=>{const enabled=event.target.checked;const result=await run('bluetooth-autoconnect',{address:device.address,enabled});
-              if(result)setData(current=>({...current,autoConnect:enabled?[...new Set([...(current.autoConnect || []),device.address])]:(current.autoConnect || []).filter(a=>a!==device.address)}));}}/>Automatic reconnect</label>
+              if(result)setData(current=>({...current,effectiveAutoConnect:enabled?[...new Set([...(current.effectiveAutoConnect || current.autoConnect || []),device.address])]:(current.effectiveAutoConnect || current.autoConnect || []).filter(a=>a!==device.address),autoConnect:enabled?[...new Set([...(current.autoConnect || []),device.address])]:(current.autoConnect || []).filter(a=>a!==device.address)}));}}/>Automatic reconnect</label>
         </div> : mode === 'pair' && data.pairingAvailable ? <button className="bluetooth-device-action" aria-label={`Pair ${device.name}`}
           disabled={busy || Boolean(data.pairing)} onClick={() => run('bluetooth-pair',{address:device.address})}><Icon name="link" /></button> : mode === 'remove' && <button className="bluetooth-device-action" aria-label={`Unpair ${device.name}`}
           disabled={busy || !data.available} onClick={event => {
@@ -97,7 +97,7 @@ export function BluetoothView({ mode, action }) {
       <button ref={cancel} disabled={busy} onClick={() => setSelected(null)}>Cancel</button>
       <button ref={confirm} disabled={busy} onClick={async () => {
         const result = await run(connections?'bluetooth-disconnect':'bluetooth-remove', {address:selected.address, confirmed:true});
-        if (result) { setData(current => ({...current, devices:connections?current.devices.map(device=>device.address===selected.address?{...device,connected:false}:device):current.devices.filter(device => device.address !== selected.address),autoConnect:(current.autoConnect || []).filter(a=>a!==selected.address)})); setSelected(null); }
+        if (result) { setData(current => ({...current, effectiveAutoConnect:(current.effectiveAutoConnect || current.autoConnect || []).filter(a=>a!==selected.address),devices:connections?current.devices.map(device=>device.address===selected.address?{...device,connected:false}:device):current.devices.filter(device => device.address !== selected.address),autoConnect:(current.autoConnect || []).filter(a=>a!==selected.address)})); setSelected(null); }
       }}>{busy ? 'Working…' : connections?'Disconnect device':'Unpair device'}</button>
     </div></div>}
   </div>;

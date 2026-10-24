@@ -2,7 +2,7 @@
 
 Open **Logs** from My OBD or any of the five original OBD views. You can also use **OBD connection settings → OBD Logs** or **Applications → Hudiy → OBD Logs**. The logger runs in our Python service and keeps recording while you change pages.
 
-![Diagnostic recorder with explicitly labelled simulator readings](images/obd-logging-simulator.png)
+![Diagnostic recorder with explicitly labelled simulator readings](images/obd-logging-simulator.jpg)
 
 *Local simulator, synthetic readings. This is not evidence of a real vehicle test.*
 

@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-ROUTES = frozenset('''dashboard apps settings obd-settings custom-obd obd-logs playlist stations
+ROUTES = frozenset('''dashboard apps settings software-update obd-settings custom-obd obd-logs playlist stations
     contacts favorites dialpad call-log active-call notifications
     storage radio a2dp autobox-music android-music active-apps
     obd-charts obd-blocks combined gauges gauges-2 marketplace
@@ -14,14 +14,14 @@ PREFERENCES = Path.home() / '.local/share/hudiy-recreation/projection.json'
 
 DAY_NIGHT_MODES = {'Common': 1, 'Day': 2, 'Night': 3}
 
-DEFAULT_OPTIONS = {'autostart': False, 'taskbarVisible': True, 'restartGeneration': 0,
+DEFAULT_OPTIONS = {'autoConnect': True, 'autostart': False, 'taskbarVisible': True, 'restartGeneration': 0,
                    'dayNight': None, 'darkMode': None}
 
 def read_options(path=PREFERENCES):
     result = dict(DEFAULT_OPTIONS)
     try:
         data = json.loads(path.read_text())
-        for key in ('autostart', 'taskbarVisible'):
+        for key in ('autoConnect', 'autostart', 'taskbarVisible'):
             if isinstance(data.get(key), bool):
                 result[key] = data[key]
         if isinstance(data.get('dayNight'), str) and data['dayNight'] in DAY_NIGHT_MODES:

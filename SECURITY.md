@@ -60,3 +60,6 @@ The restored audio-worker and notification revision was recovered from saved loc
 
 
 Configurable diagnostic recording adds only allowlisted read-only Mode 02 frame-zero, Mode 06/09 identifier and Mode 07/0A code requests on the existing adapter connection. Bounded private JSONL sessions, explicit automatic/manual selection, quota stops, fixed-path local exports and confirmed removal are described in [OBD logging](docs/OBD_LOGGING.md) and [backend rules](docs/backend-rules.md). Logs can contain vehicle identifiers and are never automatically uploaded. CSV text is formula-escaped; full powered-vehicle and Pi acceptance remain pending.
+
+
+Application OTA uses the fixed public GitHub project/main, HTTPS and a validated commit, bounded safe extraction, normal-user isolated builds/tests, private ready/selection/health records and a stable rollback supervisor. It executes project/lockfile build scripts, with GitHub account/HTTPS trust rather than independent signed release verification. No sudo, arbitrary command/URL/revision endpoint or network switching is added. See [OTA controls and limitations](docs/OTA_UPDATES.md) and [backend rules](docs/backend-rules.md). Real Pi update and power-cycle acceptance remain pending.

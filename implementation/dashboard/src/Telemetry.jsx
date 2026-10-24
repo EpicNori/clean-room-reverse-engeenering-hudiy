@@ -7,11 +7,13 @@ const definitions = {
   throttle: ["Throttle position", "%", 0, 100],
   load: ["Engine load", "%", 0, 100],
 };
-function Gauge({ value, name, variant, palette }) {
+export function Gauge({ value, name, variant = 1, palette, definition }) {
   const canvas = useRef(null),
     chart = useRef(null);
   useEffect(() => {
-    const [label, unit, min, max] = definitions[name],
+    const [label, unit, min, max] = definition
+        ? [definition.label, definition.unit, definition.min, definition.max]
+        : definitions[name],
       text = palette["--text"],
       base = palette["--active"],
       primary = palette["--primary"];
@@ -24,7 +26,7 @@ function Gauge({ value, name, variant, palette }) {
           arc = c.getDatasetMeta(0).data[0];
         if (!arc) return;
         const scale = Math.max(
-          0.45,
+          definition ? 0.1 : 0.45,
           Math.min(c.width / (variant === 2 ? 378 : 364), c.height / 350),
         );
         const x = 0,
@@ -59,7 +61,13 @@ function Gauge({ value, name, variant, palette }) {
             ctx.stroke();
           }
           ctx.font = "bold 32px Roboto";
-          const heading = name === "coolant" ? "COOLANT" : name.toUpperCase();
+          const heading = definition
+            ? label.toUpperCase().slice(0, 24)
+            : name === "coolant"
+              ? "COOLANT"
+              : name.toUpperCase();
+          if (definition)
+            ctx.font = `bold ${Math.min(32, 480 / Math.max(heading.length, 1))}px Roboto`;
           const tracking = 3.5;
           const headingWidth =
             [...heading].reduce(
@@ -74,24 +82,52 @@ function Gauge({ value, name, variant, palette }) {
             headingX += ctx.measureText(letter).width + tracking;
           }
           ctx.textAlign = "center";
-          ctx.font = "bold 86px Roboto";
-          ctx.fillText(value == null ? "—" : Math.round(value), x, y + 15);
-          ctx.font = "38px Roboto";
+          ctx.font = definition
+            ? `bold ${Math.max(86, 28 / scale)}px Roboto`
+            : "bold 86px Roboto";
+          ctx.fillText(
+            value == null
+              ? "—"
+              : definition
+                ? value.toFixed(definition.decimals || 0)
+                : Math.round(value),
+            x,
+            y + 15,
+          );
+          ctx.font = definition
+            ? `${Math.max(38, 12 / scale)}px Roboto`
+            : "38px Roboto";
           ctx.fillText(unit, x, y + 110);
         } else {
-          ctx.font = "bold 50px Roboto";
-          ctx.fillText(value == null ? "—" : Math.round(value), x, y - 39);
-          ctx.font = "34px Roboto";
+          ctx.font = definition
+            ? `bold ${Math.max(50, 28 / scale)}px Roboto`
+            : "bold 50px Roboto";
           ctx.fillText(
-            name === "coolant"
-              ? "Engine [°C]"
-              : name === "speed"
-                ? "km/h"
-                : "RPM",
+            value == null
+              ? "—"
+              : definition
+                ? value.toFixed(definition.decimals || 0)
+                : Math.round(value),
+            x,
+            y - 39,
+          );
+          ctx.font = definition
+            ? `${Math.max(34, 12 / scale)}px Roboto`
+            : "34px Roboto";
+          ctx.fillText(
+            definition
+              ? unit
+              : name === "coolant"
+                ? "Engine [°C]"
+                : name === "speed"
+                  ? "km/h"
+                  : "RPM",
             x,
             y + 37,
           );
-          ctx.font = "bold 34px Roboto";
+          ctx.font = definition
+            ? `bold ${Math.max(34, 10 / scale)}px Roboto`
+            : "bold 34px Roboto";
           ctx.fillText(min, x - 95, y + 87);
           ctx.fillText(max, x + 90, y + 87);
           if (Number.isFinite(value)) {
@@ -143,12 +179,22 @@ function Gauge({ value, name, variant, palette }) {
       disposed = true;
       chart.current?.destroy();
     };
-  }, [value, name, variant, palette]);
+  }, [
+    value,
+    name,
+    variant,
+    palette,
+    definition?.label,
+    definition?.unit,
+    definition?.min,
+    definition?.max,
+    definition?.decimals,
+  ]);
   return (
     <canvas
       ref={canvas}
       role="img"
-      aria-label={`${definitions[name][0]}: ${value ?? "unavailable"} ${definitions[name][1]}`}
+      aria-label={`${definition?.label ?? definitions[name]?.[0]}: ${value ?? "unavailable"} ${definition?.unit ?? definitions[name]?.[1]}`}
     />
   );
 }
@@ -223,7 +269,9 @@ export function Telemetry({
             ? "ELM327 connected"
             : "OBD disconnected"}
       </button>
-      <button className="telemetry-log-link" onClick={onLogs}>Logs</button>
+      <button className="telemetry-log-link" onClick={onLogs}>
+        Logs
+      </button>
       {keys.map((name, i) => {
         const [label, unit, min, max] = definitions[name],
           value = values[name];

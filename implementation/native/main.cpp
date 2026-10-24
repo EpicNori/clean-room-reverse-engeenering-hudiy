@@ -2,6 +2,7 @@
 // Protocol channel construction is adapted from OpenAuto Prodigy's
 // ServiceDiscoveryBuilder.cpp. See THIRD_PARTY.md for the pinned source.
 #include "usb_transport.hpp"
+#include "connection_policy.hpp"
 #include "audio_output.hpp"
 #include "notice_overlay.hpp"
 #include <QApplication>
@@ -243,6 +244,7 @@ public:
             publish();
         });
         options_ = readObject(stateDir + "/projection.json");
+        connectionPolicy_.configure(options_.value("autoConnect").toBool(true));
         profile_ = new QWebEngineProfile("hudiy-recreation", this);
         profile_->setPersistentStoragePath(stateDir + "/web");
         auto web = [&](const QString& mode) {
@@ -335,7 +337,7 @@ public:
         mic_.setCaptureController([this](bool open) { return microphone(open); });
         connect(&tcp_, &QTcpServer::newConnection, this, [this] {
             auto* socket = tcp_.nextPendingConnection();
-            if (session_ || usbRecoveryRunning_ || !admission_ || preferredTransport_ == "usb") { socket->disconnectFromHost(); socket->deleteLater(); return; }
+            if (session_ || usbRecoveryRunning_ || !connectionPolicy_.allowsConnection() || preferredTransport_ == "usb") { socket->disconnectFromHost(); socket->deleteLater(); return; }
             auto* transport = new oaa::TCPTransport(this); transport->setSocket(socket);
             socket->setParent(transport); begin(transport, "wifi");
         });
@@ -370,7 +372,7 @@ protected:
 private:
     void checkConnection() {
         if (!tcp_.isListening()) bindWireless();
-        if (!session_ && !usbRecoveryRunning_ && admission_ && preferredTransport_ != "wifi") {
+        if (!session_ && !usbRecoveryRunning_ && connectionPolicy_.allowsConnection() && preferredTransport_ != "wifi") {
             auto* usb = new UsbTransport(this);
             if (usb->discover()) begin(usb, "usb"); else usb->deleteLater();
         }
@@ -429,6 +431,8 @@ private:
                 const QString mode = options_.value("dayNight").toString("Common");
                 sensor_.pushNightMode(mode == "Night" || (mode == "Common" && options_.value("darkMode").toBool()));
                 if (options_.value("autostart").toBool() || requested_) showProjection(true);
+                requested_ = false;
+                connectionPolicy_.connected();
             }
             publish();
         });
@@ -496,7 +500,15 @@ private:
             if (op == "notification") { notice_->apply(command); }
             else if (op == "options") {
                 const bool previous = options_.value("taskbarVisible").toBool(true);
+                const bool previousAuto = options_.value("autoConnect").toBool(true);
+                const bool previousOpen = options_.value("autostart").toBool();
                 options_ = command.value("options").toObject();
+                connectionPolicy_.configure(options_.value("autoConnect").toBool(true));
+                if (previousAuto != options_.value("autoConnect").toBool(true)) {
+                    requested_ = false;
+                    if (options_.value("autoConnect").toBool(true)) preferredTransport_ = "auto";
+                }
+                if (!previousOpen && options_.value("autostart").toBool() && active_) showProjection(true);
                 const QString mode = options_.value("dayNight").toString("Common");
                 sensor_.pushNightMode(mode == "Night" || (mode == "Common" && options_.value("darkMode").toBool()));
                 if (previous != options_.value("taskbarVisible").toBool(true) && session_) { session_->stop(); }
@@ -514,11 +526,13 @@ private:
                 if (valid) {audioOutput_.configure(gains,balance.toInt()); audioSettings_=settings;}
                 else error_="Invalid projection audio settings";
             } else if (op == "exit") { QTimer::singleShot(150, qApp, &QApplication::quit); }
-            else if (op == "quit") { requested_ = false; admission_ = false; showProjection(false); if (session_) session_->stop(); }
+            else if (op == "quit") { requested_ = false; connectionPolicy_.pause(); showProjection(false); if (session_) session_->stop(); }
             else if (op == "usb" || op == "wifi" || op == "resume") {
-                requested_ = true; admission_ = true;
+                requested_ = true; connectionPolicy_.request();
                 if (op != "resume") preferredTransport_ = op;
-                if (active_ && (preferredTransport_ == "auto" || preferredTransport_ == transportName_)) showProjection(true);
+                if (active_ && (preferredTransport_ == "auto" || preferredTransport_ == transportName_)) {
+                    showProjection(true); requested_ = false; connectionPolicy_.connected();
+                }
                 else {
                     teardown(); check_.stop(); check_.start(5000);
                     if (preferredTransport_ == "usb" || (op == "resume" && transportName_ == "usb")) {
@@ -567,6 +581,9 @@ private:
             {"route",route_}, {"revision",revision_}, {"error",error_.isEmpty() ? audioError : error_}, {"transport",transportName_},
             {"frames",static_cast<qint64>(frames_)}, {"audioBytes",written}, {"runtimePid",QCoreApplication::applicationPid()},
             {"lastDisconnectPhase",lastDisconnectPhase_},
+            {"connectionAllowed",connectionPolicy_.allowsConnection()},
+            {"automaticConnectionAllowed",connectionPolicy_.allowsAutomatic()},
+            {"sessionStarting",session_ != nullptr && !active_},
             {"microphoneAvailable",microphoneAvailable_},
             {"audioDSP",audioSettings_},
             {"audioQueuedBytes",queued},
@@ -597,7 +614,8 @@ private:
     AVCodecContext* codec_ = nullptr; AVFrame* frame_ = nullptr; SwsContext* scaler_ = nullptr;
     QJsonObject options_, mediaState_, navigationState_;
     QString route_ = "dashboard", error_, transportName_; int revision_ = 0, phase_ = 0, lastDisconnectPhase_ = 0, signal_ = -1, coverVersion_ = 0;
-    bool active_ = false, visible_ = false, requested_ = false, admission_ = true, microphoneAvailable_ = false;
+    ConnectionPolicy connectionPolicy_;
+    bool active_ = false, visible_ = false, requested_ = false, microphoneAvailable_ = false;
     uint64_t frames_ = 0;
 };
 

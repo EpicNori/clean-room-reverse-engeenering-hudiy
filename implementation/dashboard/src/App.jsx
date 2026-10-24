@@ -12,6 +12,7 @@ import {
 import { Telemetry } from "./Telemetry";
 const CustomOBD = lazy(() => import("./CustomOBD.jsx").then(module => ({default: module.CustomOBD})));
 const OBDLogs = lazy(() => import("./OBDLogs.jsx").then(module => ({default: module.OBDLogs})));
+const SoftwareUpdates = lazy(() => import("./SoftwareUpdates.jsx").then(module => ({default: module.SoftwareUpdates})));
 import { createMediaProcessor } from "./audio";
 import { audioPresets } from './audioPresets.mjs';
 import { themePalette } from "./theme";
@@ -168,6 +169,12 @@ const mediaIcons = {
   "android-music": "navigation",
 };
 export function App() {
+  useEffect(()=>{
+    if(HOST_MODE!=='content')return;
+    let stopped=false,attempts=0,timer;
+    const acknowledge=async()=>{const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),2000);try{const response=await fetch('/api/software-update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'healthy'}),signal:controller.signal});const result=await response.json();if(result.healthy)return;}catch{}finally{clearTimeout(timeout);}if(!stopped&&++attempts<24)timer=setTimeout(acknowledge,5000);};
+    acknowledge();return()=>{stopped=true;clearTimeout(timer);};
+  },[]);
   const [layout, setLayout] = useState(readLayout);
   const [customize, setCustomize] = useState(null);
   const [prefs, setPrefs] = useState(readPreferences),
@@ -215,6 +222,13 @@ export function App() {
   const latestNotice = useRef({prefs, native: false});
   latestNotice.current = {prefs, native: Boolean(HOST_MODE && status.projection?.enabled)};
   const noticeCenter = useRef(null), trackObserver = useRef(new TrackObserver());
+  const seenSoftwareNotice=useRef('');
+  useEffect(()=>{
+    if(TASKBAR)return;
+    let disposed=false,pending=false;
+    async function poll(){if(pending)return;pending=true;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),2500);try{const response=await fetch('/api/software-update',{signal:controller.signal});if(!response.ok)return;const update=await response.json();if(disposed||!update.available||!['available','ready'].includes(update.phase)||update.failedRevision===update.latestRevision||!update.settings?.notifyUpdates||!update.latestRevision||update.latestRevision===update.installedRevision)return;const key=update.latestRevision+':'+(update.phase==='ready'?'ready':'available');if(seenSoftwareNotice.current===key)return;seenSoftwareNotice.current=key;noticeCenter.current.show('toast',update.phase==='ready'?'Software update prepared. Open Settings → Software updates.':'A software update is available. Open Settings → Software updates.');}catch{}finally{clearTimeout(timer);pending=false;}}
+    poll();const timer=setInterval(poll,15000);return()=>{disposed=true;clearInterval(timer);};
+  },[]);
   const outputControl = useRef({busy: false, pending: null, confirmed: null});
   const nativeNotice = payload => {
     const p = latestNotice.current.prefs;
@@ -339,11 +353,11 @@ export function App() {
       return;
     }
     if (
-      ["androidAutostart", "androidTaskbar"].includes(key) &&
+      ["androidAutoConnect", "androidAutostart", "androidTaskbar"].includes(key) &&
       status.projection?.enabled
     ) {
       action("projection-settings", {
-        [key === "androidAutostart" ? "autostart" : "taskbarVisible"]: value,
+        [key === "androidAutoConnect" ? "autoConnect" : key === "androidAutostart" ? "autostart" : "taskbarVisible"]: value,
       }).then((result) => {
         if (result) setPrefs((p) => ({ ...p, [key]: value }));
       });
@@ -411,9 +425,10 @@ export function App() {
           if (data.enabled && ['Common', 'Day', 'Night'].includes(data.options?.dayNight)) {
             setPrefs(p => p.androidDayNight === data.options.dayNight ? p : {...p, androidDayNight: data.options.dayNight});
           }
-          if (HOST_MODE && data.enabled)
+          if (data.enabled)
             setPrefs((p) => ({
               ...p,
+              androidAutoConnect: data.options.autoConnect !== false,
               androidAutostart: data.options.autostart,
               androidTaskbar: data.options.taskbarVisible,
               ...(typeof data.options.darkMode === 'boolean' ? {dark: data.options.darkMode} : {}),
@@ -889,6 +904,8 @@ export function App() {
       <>
         <DisplayBrightness action={action}/>
         <WirelessSettings action={action} standalone={status.projection?.renderer === 'standalone'}/>
+        {toggle("androidAutoConnect", "Connect Android Auto automatically")}
+        <p className="setting-note">Connect after startup or connection loss. Off keeps USB and Wi-Fi connection manual. An active session stays connected. Quit pauses reconnection until you connect again or switch this off and on.</p>
         <PhoneReconnect action={action}/>
         {toggle("androidAutostart", "Open Android Auto automatically")}
         {toggle("androidTaskbar", "Keep taskbar visible")}
@@ -1631,6 +1648,7 @@ export function App() {
           )}
           {screen === "custom-obd" && <Suspense fallback={<div className="empty-message">Loading My OBD…</div>}><CustomOBD telemetry={status.obd} now={now} demo={prefs.demo} native={Boolean(HOST_MODE)} palette={palette} onSettings={()=>go("obd-settings")} onLogs={()=>go("obd-logs")}/></Suspense>}
           {screen === "obd-logs" && <Suspense fallback={<div className="empty-message">Loading OBD Logs…</div>}><OBDLogs telemetry={status.obd} demo={prefs.demo} onSettings={()=>go("obd-settings")} onDashboard={()=>go("custom-obd")}/></Suspense>}
+          {screen === "software-update" && <Suspense fallback={<div className="empty-message">Loading software updates…</div>}><SoftwareUpdates/></Suspense>}
           {screen === "marketplace" && <Marketplace tell={tell} />}
         </section>
         <footer className="bottom-bar">

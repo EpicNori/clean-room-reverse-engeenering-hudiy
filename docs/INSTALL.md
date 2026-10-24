@@ -113,3 +113,8 @@ References: [Raspberry Pi system configuration](https://www.raspberrypi.com/docu
 [official Node downloads](https://nodejs.org/en/download), and
 [our hotspot setup](HOTSPOT_SETUP.md). The [backend rules](backend-rules.md)
 record the exact local privilege boundaries.
+
+
+## Updating the installed application
+
+After installing the OTA-capable revision once, use Settings → System → Software updates for normal application changes. See [OTA setup, trust and recovery](OTA_UPDATES.md). The normal installer remains necessary for system-package or bootstrap/protocol changes and selects its rebuilt baseline after successful checks. Offline maintenance can start the original installation with `implementation/launcher/launcher.py --baseline` after quitting the app.

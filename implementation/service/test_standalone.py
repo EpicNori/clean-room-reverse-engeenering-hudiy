@@ -94,7 +94,8 @@ class StandaloneTests(unittest.TestCase):
 
     def test_usb_selection_suppresses_competing_wireless_bootstrap(self):
         wireless=Mock();wireless.credentials.return_value={'enabled':True}
-        agent=BluezAgent(Mock(),wireless,Mock())
+        projection=Mock();projection.snapshot.return_value={'connectionAllowed':True}
+        agent=BluezAgent(Mock(),wireless,projection)
         connection=Mock();agent.connection=connection
         agent.select_transport('usb')
         self.assertFalse(agent.wireless_allowed())
@@ -107,13 +108,14 @@ class StandaloneTests(unittest.TestCase):
     def test_options_are_durable_and_rollback_native_state_on_write_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             bridge=self.projection(directory)
-            bridge.settings({'taskbarVisible':False,'autostart':False,'dayNight':'Night'})
+            bridge.settings({'autoConnect':False,'taskbarVisible':False,'autostart':False,'dayNight':'Night'})
+            self.assertFalse(json.loads(bridge.preferences.read_text())['autoConnect'])
             self.assertFalse(json.loads(bridge.preferences.read_text())['taskbarVisible'])
             with patch('standalone_projection.save_json',side_effect=OSError('Disk full')):
                 with self.assertRaises(OSError):bridge.settings({'autostart':True})
             self.assertFalse(bridge.options['autostart'])
             self.assertFalse(json.loads(bridge.sock.sendall.call_args.args[0])['options']['autostart'])
-            for value in ({'autostart':1},{'dayNight':'invalid'},{'command':'shell'}):
+            for value in ({'autoConnect':1},{'autoConnect':'true'},{'autostart':1},{'dayNight':'invalid'},{'command':'shell'}):
                 with self.assertRaises(ValueError):bridge.settings(value)
 
     def test_obd_preferences_own_connection_and_reject_unpaired_adapters(self):

@@ -277,7 +277,7 @@ export function validateLocal(config) {
       typeof w.id !== "string" ||
       ids.has(w.id) ||
       !options.has(w.source) ||
-      !["value", "gauge", "graph"].includes(w.view) ||
+      !["value", "gauge", "gauge2", "graph"].includes(w.view) ||
       ![w.x, w.y, w.w, w.h].every(Number.isInteger) ||
       ![1, 2].includes(w.w) ||
       ![1, 2].includes(w.h)

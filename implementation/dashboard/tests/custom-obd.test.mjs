@@ -89,3 +89,9 @@ test("new, missing, disconnected or stale sensor readings never become invented 
   assert.equal(sample(config, "derived:range", telemetry, 3, 102).value, null);
   assert.equal(reading(config, "custom:oil").unit, "°C");
 });
+
+test("both original gauge variants survive stored dashboard validation", () => {
+  const config = defaultConfig();
+  config.widgets[0].view = "gauge2";
+  assert.equal(validateLocal(config), true);
+});

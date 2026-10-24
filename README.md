@@ -22,6 +22,7 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
   - [Audio support](#7-added-audio-support)
 - [Custom OBD dashboard](docs/CUSTOM_OBD.md)
 - [OBD diagnostic logging](docs/OBD_LOGGING.md)
+- [OTA software updates](docs/OTA_UPDATES.md)
 - [Architecture](#architecture)
 - [Run locally](#run-locally)
 - [Easy Pi installation](#easy-pi-installation)
@@ -46,7 +47,7 @@ The reference installation was Hudiy **1.24 / native API 1.3**, on a Raspberry P
 
 ## Screenshot gallery
 
-These are screenshots of **our rendered React application** at 1280×720. The original gallery was captured on 10 October 2026; the custom OBD and logging additions were captured on 24 October 2026. The light theme follows the observed Hudiy reference; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
+Every screenshot below was **retaken on 24 October 2026** from the current production build of our React application at 1280×720. This refresh replaces all previous gallery images, including the full-area My OBD layout and logging/update documentation images. The light theme follows the observed Hudiy reference; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
 
 | 🌙 Dark dashboard | 🧭 Application menu |
 | --- | --- |
@@ -60,10 +61,20 @@ These are screenshots of **our rendered React application** at 1280×720. The or
 
 | 🧩 Personal OBD dashboard — SIMULATOR | 📝 Diagnostic recorder — SIMULATOR |
 | --- | --- |
-| [![Custom OBD blocks, gauges, chart and trouble-code layout with synthetic readings](docs/images/custom-obd-simulator.png)](docs/images/custom-obd-simulator.png) | [![Configurable diagnostic recording with synthetic ECU data](docs/images/obd-logging-simulator.png)](docs/images/obd-logging-simulator.png) |
+| [![Custom OBD blocks, gauges, chart and trouble-code layout with synthetic readings](docs/images/custom-obd-simulator.jpg)](docs/images/custom-obd-simulator.jpg) | [![Configurable diagnostic recording with synthetic ECU data](docs/images/obd-logging-simulator.jpg)](docs/images/obd-logging-simulator.jpg) |
 | Choose data, positions, sizes and display types. | Manual/automatic recording, configurable capture and local exports. |
 
-**Screenshot scope:** the gallery previews used separate local fixture servers with isolated synthetic state, with no Pi proxy or hardware actions. Demo artwork was drawn specifically for this gallery. No real contacts, device addresses, location, phone artwork or Wi-Fi credentials are included. A visible menu entry or demo value does not establish hardware support; [verification](#tests-and-observed-results) and the [remaining work](#remaining-work) describe the actual status.
+| 📱 Android Auto connection settings — LOCAL PREVIEW | 📦 OTA updates — SIMULATOR |
+| --- | --- |
+| [![Separate automatic connection and automatic opening switches in the current Android Auto settings](docs/images/android-auto-connection.jpg)](docs/images/android-auto-connection.jpg) | [![Current GitHub OTA status and preferences with an explicit simulated-data notice](docs/images/software-updates-preview.jpg)](docs/images/software-updates-preview.jpg) |
+| Connection, opening and taskbar visibility are separate choices. The Pi/phone acceptance checklist remains open. | Update controls shown with simulated status; no real installation occurred during capture. |
+
+| 🎛️ Original tick gauges — DEMO | ↔️ My OBD using the full available area — SIMULATOR |
+| --- | --- |
+| [![Original tick-style coolant, speed and RPM gauges with a visible DEMO badge](docs/images/obd-gauges-ticks-demo.jpg)](docs/images/obd-gauges-ticks-demo.jpg) | [![Current My OBD layout with small outer gutters and tiles extending down to the taskbar](docs/images/my-obd-full-area.jpg)](docs/images/my-obd-full-area.jpg) |
+| Both original gauge styles are rendered in code and available for custom tiles. | Compact header, 8px outer gutters and the actual remaining screen height. |
+
+**Screenshot scope:** the refreshed gallery used an isolated read-only local preview of the current production build, synthetic media/phone/navigation fixtures and the existing local ELM/OTA simulators. No Pi proxy, phone connection, real software update or hardware action was used. Screens are unedited viewport captures saved in their native JPEG format. Demo artwork was drawn specifically for this gallery. No real contacts, device addresses, location, phone artwork or Wi-Fi credentials are included. A visible menu entry or demo value does not establish hardware support; [verification](#tests-and-observed-results) and the [remaining work](#remaining-work) describe the actual status.
 
 ## What we rebuilt and corrected from Hudiy
 
@@ -123,9 +134,9 @@ Our own native executable links `prodigy-oaa-protocol`, pinned to a documented o
 
 - The video surface sits above our taskbar, with Dashboard/Applications switching back to our web interface while the session stays connected.
 - The taskbar setting changes the advertised video/touch viewport and reconnects the session; the application stays running.
-- Automatic opening is separate from background connection/data collection.
-- Android Auto settings offer per-phone automatic Bluetooth reconnect On/Off, independently of automatic opening. These choices use the same privately saved paired-device preferences as Connections.
-- Five-second connection checks and event-driven phone metadata feed the backend; the existing music/contact refresh settings remain configurable.
+- **Settings → Projections → Android Auto → Connect Android Auto automatically** saves automatic versus manual USB/Wi-Fi connection. **Open Android Auto automatically** separately controls foreground opening; enable both for unattended opening. Turning connection off leaves an active session running. The new native connection policy still needs a Pi rebuild and hardware acceptance; see the [test checklist](#android-auto-automatic-connection-acceptance).
+- Per-phone Bluetooth reconnect is separate. With the master switch and Car Wi-Fi on, one recognized paired phone is selected by default unless its Bluetooth switch was explicitly turned off; several paired phones require selection. Phone detection also uses hands-free services/device class, so contact sharing is optional for reconnection. These choices are saved privately alongside Connections preferences.
+- Five-second connection checks and event-driven phone metadata feed the backend. Wireless handoff retries are limited to one every 30 seconds, wait during an active/starting session and never open the screen themselves; the existing music/contact refresh settings remain configurable.
 - Day/Night is sent through the Android Auto sensor channel. Physical brightness still writes the real panel backlight.
 - Quit stops connection admission until manual USB/Wi-Fi/Resume. USB and Wi-Fi select their respective transport. USB pauses the competing wireless bootstrap; its reconnect targets only one uniquely identified Android accessory, runs outside the UI thread and has a 15-second cooldown. Wired Quit/Resume has been checked without unplugging the cable. Resume can retrigger the owned wireless handshake.
 - The audio-input protocol service remains present without a physical microphone. Actual capture requests fail explicitly when no supported input exists; no fabricated microphone audio is sent. Public status separates decoded video readiness from protocol connection and reports microphone availability.
@@ -262,6 +273,14 @@ The first command prints the exact changes. Applying retains timestamped backups
 
 The official Hudiy host/API/configuration bridge has been removed from production source. `HUDIY_PROJECTION_HOST` no longer enables an alternative runtime. The normal launcher runs only our native application; desktop preview keeps Pi controls unavailable.
 
+My OBD also uses the original arc/tick gauges with animated drag/drop and a compact, full-area grid. [View the current layout](docs/images/my-obd-full-area.jpg).
+
+## OTA software updates
+
+**Settings → System → Software updates** adds selectable notify/manual or automatic-idle updates from this project's GitHub `main`. Check frequency, notifications, background preparation during Android Auto, metered routes and retained versions are configurable. Builds/tests run in a separate managed copy; activation restarts the app and verifies startup with automatic rollback. Ethernet can supply Internet while wireless Android Auto uses Wi-Fi; an existing free Wi-Fi Internet route is supported too. Network profiles remain unchanged.
+
+Install this OTA-capable revision once before using the updater. OS/package or incompatible bootstrap changes still use the normal installer. See the [OTA guide](docs/OTA_UPDATES.md) for initial deployment, source trust, parked/idle conditions and recovery. Real Pi OTA acceptance is pending. Local verification for this revision passes 177 backend tests (four platform skips), 29 frontend/packaging tests and the production build; the dependency audit reports zero known vulnerabilities.
+
 ## Settings and privacy
 
 In the independent Pi application, supported preferences are stored under `~/.local/share/hudiy-recreation/`, including layout, refresh intervals, projection options, brightness, Bluetooth reconnect selection and optional radio output. Saves are atomic/private on Linux; durable layout/settings saves flush before acknowledgement. The standalone browser preview uses local browser preferences for appearance/layout.
@@ -296,6 +315,19 @@ The custom OBD/dashboard logging revision passes **140 backend tests (four Windo
 - [ ] Compile and verify the new notification overlay on the Pi: popups above Android Auto, touchscreen pass-through and cross-view switch/theme behavior. Local UI/schema tests pass; the Pi powered off before upload.
 
 Unchecked items are still incomplete or require hardware verification. The gallery's demo gauges do not complete the OBD checks.
+
+### Android Auto automatic connection acceptance
+
+The Pi was switched off during this change. Local persistence, validation and retry-policy checks pass; the following steps are deliberately unchecked until the updated native application is built and tested on the device.
+
+- [ ] Build the updated native runtime on the Pi and run CTest, including `android-auto-connection-policy`; verify the published admission status reaches the backend.
+- [ ] Enable **Connect Android Auto automatically** and **Open Android Auto automatically**, cold-boot with the previously paired phone nearby, and verify wireless projection opens without tapping Connect. Repeat with USB already plugged in.
+- [ ] Test all connection/opening switch combinations on USB and Wi-Fi: connection On + opening Off must collect background media/navigation without covering the dashboard; connection Off must wait for manual USB/Wi-Fi/Resume.
+- [ ] Change each switch, restart the application and reboot the Pi; confirm master, opening and per-phone Bluetooth choices persist. Verify a phone with contact sharing disabled still has reconnect controls.
+- [ ] Test the single-phone default, an explicitly disabled phone and several paired phones. Confirm the ELM327 and optional radio receiver are never selected as Android Auto phones.
+- [ ] Leave and return to Bluetooth range, then interrupt only Android Auto while keeping Bluetooth connected. Confirm recovery and the 30-second retry bound; verify there are no repeated handoffs while a session is starting/active and no disruption to OBD, calls or radio audio.
+- [ ] Use Quit and confirm automatic retries pause. Verify manual Resume works with automatic connection Off, and switching connection Off then On re-enables automatic admission without stealing focus when automatic opening is Off.
+- [ ] Turn automatic connection Off during an active session and verify it stays connected, then stops reconnecting after disconnection. Also test Bluetooth/hotspot services starting late during boot.
 
 ### Required car functionality and verification
 

@@ -170,3 +170,36 @@ Use a 36px regular title, 24px section titles, 17px text and 14px supporting tex
 Capture coverage and recent structured/raw events use native details controls with wrapped text and selectable diagnostic payloads. The automatic-recording switch has a 64×48px hit target, explicit label and saved-device meaning. Log removal uses a labelled focus-trapped confirmation dialog with Keep recording focused first. Export buttons state CSV/JSONL and show the saved local destination. Error, interrupted, simulator, waiting and storage-limit states are written as text. Preserve normal finger/mouse drag scrolling above the taskbar.
 
 Recording settings use a native details section with two-column capture checkboxes and interval/storage controls, reflowing to one column below 700px. Each numerical control has presets plus 48px decrement/increment buttons, and unsaved choices have explicit Save/Discard actions. Capture changes apply to the next session; automatic/manual mode stays separately available. Use inherited theme colors and focus styles throughout.
+
+
+## My OBD original gauges and drag motion
+
+My OBD shares the actual code-rendered arc and tick gauge components from Gauges/Gauges 2, including the original 270-degree geometry, Roboto labels, numeric value, units, ticks/indicator and current theme palette. Sensor-specific min/max/decimals apply to custom readings. Both original variants are selectable per tile; existing saved Gauge tiles use the arc variant. Scale gauge typography to tile space, retaining the existing reference sizing on the dedicated screens.
+
+Dragging lifts a themed text/card preview with an 18px radius, primary border, soft shadow and slight two-degree rotation. Keep the source card as a faint dashed placeholder and highlight the actual drop cell. Accepted moves/swaps use a 280ms position animation with cubic-bezier(.2,.8,.2,1); added tiles enter over 220ms. The grip remains the only drag-capture area, so page swipes continue scrolling. Reduced-motion disables lift/position animations and rotation. No data animation invents readings.
+
+
+## Software update settings
+
+Use the established left gutter, regular Roboto titles (36px/30px compact), themed surface cards with 16px corners, Material Symbols and 48px minimum touch controls. A status card shows real update phase, installed/latest commit, network route and last check. Preparation phases have a subtle opacity pulse only when reduced motion is off; no invented completion percentage. Preferences expose notify versus idle installation, automatic checks, check interval with preset/step controls, Android Auto preparation, metered networks and retained versions. Switches are 64×48px and use current primary/outline colors.
+
+Stack the route/version summary and setting controls on compact screens; the page scrolls above the permanent taskbar. Installation/rollback use a focus-trapped parked/restart dialog. Its safe first action keeps using the app. Error, offline, unsupported launcher, busy, verifying and rolled-back states are written in text. Current theme tokens apply to every surface/control.
+
+Small custom gauges retain at least 28px numeric values, 12px units and 10px endpoint labels. Shared reference screens retain their original typography. Software-update notifications use the existing themed notice overlay and configurable toast duration; a separate update-notification switch controls them.
+
+
+## My OBD maximum usable area
+
+The owner wants My OBD to fill the screen like the other OBD views. Use an 8px outer gutter, 8px tile gaps, 12px tile padding/corners, and a compact 72px landscape header. Reserve the Back-button space inside the header only; there is no persistent 96px left gutter beside the grid. A ResizeObserver measures the actual remaining height below the header/controls, and desktop rows share that space down to the taskbar with a 120px minimum. Edit rows keep their 260px tool area and scrolling. On compact/portrait displays the title alone reserves 56px for Back, controls wrap using 48px touch targets, and the Logs text becomes an accessible icon button to fit the header. Saved positions/spans and responsive single/two-column behavior remain intact.
+
+Scale only the My OBD header’s Back reservation with the existing --unit variable on larger displays; the grid keeps its 8px full-width gutters at every resolution.
+
+
+## Android Auto automatic connection
+
+Place Connect Android Auto automatically before per-phone Bluetooth reconnect and Open Android Auto automatically in Android Auto settings. Reuse the existing themed switch rows, touch targets, focus styling and scroll container. Connection and screen opening are separate persistent choices. Short supporting text explains manual mode, existing-session preservation and Quit pausing retries. No new colors, images or animation.
+
+
+## Complete screenshot refresh — 24 October 2026
+
+Retake all public documentation images from the current production build; replace the earlier JPEG gallery with unedited 1280×720 native JPEG viewport captures. Retain the light purple/pink palette and show dark amber with contrast 0. Use descriptive alt text, full-size image links and paired Markdown gallery tables. Include both original gauge variants, the full-area My OBD grid, logging, OTA and the separate automatic Android Auto connection/opening controls. Mark synthetic/demo/local-only views clearly in captions and preserve hardware acceptance limits. The capture preview is isolated/read-only and never changes the owner's app settings or contacts. No production UI style changes were made for these pictures.

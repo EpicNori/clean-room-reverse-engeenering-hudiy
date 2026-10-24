@@ -111,7 +111,10 @@ class StandaloneProjection:
                     'runtimePid': self.state.get('runtimePid'),
                     'microphoneAvailable': self.state.get('microphoneAvailable') is True,
                     'videoReady': self.state.get('connected') is True and self.state.get('frames', 0) > 0,
-                    'wirelessListening': self.state.get('wirelessListening', False)}
+                    'wirelessListening': self.state.get('wirelessListening', False),
+                    'connectionAllowed': self.state.get('connectionAllowed') is True,
+                    'automaticConnectionAllowed': self.state.get('automaticConnectionAllowed') is True,
+                    'sessionStarting': self.state.get('sessionStarting') is True}
 
     def data_snapshot(self):
         with self.lock:
@@ -138,7 +141,7 @@ class StandaloneProjection:
 
     def settings(self, data, path=None):
         if not self.enabled: raise ConnectionError('Settings require the independent Pi application')
-        if not isinstance(data, dict) or not data or set(data) - {'autostart', 'taskbarVisible', 'dayNight', 'darkMode'}:
+        if not isinstance(data, dict) or not data or set(data) - {'autoConnect', 'autostart', 'taskbarVisible', 'dayNight', 'darkMode'}:
             raise ValueError('Unexpected projection settings')
         for key, value in data.items():
             if key == 'dayNight':

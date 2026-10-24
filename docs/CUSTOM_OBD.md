@@ -2,7 +2,7 @@
 
 Open **Applications → Hudiy → My OBD → Edit dashboard**. This is an additional page in our independent application. The five existing OBD screens remain available.
 
-![Personal dashboard with oil temperature, speed, range, chart and trouble codes](images/custom-obd-simulator.png)
+![Personal dashboard with oil temperature, speed, range, chart and trouble codes](images/custom-obd-simulator.jpg)
 
 *Local ELM simulator with synthetic data, not a live vehicle test.*
 
@@ -11,7 +11,7 @@ Open **Applications → Hudiy → My OBD → Edit dashboard**. This is an additi
 1. Choose **Add data**. Tap a reading to add it in the first free space, or drag it into an empty grid cell on a wide screen.
 2. Drag a tile by its grip to move it. Compatible tiles swap places. Overlapping or out-of-bounds placements are rejected.
 3. Use the arrow buttons for precise movement or on smaller touchscreens. The logical layout has four columns and eight rows; compact displays reflow those positions into one or two columns without changing the saved arrangement.
-4. Open a tile's settings to choose its source, title, **Block**, **Gauge**, or **Chart**, and small, wide, tall, or large size. Messages use the block display. Up to 16 tiles can be saved.
+4. Open a tile's settings to choose its source, title, **Block**, either **Original gauge** style (arc/ticks), or **Chart**, and small, wide, tall, or large size. Messages use the block display. Up to 16 tiles can be saved.
 5. Choose **Done**. Changes save automatically; wait for **Saved on device**. On a desktop preview without device storage, changes are saved in that browser instead.
 
 The page uses the app's current colors and taskbar. Only drag grips consume dragging; the page remains scrollable. Mapping fields have an on-screen keyboard. The page can also be pinned through the existing long-press shortcut controls.
@@ -60,3 +60,5 @@ The ELM worker keeps ordinary readings, adds at most two due custom queries per 
 Local QA uses the real HTTP handler and socket transport with a loopback ELM fixture, isolated storage and synthetic readings. It covers custom PID decoding, formula preview, DTCs, drag/drop from the source list, tile swapping, view selection, range inputs, reload and cold-service persistence, and compact touch controls. Automated tests cover schema/formula rejection, header restoration, optimistic saves, disconnect invalidation, sampling gaps and synthetic acceleration runs.
 
 These checks do **not** verify a powered ELM327 in a real vehicle, its manufacturer PIDs, physical finger input, or this revision installed on the Pi. Native Android Auto code is unchanged by this feature.
+
+My OBD now shares the original arc/tick renderers from the dedicated gauge screens. Tile movement uses a lifted drag preview and animated moves/swaps, with reduced-motion support. The grid uses 8px outer gutters/gaps and measures its available height to fill the area above the taskbar; the Back reservation is confined to the compact header.
