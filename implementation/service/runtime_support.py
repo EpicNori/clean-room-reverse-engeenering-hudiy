@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-ROUTES = frozenset('''dashboard apps settings obd-settings playlist stations
+ROUTES = frozenset('''dashboard apps settings obd-settings custom-obd obd-logs playlist stations
     contacts favorites dialpad call-log active-call notifications
     storage radio a2dp autobox-music android-music active-apps
     obd-charts obd-blocks combined gauges gauges-2 marketplace

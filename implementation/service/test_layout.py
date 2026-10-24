@@ -20,6 +20,16 @@ class LayoutTests(unittest.TestCase):
             self.assertEqual(restored['taskbar'], old['taskbar'])
             self.assertEqual(restored['menus']['System'], old['menus']['System'] + ['music-settings', 'contacts-settings'])
 
+    def test_previous_catalog_gains_custom_obd_without_losing_shortcuts_or_order(self):
+        old=copy.deepcopy(DEFAULT_LAYOUT)
+        old['menus']['Hudiy'].remove('custom-obd')
+        old['menus']['Hudiy'].reverse()
+        old['taskbar'].insert(2,'contacts')
+        result=validate_layout(old)
+        self.assertEqual(result['taskbar'],old['taskbar'])
+        self.assertEqual(result['menus']['Hudiy'][:-1],old['menus']['Hudiy'])
+        self.assertEqual(result['menus']['Hudiy'][-1],'custom-obd')
+
     def test_save_flushes_data_before_reporting_success(self):
         with tempfile.TemporaryDirectory() as folder:
             with patch('runtime_support.os.fsync', wraps=os.fsync) as sync:

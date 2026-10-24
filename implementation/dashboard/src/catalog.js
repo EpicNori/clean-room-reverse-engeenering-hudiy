@@ -46,6 +46,8 @@ export const menus = {
     ["Combined", "speed", "combined"],
     ["Gauges", "speed", "gauges"],
     ["Gauges 2", "speed", "gauges-2"],
+    ["My OBD", "dashboard_customize", "custom-obd"],
+    ["OBD Logs", "description", "obd-logs"],
     ["Hudiy Marketpl", "storefront", "marketplace"],
   ],
   System: [

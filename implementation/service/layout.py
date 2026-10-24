@@ -10,7 +10,7 @@ MENU_IDS = {
     'Music': ['storage', 'radio', 'a2dp', 'autobox-music', 'android-music'],
     'Android Auto': ['android-usb', 'android-wifi', 'android-resume', 'android-quit'],
     'Autobox': ['autobox-wifi', 'autobox-resume'],
-    'Hudiy': ['active-apps', 'settings', 'quit', 'obd-charts', 'obd-blocks', 'combined', 'gauges', 'gauges-2', 'marketplace'],
+    'Hudiy': ['active-apps', 'settings', 'quit', 'obd-charts', 'obd-blocks', 'combined', 'gauges', 'gauges-2', 'custom-obd', 'obd-logs', 'marketplace'],
     'System': ['theme', 'appearance', 'application', 'notification-settings', 'overlays', 'about', 'music-settings', 'contacts-settings'],
     'Projections': ['android-settings', 'autobox-settings'],
     'Audio': ['sound', 'equalizer', 'presets'],
@@ -46,6 +46,8 @@ def validate_layout(value):
     bluetooth = groups['Bluetooth']
     if isinstance(bluetooth,list) and 'bluetooth-connections' not in bluetooth:
         groups['Bluetooth']=bluetooth+['bluetooth-connections']
+    hudiy=groups['Hudiy']
+    if isinstance(hudiy,list):groups['Hudiy']=hudiy+[id for id in ('custom-obd','obd-logs') if id not in hudiy]
     system = groups['System']
     if isinstance(system, list):
         groups['System'] = system + [id for id in ('music-settings', 'contacts-settings') if id not in system]

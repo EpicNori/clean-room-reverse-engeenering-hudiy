@@ -66,3 +66,27 @@ Fresh browser captures covered the disabled output switch, enabled popup, accent
 The frontend test suite and production build pass. The Windows backend suite ran 106 tests with three platform-specific skips, including the new private IPC and HTTP notification validation cases. A browser timer-binding error discovered during real interaction was corrected and covered by a regression test. Existing native audio-worker operation and actual wireless media/video were observed after reconnecting to the rebooted Pi; these observations precede the new notification code.
 
 The Pi powered off during the session. Notification upload, new native compilation/CTest, visibility above live Android Auto, input microphone gain and real touchscreen pass-through remain unverified. Deployment was interrupted before any upload operation. See design-qa.md for the local visual scope; no complete 1:1 or hardware acceptance is claimed.
+
+
+## Custom OBD dashboard — local check, 24 October 2026
+
+The new My OBD page was checked through the running browser and real local service using a loopback ELM fixture with isolated storage. Actual UI interactions created oil-temperature, fuel-level and fuel-rate mappings, evaluated sample hex bytes, selected range inputs, changed a tile to Gauge, dragged a source into an empty cell, and swapped speed into the upper-left position. Definitions, positions and view choices survived a browser reload and a cold service restart. The constant-speed fixture produced 60 km/h, 60 °C oil temperature, stored code P0133 and an estimated 301 km range; it correctly left 0–100 unavailable. These are labelled synthetic simulator readings.
+
+The 1280×720 landscape view and 320×568 compact view were inspected. Compact page width was 320px without horizontal overflow; the on-screen mapping keyboard fit the modal. Light/pink and dark/yellow palettes updated tile surfaces, controls and code-rendered plots. Original light/pink appearance and normal viewport were restored. Only drag handles capture movement; standard page scrolling remains enabled.
+
+Production build and all 28 frontend/packaging tests passed. The Windows backend suite ran 123 tests with three platform-specific skips. Coverage includes formula/schema abuse, command injection/write rejection, sensor-frame matching, CAN header restoration, durable revision conflicts, actual loopback polling, removed-source invalidation, disconnect clearing, layout migration, sampling gaps, coasting fuel calculations and synthetic performance runs. npm audit reported zero known vulnerabilities on 24 October 2026; this is not a guarantee of no security defects.
+
+No vehicle, Bluetooth adapter, phone playback/call or real acceleration run was used for this feature. This revision has not been deployed or accepted on the physical Pi. Manufacturer PID support, physical touch input and live vehicle reconnect remain outstanding. The new local API/ELM boundaries are documented in backend-rules.md and CUSTOM_OBD.md; no cloud rules or new privileges are required.
+
+
+## Configurable OBD logging — local check, 24 October 2026
+
+The new Logs option was exercised through the browser and real HTTP/ELM socket services using an isolated synthetic fixture. The fixture advertised 12 live PIDs, four freeze-frame PIDs, three information PIDs and one CAN monitor ID. Manual recording retained codes including P0133/P0147, raw exchanges, hidden custom mappings and numerical samples. The recording continued while navigating to My OBD. Recent-event expansion displayed the decoded stored fault code.
+
+Automatic recording and a two-second sample interval were selected through the UI. After a cold service restart, a new session started without another UI action and retained that capture configuration. Recorded sample timestamps were at least 2.014 seconds apart in the checked segment. Stop finalized both sessions. CSV export created a local file with 5,434 rows, including 996 plottable numeric reading rows and 157 diagnostic events in the first checked session. JSONL remains the complete stream. These are simulator checks, not a real vehicle diagnosis.
+
+At 320×568, page and viewport widths were both 320px, with no horizontal overflow. A pointer drag moved the settings scroll position from 617px to 867px; numerical increment controls measured 48×48px. The normal viewport was restored. The interface shows stored choices, unsaved drafts, data coverage, automatic/manual mode and the next-session effect of capture changes. A synthetic screenshot is included in the logging guide.
+
+Automated checks cover read-only command/schema boundaries, actual loopback capture/reconnect, settings persistence, idle flush, raw/sample filters, full-storage/queue/disk failures, incomplete-session recovery, safe local export and quota reduction without hidden/deleted older logs. Hardware Pi deployment, physical finger input, powered-vehicle discovery, manufacturer ECU support and real ignition power-cut behavior remain outstanding. No private raw recording or export is published.
+
+Final publication checks for the combined custom OBD/logger revision: 140 backend tests ran successfully with four platform-specific skips; all 28 frontend/packaging tests and the production build passed. The complete npm dependency audit returned zero known vulnerabilities. Browser console checks showed no new errors or warnings. Physical Pi/vehicle acceptance is unchanged and remains pending.

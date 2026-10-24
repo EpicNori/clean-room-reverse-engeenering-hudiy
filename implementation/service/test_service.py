@@ -53,6 +53,63 @@ class SensorTests(unittest.TestCase):
         finally:obd.disconnect();simulator.shutdown();simulator.server_close()
 
 class HTTPTests(unittest.TestCase):
+    def test_diagnostic_logs_validate_actions_exports_and_local_boundaries(self):
+        import tempfile
+        from pathlib import Path
+        from obd_logging import OBDRecorder,DEFAULT_SETTINGS
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);rec=OBDRecorder(root/'logs',export_root=root/'exports')
+            with patch.object(server,'obd_logs',rec):
+                with self.request('/api/obd-logs') as response:self.assertFalse(json.load(response)['recording'])
+                for body in ({'action':'start','path':'/tmp/arbitrary'},{'action':'settings','settings':{**DEFAULT_SETTINGS,'scanIntervalSeconds':False}},{'action':'remove','id':'../config','confirmed':True}):
+                    with self.request('/api/obd-logs',body) as response:self.assertEqual(response.status,400)
+                with self.request('/api/obd-logs',{'action':'start'},headers={'Origin':'https://evil.example'}) as response:self.assertEqual(response.status,403)
+                with self.request('/api/obd-logs',{'action':'settings','settings':{**DEFAULT_SETTINGS,'autoRecord':True}}) as response:self.assertTrue(json.load(response)['autoRecord'])
+                with self.request('/api/obd-logs',{'action':'start'}) as response:identifier=json.load(response)['active']['id']
+                with self.request('/api/obd-logs/'+identifier+'/jsonl') as response:self.assertEqual(response.status,400)
+                rec.exchange('010D','410D3C>')
+                with self.request('/api/obd-logs',{'action':'stop'}) as response:self.assertFalse(json.load(response)['recording'])
+                with self.request('/api/obd-logs/'+identifier+'/jsonl') as response:
+                    self.assertEqual(response.status,200);self.assertIn('attachment',response.headers['Content-Disposition']);self.assertIn(b'410D3C',response.read())
+                with self.request('/api/obd-logs/'+identifier+'/preview') as response:self.assertTrue(json.load(response)['events'])
+                with self.request('/api/obd-logs',{'action':'export','id':identifier,'format':'csv'}) as response:
+                    self.assertEqual(response.status,200);self.assertTrue((root/'exports'/json.load(response)['filename']).is_file())
+                with self.request('/api/obd-logs/'+identifier+'/sh') as response:self.assertEqual(response.status,400)
+                with self.request('/api/obd-logs',{'action':'remove','id':identifier,'confirmed':False}) as response:self.assertEqual(response.status,400)
+                rec.close()
+
+    def test_custom_obd_storage_has_schema_revision_and_origin_boundaries(self):
+        import tempfile
+        from pathlib import Path
+        from custom_obd import CustomOBDStore,DEFAULT_CONFIG
+        with tempfile.TemporaryDirectory() as folder:
+            store=CustomOBDStore(True,Path(folder)/'dashboard.json')
+            with patch.object(server,'custom_obd',store):
+                with self.request('/api/obd-dashboard') as response:
+                    self.assertEqual(json.load(response)['revision'],0)
+                with self.request('/api/obd-dashboard',{'revision':0,'config':DEFAULT_CONFIG},headers={'Origin':'https://evil.example'}) as response:
+                    self.assertEqual(response.status,403)
+                with self.request('/api/obd-dashboard',{'revision':0,'config':DEFAULT_CONFIG,'path':'/tmp/arbitrary'}) as response:
+                    self.assertEqual(response.status,400)
+                with self.request('/api/obd-dashboard',{'revision':0,'config':DEFAULT_CONFIG}) as response:
+                    self.assertEqual(response.status,200);self.assertEqual(json.load(response)['revision'],1)
+                with self.request('/api/obd-dashboard',{'revision':0,'config':DEFAULT_CONFIG}) as response:
+                    self.assertEqual(response.status,409)
+                with self.request('/api/obd-dashboard',{'padding':'x'*17000}) as response:
+                    self.assertEqual(response.status,413)
+                self.assertEqual(store.revision,1)
+
+    def test_custom_formula_preview_never_sends_an_obd_command(self):
+        from test_custom_obd import sensor
+        with patch.object(server,'obd') as obd:
+            with self.request('/api/obd-formula',{'sensor':sensor(),'sample':'64'}) as response:
+                self.assertEqual(response.status,200);self.assertEqual(json.load(response)['sampleValue'],60)
+            with self.request('/api/obd-formula',{'sensor':sensor(formula='__import__("os")')}) as response:
+                self.assertEqual(response.status,400)
+            with self.request('/api/obd-formula',{'sensor':sensor(),'sample':'64','command':'04'}) as response:
+                self.assertEqual(response.status,400)
+            obd.connect.assert_not_called();obd.snapshot.assert_not_called()
+
     def test_native_notification_action_is_validated_and_does_not_execute_commands(self):
         notice={'kind':'output','message':'Volume 80','duration':8,'background':'#abcdef','foreground':'#123456'}
         with self.request('/api/action',{'action':'notification',**notice}) as response:

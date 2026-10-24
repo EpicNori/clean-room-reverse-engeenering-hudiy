@@ -20,6 +20,8 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
   - [Bluetooth phone services](#5-integrated-bluetooth-phone-services)
   - [Required OBD vehicle data](#6-added-required-obd-vehicle-data-support)
   - [Audio support](#7-added-audio-support)
+- [Custom OBD dashboard](docs/CUSTOM_OBD.md)
+- [OBD diagnostic logging](docs/OBD_LOGGING.md)
 - [Architecture](#architecture)
 - [Run locally](#run-locally)
 - [Easy Pi installation](#easy-pi-installation)
@@ -44,7 +46,7 @@ The reference installation was Hudiy **1.24 / native API 1.3**, on a Raspberry P
 
 ## Screenshot gallery
 
-These are fresh screenshots of **our rendered React application**, captured on 10 October 2026 at 1280×720. The light theme follows the observed Hudiy reference; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
+These are screenshots of **our rendered React application** at 1280×720. The original gallery was captured on 10 October 2026; the custom OBD and logging additions were captured on 24 October 2026. The light theme follows the observed Hudiy reference; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
 
 | 🌙 Dark dashboard | 🧭 Application menu |
 | --- | --- |
@@ -56,7 +58,12 @@ These are fresh screenshots of **our rendered React application**, captured on 1
 | [![Dark theme settings with color choices and matching amber controls](docs/images/theme-settings.jpg)](docs/images/theme-settings.jpg) | [![Code-rendered engine temperature, speed and RPM gauges labeled DEMO](docs/images/obd-gauges-demo.jpg)](docs/images/obd-gauges-demo.jpg) |
 | Accent colors reach the controls, panels and taskbar. | The application's existing Demo mode supplies simulated values. |
 
-**Screenshot scope:** the gallery preview used a separate read-only local fixture server, with no Pi proxy or hardware actions. Demo artwork was drawn specifically for this gallery. No real contacts, device addresses, location, phone artwork or Wi-Fi credentials are included. A visible menu entry or demo value does not establish hardware support; [verification](#tests-and-observed-results) and the [remaining work](#remaining-work) describe the actual status.
+| 🧩 Personal OBD dashboard — SIMULATOR | 📝 Diagnostic recorder — SIMULATOR |
+| --- | --- |
+| [![Custom OBD blocks, gauges, chart and trouble-code layout with synthetic readings](docs/images/custom-obd-simulator.png)](docs/images/custom-obd-simulator.png) | [![Configurable diagnostic recording with synthetic ECU data](docs/images/obd-logging-simulator.png)](docs/images/obd-logging-simulator.png) |
+| Choose data, positions, sizes and display types. | Manual/automatic recording, configurable capture and local exports. |
+
+**Screenshot scope:** the gallery previews used separate local fixture servers with isolated synthetic state, with no Pi proxy or hardware actions. Demo artwork was drawn specifically for this gallery. No real contacts, device addresses, location, phone artwork or Wi-Fi credentials are included. A visible menu entry or demo value does not establish hardware support; [verification](#tests-and-observed-results) and the [remaining work](#remaining-work) describe the actual status.
 
 ## What we rebuilt and corrected from Hudiy
 
@@ -147,6 +154,10 @@ We added native Bluetooth Serial Port adapter selection, RFCOMM channel controls
 Our backend opens the selected Bluetooth adapter directly through RFCOMM and starts supported reads. Failed connections retry at most every 30 seconds. Disconnect clears old readings/history. Manual Stop suppresses monitoring for the current service session, and selecting serial/USB takes precedence. A manual Bluetooth read keeps the required automatic reconnect monitor enabled.
 
 Supported values are engine load, coolant temperature, RPM, speed, throttle and control-module voltage. Views include OBD Charts, OBD Blocks, Combined and two gauge layouts. A loopback simulator is supported for development; simulated data does not count as a real vehicle test.
+
+**My OBD** adds a personal drag-and-drop dashboard: choose data, positions, tile sizes, blocks, gauges or charts. Define up to eight custom Mode 01/22 sensor mappings with byte formulas and a touchscreen keyboard. Add stored trouble codes, sampled acceleration, 0–100 statistics and estimated range/consumption with explicitly configured fuel inputs. Definitions and layout save privately on the Pi. See the [custom OBD guide](docs/CUSTOM_OBD.md) for setup, limits and verification.
+
+**OBD Logs** records independently of the visible page, with configurable manual/automatic recording, data categories, sample/scan intervals and storage limits. It captures advertised diagnostics, custom mappings, raw replies and connection errors, with recent-event review and local CSV/JSONL export. See the [logging guide](docs/OBD_LOGGING.md) for capture scope, storage and verification limits.
 
 The reference adapter was paired and its cached Serial Port advertisement matched the configured RFCOMM channel 2, but it was unreachable during verification. **Live vehicle readings have not yet been verified.** The service sends only its fixed initialization/read-only sensor allowlist; it does not offer arbitrary CAN/ECU commands or fault clearing.
 
@@ -277,6 +288,8 @@ Earlier checkpoints passed 79 backend/13 frontend and 96 backend/14 frontend che
 Tests cover bounded sensor/protocol handling, source changes and artwork invalidation, connection recovery, preference validation and rollback, layout persistence, calls with mocks, phonebook session ownership, audio routing ownership, host/origin/injection rejection and touch-filter grouping. Automated tests do not place real calls, remove real pairings or verify vehicle hardware.
 
 Historical checks of the licensed bridge included contact synchronization, an authorized outgoing call/hangup and Bluetooth Play/Pause. Our standalone checks include real wireless projection, taskbar navigation, Android Auto Quit/Resume, both taskbar layouts, Day/Night, live media/artwork, backlight writes and actual reboot startup with matching saved-preference hashes. The new per-phone reconnect switch was checked against its private saved file in both states. See [current standalone evidence](docs/STANDALONE.md); [docs/VERIFICATION.md](docs/VERIFICATION.md) retains the earlier history. Earlier browser checks covered sizes from 320×568 through 1920×720.
+
+The custom OBD/dashboard logging revision passes **140 backend tests (four Windows/platform skips)**, **28 frontend/packaging tests**, and the production frontend build. The full dependency audit reported zero known vulnerabilities on 24 October 2026. Recording, configuration persistence, automatic connection start, CSV export and responsive controls were verified with an isolated loopback ELM simulator. This revision has not been deployed or verified with a powered vehicle on the Pi. See [logging scope](docs/OBD_LOGGING.md) and [verification](docs/VERIFICATION.md).
 
 ## Remaining work
 

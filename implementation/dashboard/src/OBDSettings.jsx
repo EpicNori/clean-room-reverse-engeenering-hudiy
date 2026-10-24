@@ -1,6 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 
-export function OBDSettings({action, status, demo, demoControl}) {
+export function OBDSettings({onLogs, action, status, demo, demoControl}) {
   const [transport, setTransport] = useState('bluetooth');
   const [settings, setSettings] = useState({available:false, devices:[]});
   const [address, setAddress] = useState(''), [channel, setChannel] = useState(2);
@@ -34,6 +34,7 @@ export function OBDSettings({action, status, demo, demoControl}) {
   };
   const paths = ['/dev/rfcomm0','/dev/rfcomm1','/dev/rfcomm2','/dev/ttyUSB0','/dev/ttyACM0','COM1','COM2'];
   return <>
+    <button className="setting-row link-row" onClick={onLogs}>OBD Logs · record and export diagnostics</button>
     {demoControl}
     <label className="setting-row obd-choice">Connection
       <select aria-label="OBD connection type" value={transport} onChange={e=>setTransport(e.target.value)}>

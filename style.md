@@ -142,3 +142,31 @@ Output, input and track notices respect their individual switches and Notificati
 Notifications reference alignment: on landscape views above 640px, move toggle content down 4 scaled pixels and its right inset to 2 scaled pixels. Extend the slider control group 27 scaled pixels, reduce its output column to 40 scaled pixels, move the controls down 2 scaled pixels and use 80 scaled-pixel arrow symbols. At 1280×720 this aligns the observed switch centers (approximately 1086/90), slider track end (approximately 1020), thumb at value 8 (approximately 606) and right arrow (approximately 1127). Apply these corrections only to Notifications; keep compact controls and other settings pages unchanged. Persistent extra shortcuts are intentional personal layout differences from the original capture.
 
 Compact Notifications switches use a 64×48px pill with 24px off/36px on thumbs and 6px/4px side insets, ensuring a 48px touch target while retaining the theme. Row labels wrap within the existing 196px content area at a 320px viewport; controls stay above the horizontally scrollable taskbar.
+
+
+## My OBD editor — 24 October 2026
+
+Add My OBD to the Hudiy applications category as an independent custom-data page; retain all original OBD pages. Use inherited --bg/--surface/--text/--muted/--primary/--active/--primary-text/--track/--outline tokens, local Roboto, and the existing Material Symbols library. No new palette, gradients or raster assets. The page scrolls above the persistent taskbar and starts 96px from the left on landscape to preserve Back.
+
+The landscape editor uses a four-column, eight-row coordinate grid with 180px rows and 16px gaps. Rounded 16px tiles can be 1×1, 2×1, 1×2 or 2×2. Source chips can be tapped or dragged to empty cells; each tile has a dedicated grip and previous/next/up/down alternatives. Only grips capture touch; surrounding swipes retain normal scrolling. Layout changes save independently of the theme and acknowledge Pi storage or browser-only preview. Drops outside the grid or into incompatible occupied space preserve the prior layout. Live values have no fabricated fallbacks; Demo and Simulator states are visibly labeled. Charts/gauges use canvas-rendered telemetry and refresh inherited colors.
+
+Below 1100px the same saved positions flow into two columns; below 640px or in portrait they flow into one. The source library stacks and move buttons provide precise positioning when drag targets are not shown. View-mode values use 28–52px text and secondary metadata 13–18px. Editors use a focused, scrollable themed dialog, labeled 48px fields, touchscreen keyboards for text/hex/formulas/numbers, Escape/Cancel and focus return. Range estimates and acceleration timings are labeled as estimates; missing inputs show dashes and concise setup guidance.
+
+My OBD view rows adapt between 140–180px to fit three rows above the taskbar at 1280×720; desktop edit rows expand to 220px for controls. Use 100vh for Qt 6.4 compatibility. Its action group uses the scoped obd-page-actions class so the existing OBD settings action styles cannot enlarge the new header.
+
+Editing starts with the data-source library collapsed behind Add data, keeping placement controls visible. Landscape edit rows are 260px to fit 48px move/configure/remove targets without clipping; source grips retain independent pointer capture. Normal view remains compact and uses the saved grid unchanged.
+
+Sensor editors provide a clearly labeled sample-byte formula test when the local service is available; sample results are never presented as live vehicle values. Saved layout acknowledgement says Saved on device to describe the actual durable backend rather than assuming a particular platform.
+
+Chart horizontal positions use the recorded sample timestamps, retaining gaps when mappings change. The library includes last/best 0–100 and average consumption estimates. On 320px screens, the touch keyboard uses five columns to preserve 48px-wide keys and shows the currently edited value.
+
+
+## OBD diagnostic logging — 24 October 2026
+
+OBD Logs is a dedicated scrollable page reached from My OBD, every existing OBD telemetry view, connection settings and the Hudiy application menu. Retain inherited Roboto/Material Symbols, current background/surface/primary/active/text/muted/track/outline tokens and existing taskbar. No images imitate readings; screenshots are documentation only.
+
+Use a 36px regular title, 24px section titles, 17px text and 14px supporting text. Landscape gutter is 96px, top/right padding 24px; compact/portrait uses 70px top and 12px side gutters. Surfaces have 16px corners, controls 12px corners and at least 48px targets, with visible theme-colored focus rings. A static primary-color recording dot plus text indicates recording; no flashing/red-only status or animation is needed. The primary Record/Stop button uses the active theme. Four numerical status cells reflow into two columns on compact screens. Session rows and action groups wrap below 1000px; compact cards use 16px padding.
+
+Capture coverage and recent structured/raw events use native details controls with wrapped text and selectable diagnostic payloads. The automatic-recording switch has a 64×48px hit target, explicit label and saved-device meaning. Log removal uses a labelled focus-trapped confirmation dialog with Keep recording focused first. Export buttons state CSV/JSONL and show the saved local destination. Error, interrupted, simulator, waiting and storage-limit states are written as text. Preserve normal finger/mouse drag scrolling above the taskbar.
+
+Recording settings use a native details section with two-column capture checkboxes and interval/storage controls, reflowing to one column below 700px. Each numerical control has presets plus 48px decrement/increment buttons, and unsaved choices have explicit Save/Discard actions. Capture changes apply to the next session; automatic/manual mode stays separately available. Use inherited theme colors and focus styles throughout.

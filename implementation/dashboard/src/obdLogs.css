@@ -1,0 +1,411 @@
+.obd-logs {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 24px 24px 32px 96px;
+  background: var(--bg);
+  color: var(--text);
+  touch-action: pan-y;
+}
+.obd-log-header,
+.obd-log-recorder-head,
+.obd-log-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.obd-log-header {
+  margin-bottom: 24px;
+}
+.obd-logs h1 {
+  font-size: 36px;
+  font-weight: 400;
+  margin: 0 0 8px;
+}
+.obd-logs h2 {
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0 0 10px;
+}
+.obd-logs h3 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+.obd-logs p {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+.obd-logs small {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.obd-log-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.obd-logs button,
+.obd-logs a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--active);
+  color: var(--primary-text);
+  font: inherit;
+  font-size: 17px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.obd-logs button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.obd-logs :is(button, a, input, summary):focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+.obd-log-primary {
+  background: var(--primary) !important;
+  color: var(--bg) !important;
+  white-space: nowrap;
+}
+.obd-log-recorder,
+.obd-log-preview {
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--surface);
+  margin-bottom: 24px;
+}
+.obd-log-recorder-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.obd-record-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--muted);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.obd-record-indicator.is-recording {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.obd-log-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+  padding: 20px 0;
+  border-top: 1px solid var(--track);
+  border-bottom: 1px solid var(--track);
+}
+.obd-log-metrics span {
+  display: block;
+  color: var(--muted);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+.obd-log-metrics strong {
+  font-size: 30px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.obd-log-auto {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  cursor: pointer;
+  margin: 20px 0;
+}
+.obd-log-auto strong {
+  display: block;
+  font-size: 19px;
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+.obd-log-auto small {
+  display: block;
+}
+.obd-log-auto input {
+  appearance: none;
+  width: 64px;
+  height: 48px;
+  flex-shrink: 0;
+  margin: 0;
+  position: relative;
+  border: 2px solid var(--outline);
+  border-radius: 26px;
+  background: var(--bg);
+  cursor: pointer;
+}
+.obd-log-auto input:before {
+  content: "";
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  left: 6px;
+  top: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.obd-log-auto input:checked {
+  background: var(--active);
+  border-color: var(--primary);
+}
+.obd-log-auto input:checked:before {
+  left: 26px;
+  background: var(--primary);
+}
+.obd-log-auto input:disabled {
+  opacity: 0.45;
+}
+.obd-log-coverage summary,
+.obd-log-preview summary {
+  padding: 14px 0;
+  min-height: 48px;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.obd-log-coverage p {
+  font-size: 16px;
+}
+.obd-log-pids {
+  display: block;
+  margin-top: 6px;
+  font-family: monospace;
+  overflow-wrap: anywhere;
+}
+.obd-logs .obd-log-hint {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 16px 0;
+}
+.obd-log-section-header {
+  align-items: center;
+  margin-bottom: 12px;
+}
+.obd-log-session {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  background: var(--surface);
+  padding: 20px;
+  border-radius: 16px;
+  margin: 12px 0;
+}
+.obd-log-session > div {
+  min-width: 0;
+}
+.obd-log-session p {
+  margin-bottom: 6px;
+}
+.obd-log-session .obd-log-actions {
+  justify-content: flex-end;
+}
+.obd-log-empty {
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--surface);
+  border-radius: 16px;
+}
+.obd-log-empty > .material-symbols-rounded {
+  font-size: 40px;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+.obd-log-error,
+.obd-log-notice {
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  padding: 14px 18px;
+  background: var(--active);
+  color: var(--primary-text) !important;
+}
+.obd-log-preview {
+  margin-top: 24px;
+}
+.obd-log-preview details {
+  border-top: 1px solid var(--track);
+}
+.obd-log-preview pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.5;
+  user-select: text;
+}
+.obd-log-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #0008;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.obd-log-dialog {
+  max-width: 540px;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--outline);
+  border-radius: 20px;
+  background: var(--bg);
+}
+@media (max-width: 1000px) {
+  .obd-log-recorder-head,
+  .obd-log-session {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .obd-log-session .obd-log-actions {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 640px), (max-aspect-ratio: 1/1) {
+  .obd-logs {
+    padding: 70px 12px 24px;
+  }
+  .obd-log-header {
+    flex-direction: column;
+  }
+  .obd-logs h1 {
+    font-size: 30px;
+  }
+  .obd-log-recorder,
+  .obd-log-preview,
+  .obd-log-session {
+    padding: 16px;
+  }
+  .obd-log-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .obd-log-metrics strong {
+    font-size: 26px;
+  }
+  .obd-log-auto {
+    gap: 10px;
+  }
+  .obd-log-dialog-backdrop {
+    padding: 8px;
+  }
+  .obd-log-dialog {
+    padding: 18px;
+    max-height: calc(100vh - 16px);
+  }
+}
+
+.obd-log-settings {
+  border-top: 1px solid var(--track);
+  border-bottom: 1px solid var(--track);
+  margin: 18px 0;
+  padding: 4px 0 12px;
+}
+.obd-log-settings > summary {
+  padding: 14px 0;
+  min-height: 48px;
+  box-sizing: border-box;
+  font-size: 19px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.obd-log-setting-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 20px;
+  margin: 16px 0;
+}
+.obd-log-setting-checks label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  font-size: 17px;
+  cursor: pointer;
+}
+.obd-log-setting-checks input {
+  appearance: none;
+  min-width: 28px;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--outline);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--primary-text);
+  display: grid;
+  place-items: center;
+  margin: 10px 0;
+  flex-shrink: 0;
+}
+.obd-log-setting-checks input:checked {
+  background: var(--active);
+  border-color: var(--primary);
+}
+.obd-log-setting-checks input:checked:before {
+  content: "✓";
+  font-size: 23px;
+}
+.obd-log-setting-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 20px 0;
+}
+.obd-log-setting-numbers label {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.obd-log-setting-numbers label > div {
+  display: flex;
+  gap: 8px;
+}
+.obd-log-setting-numbers select {
+  font: inherit;
+  min-width: 0;
+  flex: 1;
+  min-height: 48px;
+  border: 1px solid var(--outline);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+.obd-logs select:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  .obd-log-setting-checks,
+  .obd-log-setting-numbers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

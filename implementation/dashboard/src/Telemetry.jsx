@@ -194,6 +194,7 @@ export function Telemetry({
   demo,
   now,
   onSettings,
+  onLogs,
   palette,
 }) {
   const values = demo
@@ -222,6 +223,7 @@ export function Telemetry({
             ? "ELM327 connected"
             : "OBD disconnected"}
       </button>
+      <button className="telemetry-log-link" onClick={onLogs}>Logs</button>
       {keys.map((name, i) => {
         const [label, unit, min, max] = definitions[name],
           value = values[name];

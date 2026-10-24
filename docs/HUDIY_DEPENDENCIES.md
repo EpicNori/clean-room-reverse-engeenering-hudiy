@@ -8,7 +8,7 @@ The owner's requirement is to remove all official Hudiy dependencies while retai
 | Local API, persistence, lifecycle and fullscreen application | Our Python service and Qt native host. |
 | Android Auto receiver | Our native host, USB transport, private IPC, video/audio/input integration and lifecycle, linked to pinned GPL `prodigy-oaa-protocol` from OpenAuto Prodigy. Its service-discovery construction includes an explicitly attributed upstream adaptation. This is open-source third-party code, not official Hudiy. |
 | Bluetooth pairing, phonebook, media and calls | Our adapters/agent using standard BlueZ/PBAP/AVRCP and oFono HFP services. |
-| OBD | Our direct RFCOMM/serial ELM327 polling and read-only Mode 01 allowlist. |
+| OBD | Our direct RFCOMM/serial ELM327 polling, validated custom Mode 01/22 mappings and configurable read-only diagnostic logging; see OBD_LOGGING.md. |
 | Hotspot | Our private NetworkManager profile/settings and provisioning tool. The reference Pi originally migrated its existing AP credentials/profile; current operation reads our private settings only. |
 | Audio DSP and receiver routing | Our DSP implementation and owned-PID audio route; no proprietary equalizer/echo sink chain. |
 | Fonts/icons/frameworks | Roboto and Material Symbols npm packages, React, Chart.js, Qt, FFmpeg, libusb, OpenSSL and Protobuf. They retain their own licenses. |

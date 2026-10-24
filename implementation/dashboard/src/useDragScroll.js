@@ -30,7 +30,7 @@ export function useDragScroll(rootRef) {
       root.classList.remove("drag-scrolling");
       if (event.pointerType !== "mouse" || event.button !== 0) return;
       if (
-        event.target.closest('input,textarea,select,[contenteditable="true"]')
+        event.target.closest('input,textarea,select,[contenteditable="true"],[data-obd-drag-handle]')
       )
         return;
       const area = findScrollArea(event.target);

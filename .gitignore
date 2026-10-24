@@ -40,3 +40,9 @@ hudiy-recreation-test.tar.gz
 
 # Native build and fetched GPL protocol dependency
 implementation/native/build/
+
+# Private vehicle diagnostic recordings and their exports
+obd-logs/
+Hudiy-OBD-Logs/
+obd-*.jsonl
+obd-*.csv

@@ -9,6 +9,8 @@ import subprocess
 import sys
 from urllib.parse import unquote,urlsplit
 from obd import OBD
+from obd_logging import OBDRecorder
+from custom_obd import CustomOBDStore, RevisionConflict, DEFAULT_CONFIG, validate_config, calculate
 from phonebook import Phonebook
 from layout import LayoutStore
 from updates import UpdateSettings
@@ -25,8 +27,12 @@ from audio_settings import AudioSettings
 
 ROOT=Path(__file__).resolve().parents[1]/'dashboard'/'dist'/'client'
 obd=OBD()
+obd_logs=OBDRecorder()
+obd.recorder=obd_logs
 STANDALONE=os.environ.get('HUDIY_STANDALONE')=='1'
 projection=StandaloneProjection(enabled=STANDALONE)
+custom_obd=CustomOBDStore(enabled=projection.enabled)
+obd.custom_dashboard=custom_obd if projection.enabled else None
 phonebook=Phonebook(enabled=projection.enabled)
 layout=LayoutStore(enabled=projection.enabled)
 updates=UpdateSettings(projection, phonebook)
@@ -50,11 +56,12 @@ class Handler(BaseHTTPRequestHandler):
             host=urlsplit('http://'+self.headers.get('Host',''))
             return host.hostname in {'127.0.0.1','localhost'} and host.port in ALLOWED_PORTS
         except ValueError:return False
-    def send(self,code,body,ctype='application/json'):
+    def send(self,code,body,ctype='application/json',attachment=None):
         if isinstance(body,(dict,list)):body=json.dumps(body,allow_nan=False).encode()
         elif isinstance(body,str):body=body.encode()
         self.send_response(code)
         self.send_header('Content-Type',ctype)
+        if attachment:self.send_header('Content-Disposition',f'attachment; filename="{attachment}"')
         self.send_header('Content-Length',str(len(body)))
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
@@ -70,6 +77,19 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/api/bluetooth':return self.send(200,{**bluetooth.snapshot(),**(agent.snapshot() if agent else {})})
         if path=='/api/display':return self.send(200,display.snapshot())
         if path=='/api/audio-route':return self.send(200,radio_output.snapshot())
+        if path=='/api/obd-logs':return self.send(200,obd_logs.snapshot())
+        if path.startswith('/api/obd-logs/'):
+            parts=path.split('/')
+            if len(parts)!=5:return self.send(404,{'error':'Unknown log endpoint'})
+            identifier,format=parts[3:]
+            try:
+                if format=='preview':return self.send(200,obd_logs.preview(identifier))
+                body,ctype=obd_logs.export(identifier,format)
+                return self.send(200,body,ctype,attachment=f'obd-{identifier}.{format}')
+            except FileNotFoundError:return self.send(404,{'error':'Recording not found'})
+            except ValueError as exc:return self.send(400,{'error':str(exc)})
+            except (OSError,ConnectionError):return self.send(503,{'error':'Recording could not be read or another export is running'})
+        if path=='/api/obd-dashboard':return self.send(200,custom_obd.snapshot())
         if path=='/api/audio-settings':return self.send(200,audio_dsp.snapshot())
         if path=='/api/wireless':
             try:return self.send(200,wireless.snapshot())
@@ -102,6 +122,48 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:valid=False
             if not valid:return self.send(403,{'error':'Cross-origin actions are forbidden'})
         if self.headers.get('Content-Type','').split(';')[0]!='application/json':return self.send(415,{'error':'Use application/json'})
+        if self.path=='/api/obd-logs':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=4096:return self.send(413,{'error':'Logging body must be 1–4096 bytes'})
+                data=json.loads(self.rfile.read(length))
+                if not isinstance(data,dict):raise ValueError('Logging action must be an object')
+                action=data.get('action')
+                if action=='start' and set(data)=={'action'}:
+                    current=obd.snapshot()
+                    return self.send(200,obd_logs.start({'connected':current['connected'],'mode':current['mode']}))
+                if action=='stop' and set(data)=={'action'}:return self.send(200,obd_logs.stop())
+                if action=='settings' and set(data)=={'action','settings'}:return self.send(200,obd_logs.set_settings(data['settings']))
+                if action=='settings' and set(data)=={'action','autoRecord'}:return self.send(200,obd_logs.set_auto(data['autoRecord']))
+                if action=='export' and set(data)=={'action','id','format'}:return self.send(200,obd_logs.save_export(data['id'],data['format']))
+                if action=='remove' and set(data)=={'action','id','confirmed'}:return self.send(200,obd_logs.remove(data['id'],data['confirmed']))
+                raise ValueError('Unknown logging action or unexpected fields')
+            except FileNotFoundError:return self.send(404,{'error':'Recording not found'})
+            except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+            except Exception:return self.send(503,{'error':'Diagnostic logging is unavailable'})
+        if self.path=='/api/obd-formula':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=4096:return self.send(413,{'error':'Formula body must be 1–4096 bytes'})
+                data=json.loads(self.rfile.read(length))
+                if not isinstance(data,dict) or set(data) not in ({'sensor'},{'sensor','sample'}):raise ValueError('Formula preview accepts a sensor and optional sample bytes')
+                sensor=validate_config({**DEFAULT_CONFIG,'widgets':[],'sensors':[data['sensor']]})['sensors'][0]
+                result={'valid':True}
+                if 'sample' in data:
+                    raw=data['sample']
+                    if not isinstance(raw,str) or len(raw)!=sensor['bytes']*2 or any(c not in '0123456789abcdefABCDEF' for c in raw):raise ValueError('Enter exactly the configured number of sample bytes as hex')
+                    try:result['sampleValue']=calculate(sensor['formula'],bytes.fromhex(raw))
+                    except ValueError as exc:result.update(sampleValue=None,sampleError=str(exc))
+                return self.send(200,result)
+            except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+        if self.path=='/api/obd-dashboard':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=16384:return self.send(413,{'error':'Dashboard body must be 1–16384 bytes'})
+                return self.send(200,custom_obd.save(json.loads(self.rfile.read(length))))
+            except RevisionConflict as exc:return self.send(409,{'error':str(exc)})
+            except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+            except Exception:return self.send(503,{'error':'Could not save the device dashboard'})
         if self.path!='/api/action':return self.send(404,{'error':'Unknown action endpoint'})
         try:
             length=int(self.headers.get('Content-Length','0'))
@@ -252,5 +314,5 @@ def main():
     except KeyboardInterrupt:pass
     finally:
         if agent:agent.close()
-        radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();server.server_close()
+        radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();obd_logs.close();server.server_close()
 if __name__=='__main__':main()

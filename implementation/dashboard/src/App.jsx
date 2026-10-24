@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import "@material-symbols/font-600/rounded.css";
 import "@fontsource/roboto/400.css";
 import {
@@ -10,6 +10,8 @@ import {
   readPreferences,
 } from "./catalog";
 import { Telemetry } from "./Telemetry";
+const CustomOBD = lazy(() => import("./CustomOBD.jsx").then(module => ({default: module.CustomOBD})));
+const OBDLogs = lazy(() => import("./OBDLogs.jsx").then(module => ({default: module.OBDLogs})));
 import { createMediaProcessor } from "./audio";
 import { audioPresets } from './audioPresets.mjs';
 import { themePalette } from "./theme";
@@ -934,7 +936,7 @@ export function App() {
         {slider("subwoofer", "Subwoofer", { min: -100, max: 100 })}
       </>
     ),
-    "obd-settings": <OBDSettings action={action} status={status} demo={prefs.demo} demoControl={toggle("demo", "Demo telemetry")}/>,
+    "obd-settings": <OBDSettings onLogs={()=>go("obd-logs")} action={action} status={status} demo={prefs.demo} demoControl={toggle("demo", "Demo telemetry")}/>,
   };
   const selectedAccent = prefs.dark ? prefs.darkAccent : prefs.accent;
   const {liveMedia, shownMedia, playerMedia} = resolveMedia(media, projectionData.media, screen);
@@ -1624,8 +1626,11 @@ export function App() {
               now={now}
               palette={palette}
               onSettings={() => go("obd-settings")}
+              onLogs={() => go("obd-logs")}
             />
           )}
+          {screen === "custom-obd" && <Suspense fallback={<div className="empty-message">Loading My OBD…</div>}><CustomOBD telemetry={status.obd} now={now} demo={prefs.demo} native={Boolean(HOST_MODE)} palette={palette} onSettings={()=>go("obd-settings")} onLogs={()=>go("obd-logs")}/></Suspense>}
+          {screen === "obd-logs" && <Suspense fallback={<div className="empty-message">Loading OBD Logs…</div>}><OBDLogs telemetry={status.obd} demo={prefs.demo} onSettings={()=>go("obd-settings")} onDashboard={()=>go("custom-obd")}/></Suspense>}
           {screen === "marketplace" && <Marketplace tell={tell} />}
         </section>
         <footer className="bottom-bar">
