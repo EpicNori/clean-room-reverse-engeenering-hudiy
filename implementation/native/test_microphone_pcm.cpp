@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "microphone_pcm.hpp"
 #include <array>
 #include <cassert>
