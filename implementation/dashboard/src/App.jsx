@@ -24,6 +24,7 @@ import { WirelessSettings } from "./WirelessSettings";
 import { PhoneReconnect } from "./PhoneReconnect";
 import { RadioOutput } from "./RadioOutput";
 import { resolveMedia, isRemotePlayer } from "./media.mjs";
+import { NoticeCenter, TrackObserver } from "./notifications.mjs";
 import { LAYOUT_KEY, SHORTCUTS, SCREEN_IDS, REQUIRED_SHORTCUTS, readLayout, normalizeLayout, moveItem, pinShortcut, customizationAttributes } from './layout';
 import { useLongPress } from './useLongPress';
 import { CustomizeMenu } from './CustomizeMenu';
@@ -206,10 +207,45 @@ export function App() {
     processor = useRef(null),
     fileInput = useRef(null),
     scroll = useRef(null),
-    timer = useRef(null),
     urls = useRef([]),
     routeRevision = useRef(0);
   const layoutState = useRef(layout), layoutPending = useRef(0), layoutQueue = useRef(Promise.resolve()), layoutEnabled = useRef(false), layoutReady = useRef(false), layoutGeneration = useRef(0), updatesPending = useRef(0);
+  const latestNotice = useRef({prefs, native: false});
+  latestNotice.current = {prefs, native: Boolean(HOST_MODE && status.projection?.enabled)};
+  const noticeCenter = useRef(null), trackObserver = useRef(new TrackObserver());
+  const outputControl = useRef({busy: false, pending: null, confirmed: null});
+  const nativeNotice = payload => {
+    const p = latestNotice.current.prefs;
+    const palette = themePalette(p.dark, p.dark ? p.darkAccent : p.accent);
+    return fetch('/api/action', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'notification', ...payload,
+        background: palette['--active'], foreground: palette['--primary-text']})});
+  };
+  if (!noticeCenter.current) noticeCenter.current = new NoticeCenter(
+    () => latestNotice.current.prefs, payload => {
+      if (latestNotice.current.native) {
+        setNotice("");
+        if (payload.expired) return; // Native timer owns expiry across both web views.
+        nativeNotice(payload).then(r => { if (!r.ok) throw Error(); })
+          .catch(() => { if (noticeCenter.current.current === payload) setNotice(payload.message ? payload : ''); });
+      } else setNotice(payload.message ? payload : '');
+    });
+  useEffect(() => {
+    noticeCenter.current.sync();
+    if (latestNotice.current.native) {
+      for (const [kind, key] of [['output','outputNotice'],['input','inputNotice'],['track','nowPlayingNotice']]) {
+        if (!prefs[key]) nativeNotice({kind, message: '', duration: 1}).catch(() => {});
+      }
+    }
+  }, [prefs.outputNotice, prefs.inputNotice, prefs.nowPlayingNotice, status.projection?.enabled]);
+  useEffect(() => {
+    if (latestNotice.current.native) nativeNotice({kind: 'theme'}).catch(() => {});
+  }, [prefs.dark, prefs.accent, prefs.darkAccent, status.projection?.enabled]);
+  useEffect(() => {
+    if (TASKBAR) return;
+    const message = trackObserver.current.observe(media, projectionData.media);
+    if (message) noticeCenter.current.show('track', message);
+  }, [media, projectionData.media]);
   const audioPending=useRef(0), audioQueue=useRef(Promise.resolve()), audioConfirmed=useRef(null);
   layoutState.current = layout;
   layoutEnabled.current = Boolean(status.projection?.enabled);
@@ -277,6 +313,13 @@ export function App() {
     });
   };
   const pref = (key, value) => {
+    if (key === 'volume') { outputVolume(value); return; }
+    if (key === 'mute') { outputMute(value); return; }
+    if (key === 'inputVolume' || key === 'muteInput') {
+      setPrefs(p => ({...p, [key]: value}));
+      noticeCenter.current.show('input', key === 'muteInput' ? value ? 'Input mute setting: on' : 'Input mute setting: off' : `Input level setting ${value}`);
+      return;
+    }
     if (['equalizer','balance','preset'].includes(key)) {
       saveAudio({[key]:value,...(key==='equalizer' ? {preset:'Custom'} : {})}); return;
     }
@@ -304,14 +347,7 @@ export function App() {
       });
     } else setPrefs((p) => ({ ...p, [key]: value }));
   };
-  const tell = (message) => {
-    setNotice(message);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(
-      () => setNotice(""),
-      (prefs.toastDuration || 2) * 1000,
-    );
-  };
+  const tell = message => noticeCenter.current.show('toast', message);
   const go = (next) => {
     if (TASKBAR) {
       action("projection", { operation: next });
@@ -462,7 +498,7 @@ export function App() {
   useEffect(
     () => () => {
       urls.current.forEach(URL.revokeObjectURL);
-      clearTimeout(timer.current);
+      noticeCenter.current.dispose();
       if (processor.current) processor.current.close().catch(() => {});
     },
     [],
@@ -511,7 +547,7 @@ export function App() {
       clearInterval(t);
     };
   }, []);
-  async function action(name, params = {}) {
+  async function action(name, params = {}, {quiet = false} = {}) {
     try {
       const r = await fetch("/api/action", {
         method: "POST",
@@ -520,22 +556,38 @@ export function App() {
       });
       const d = await r.json();
       if (!r.ok) throw Error(d.error || "Action unavailable");
-      if (d.message) tell(d.message);
+      if (d.message && !quiet) tell(d.message);
       return d;
     } catch (e) {
       tell(service ? e.message : "Local hardware service is not running");
       return null;
     }
   }
-  function outputVolume(value) {
-    pref("volume", value);
-    if (TASKBAR) action("audio-volume", { volume: prefs.mute ? 0 : value });
-    else tell(`Volume ${value}`);
+  async function setOutput(patch, message) {
+    const next = {...latestNotice.current.prefs, ...patch};
+    const control = outputControl.current;
+    if (!control.busy) control.confirmed = {volume: prefs.volume, mute: prefs.mute};
+    latestNotice.current.prefs = next;
+    setPrefs(p => ({...p, ...patch}));
+    if (!HOST_MODE) { noticeCenter.current.show('output', message); return; }
+    // At most one request and one latest pending value, even while dragging.
+    control.pending = {volume: next.volume, mute: next.mute, message};
+    if (control.busy) return;
+    control.busy = true;
+    try {
+      while (control.pending) {
+        const change = control.pending; control.pending = null;
+        const result = await action('audio-volume', {volume: change.mute ? 0 : change.volume}, {quiet: true});
+        if (result) {
+          control.confirmed = {volume: change.volume, mute: change.mute};
+          if (!control.pending) noticeCenter.current.show('output', change.message);
+        } else if (!control.pending) setPrefs(p => ({...p, ...control.confirmed}));
+      }
+    } finally { control.busy = false; }
   }
-  function outputMute() {
-    pref("mute", !prefs.mute);
-    if (TASKBAR)
-      action("audio-volume", { volume: prefs.mute ? prefs.volume : 0 });
+  function outputVolume(value) { return setOutput({volume: value}, `Volume ${value}`); }
+  function outputMute(value = !latestNotice.current.prefs.mute) {
+    return setOutput({mute: value}, value ? 'Output muted' : 'Output unmuted');
   }
   function play() {
     if (screen === 'a2dp' || (liveMedia && shownMedia.source === 'a2dp')) {
@@ -1604,7 +1656,7 @@ export function App() {
           move={moveCustomized} remove={id => { if (!REQUIRED_SHORTCUTS.includes(id)) updateLayout(current => ({ ...current, taskbar: current.taskbar.filter(item => item !== id) })); setCustomize(null); }} />}
         {notice && (
           <div className="toast" role="status">
-            {notice}
+            {notice.message}
           </div>
         )}
       </main>

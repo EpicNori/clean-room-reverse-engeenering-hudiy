@@ -47,3 +47,8 @@ The user executes the project’s public bootstrap; privileged steps are limited
 ## Audio worker boundary
 
 Projection PCM crosses a bounded, locked mailbox to our dedicated Qt output worker. Per channel, raw input is capped at one second plus at most one 8,192-byte processed chunk outside that mailbox; the sink has its own requested buffer. Packets over 1 MiB are refused. Whole-frame eviction and per-session generations preserve sample alignment and prevent retained data from mixing across starts/stops. No raw audio is returned in diagnostics. Existing fixed native settings/IPC and loopback HTTP boundaries are unchanged. Output recovery is limited to our sinks every five seconds and does not restart OS services or issue phone playback/call commands. Default CTest never runs the optional silent-sink integration probe. Current checks pass 104 backend tests on the cleaned Pi deployment, both native CTests, and the controlled GUI-stall probe; physical audible output and long-duration recovery are still unverified.
+
+
+### Notification boundary
+
+The local notification action uses the existing protected HTTP/Unix-socket path. Only fixed notice kinds, bounded plain text, 1–15-second integer durations and hex RGB colors are accepted; no HTML, URL, arbitrary stylesheet or executable command is used. Native Qt plain-text rendering provides a second boundary. One label/timer retains transient text only; no phone data is written to a history or new diagnostics. Frontend switch/duration/Unicode/timer tests and HTTP command/schema rejection pass. Native widget and touchscreen acceptance are pending because the Pi powered off before upload. This is a scoped review, not a claim that every repository vulnerability has been excluded.

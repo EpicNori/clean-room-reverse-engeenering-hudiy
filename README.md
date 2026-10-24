@@ -280,6 +280,8 @@ Historical checks of the licensed bridge included contact synchronization, an au
 
 ## Remaining work
 
+- [ ] Compile and verify the new notification overlay on the Pi: popups above Android Auto, touchscreen pass-through and cross-view switch/theme behavior. Local UI/schema tests pass; the Pi powered off before upload.
+
 Unchecked items are still incomplete or require hardware verification. The gallery's demo gauges do not complete the OBD checks.
 
 ### Required car functionality and verification

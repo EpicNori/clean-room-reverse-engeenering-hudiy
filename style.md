@@ -130,3 +130,15 @@ Preserve the observed 15 vertical bands, existing labels, control shapes, theme 
 ## Standalone-only wording — 10 October 2026
 
 The taskbar option reads “Keep taskbar visible”. Layout help states that changing the layout reconnects Android Auto while the dashboard stays running. It must not describe restarting the proprietary runtime. Bluetooth OBD selection uses our direct transport and its connected message follows actual local OBD state. Existing colors, fonts, spacing, icons, imagery and layout are preserved. Hudiy remains named as the observed visual reference, not as a running dependency.
+
+
+## Notification behavior and theme — 10 October 2026
+
+Preserve the original Notifications rows, switches, duration sliders, Roboto typography, scroll arrows and responsive taskbar. Transient popups retain the existing centered rounded rectangle, 32 scaled-pixel text, 20/30 scaled-pixel padding and 12 scaled-pixel radius. Replace the fixed peach background/brown foreground with --active/--primary-text so both themes and every accent apply. Native popups use the same palette, wrap inside the screen, remain above the taskbar or above Android Auto when its taskbar is hidden, and pass touches to the application underneath. No icons, images or screenshot backgrounds are added.
+
+Output, input and track notices respect their individual switches and Notification duration (1–15 seconds). Action/error toasts use Toast duration (1–15 seconds). Only one notice is visible; new volume/action notices replace the previous notice, and tracks cannot displace them. Music position/cover changes, pause/resume and reconnecting the same track do not repeat announcements. Disabling a switch clears its active notice. Theme changes recolor a native notice without extending its timer. Input controls still represent the saved preference; microphone gain is not yet integrated.
+
+
+Notifications reference alignment: on landscape views above 640px, move toggle content down 4 scaled pixels and its right inset to 2 scaled pixels. Extend the slider control group 27 scaled pixels, reduce its output column to 40 scaled pixels, move the controls down 2 scaled pixels and use 80 scaled-pixel arrow symbols. At 1280×720 this aligns the observed switch centers (approximately 1086/90), slider track end (approximately 1020), thumb at value 8 (approximately 606) and right arrow (approximately 1127). Apply these corrections only to Notifications; keep compact controls and other settings pages unchanged. Persistent extra shortcuts are intentional personal layout differences from the original capture.
+
+Compact Notifications switches use a 64×48px pill with 24px off/36px on thumbs and 6px/4px side insets, ensuring a 48px touch target while retaining the theme. Row labels wrap within the existing 196px content area at a 320px viewport; controls stay above the horizontally scrollable taskbar.

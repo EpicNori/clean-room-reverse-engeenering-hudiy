@@ -204,6 +204,8 @@ class Handler(BaseHTTPRequestHandler):
             if name=='obd-disconnect':
                 obd.disconnect()
                 return self.send(200,{'message':'OBD disconnected'})
+            if name=='notification':
+                return self.send(200,projection.notification({k:v for k,v in data.items() if k!='action'}))
             if name=='audio-volume':
                 value=data.get('volume')
                 if isinstance(value,bool) or not isinstance(value,(int,float)) or not 0<=value<=100:raise ValueError('Volume must be 0–100')

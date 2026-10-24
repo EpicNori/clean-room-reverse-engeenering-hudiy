@@ -22,6 +22,23 @@ class StandaloneTests(unittest.TestCase):
         bridge.enabled=True;bridge.available=True;bridge.sock=Mock()
         return bridge
 
+    def test_notification_is_bounded_plain_text_and_never_persisted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bridge=self.projection(directory)
+            notice={'kind':'output','message':'Volume 80','duration':8,'background':'#abcdef','foreground':'#123456'}
+            bridge.notification(notice)
+            self.assertEqual(json.loads(bridge.sock.sendall.call_args.args[0]),{'operation':'notification',**notice})
+            self.assertFalse(bridge.preferences.exists())
+            bridge.notification({'kind':'theme','background':'#000000','foreground':'#ffffff'})
+            bridge.notification({**notice,'message':''})
+            for bad in ({**notice,'command':'shell'},{**notice,'kind':'arbitrary'},
+                        {**notice,'background':'red; url(file:///etc/passwd)'},
+                        {**notice,'message':'x'*257},{**notice,'duration':True},
+                        {**notice,'duration':1.5},{**notice,'duration':0},{**notice,'duration':16}):
+                with self.assertRaises(ValueError):bridge.notification(bad)
+            bridge.request_exit()
+            with self.assertRaises(ConnectionError):bridge.notification(notice)
+
     def test_native_events_drive_live_data_and_renderer_without_legacy_api(self):
         with tempfile.TemporaryDirectory() as directory:
             bridge=self.projection(directory)

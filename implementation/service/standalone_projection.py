@@ -1,6 +1,7 @@
 """Private IPC client for our own Android Auto process; no Hudiy API calls."""
 import copy
 import json
+import re
 from pathlib import Path
 import socket
 import sys
@@ -163,6 +164,23 @@ class StandaloneProjection:
                 raise ConnectionError('Android Auto is not connected')
             self._send(command)
             return {'accepted': True, 'message': 'Android Auto connection requested' if operation in {'usb', 'wifi', 'resume'} else ''}
+
+    def notification(self, data):
+        if not isinstance(data, dict): raise ValueError('Notification must be an object')
+        kind = data.get('kind')
+        expected = {'kind', 'background', 'foreground'} if kind == 'theme' else {'kind', 'message', 'duration', 'background', 'foreground'}
+        if set(data) != expected or kind not in {'theme', 'toast', 'output', 'input', 'track'}:
+            raise ValueError('Unexpected notification arguments')
+        for key in ('background', 'foreground'):
+            if not isinstance(data[key], str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', data[key]):
+                raise ValueError('Notification colors must be hex RGB')
+        if kind != 'theme':
+            if not isinstance(data['message'], str) or len(data['message']) > 256:
+                raise ValueError('Notification text exceeds limit')
+            if type(data['duration']) is not int or not 1 <= data['duration'] <= 15:
+                raise ValueError('Notification duration must be 1–15 seconds')
+        with self.lock: self._send({'operation': 'notification', **data})
+        return {'accepted': True}
 
     def set_wireless_default(self, enabled): self.wireless_default = enabled is True
 

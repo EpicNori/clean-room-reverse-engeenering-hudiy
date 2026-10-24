@@ -1005,8 +1005,8 @@ a {
   transform: translateX(-50%);
   max-width: calc(1050 * var(--unit));
   padding: calc(20 * var(--unit)) calc(30 * var(--unit));
-  background: #ffdbce;
-  color: #754124;
+  background: var(--active);
+  color: var(--primary-text);
   font-size: calc(32 * var(--unit));
   border-radius: calc(12 * var(--unit));
   box-shadow: 0 calc(2 * var(--unit)) calc(8 * var(--unit)) #0002;
@@ -2223,3 +2223,21 @@ a {
 .bluetooth-connections-list .bluetooth-device-name { flex:1 1 240px; }
 .bluetooth-connections-list .bluetooth-device-name strong { font-size:clamp(20px,calc(40 * var(--unit)),40px); }
 .bluetooth-connections-list .bluetooth-device-name > span { font-size:18px; }
+
+
+/* Measured against the original 1280x720 Notifications controls. */
+@media (min-width: 641px) and (min-aspect-ratio: 1/1) {
+  .settings-notification-settings .toggle-row { padding-right: calc(2 * var(--unit)); }
+  .settings-notification-settings .toggle-row > span,
+  .settings-notification-settings .switch { transform: translateY(calc(4 * var(--unit))); }
+  .settings-notification-settings .slider-controls { width: calc(100% + 27 * var(--unit)); margin-top: calc(32 * var(--unit)); }
+  .settings-notification-settings .slider-controls output { width: calc(40 * var(--unit)); }
+  .settings-notification-settings .slider-controls .icon,
+  .settings-notification-settings + .scroll-buttons .icon { font-size: calc(80 * var(--unit)) !important; }
+}
+
+@media (max-width: 640px), (max-aspect-ratio: 1/1) {
+  .settings-notification-settings .switch { width: 64px; height: 48px; }
+  .settings-notification-settings .switch > span { width: 24px; height: 24px; left: 6px; }
+  .settings-notification-settings .switch.on > span { width: 36px; height: 36px; left: auto; right: 4px; }
+}

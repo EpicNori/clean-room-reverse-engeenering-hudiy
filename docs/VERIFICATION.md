@@ -57,3 +57,12 @@ CarPlay/Autobox, tuner playback, phone notifications, marketplace catalog, multi
 ## Publication checks
 
 Only independent source, dependency manifests, technical documentation and tests are included. Runtime binaries/configuration, raw captures, local phonebooks, SSH credentials, generated dependencies/builds and device-specific deployment scripts are excluded. Real-device Bluetooth addresses in test fixtures were replaced with synthetic addresses; those tests still pass. The existing repository license and branch history are retained.
+
+
+## Latest local Notifications check — 10 October 2026
+
+Fresh browser captures covered the disabled output switch, enabled popup, accent change, matching original light theme at 1280×720 and compact controls at 320×568. The original source was capture 012; private before/after captures 01–09 are retained in the local notification-audit archive, outside the published repository. The scoped slider/arrow alignment was compared against the source again after correction. At 320×568 the page width was 320px, all three switches were 64×48px, and pointer-drag scrolling moved the settings viewport with an empty text selection. Physical finger input is not established by this browser check.
+
+The frontend test suite and production build pass. The Windows backend suite ran 106 tests with three platform-specific skips, including the new private IPC and HTTP notification validation cases. A browser timer-binding error discovered during real interaction was corrected and covered by a regression test. Existing native audio-worker operation and actual wireless media/video were observed after reconnecting to the rebooted Pi; these observations precede the new notification code.
+
+The Pi powered off during the session. Notification upload, new native compilation/CTest, visibility above live Android Auto, input microphone gain and real touchscreen pass-through remain unverified. Deployment was interrupted before any upload operation. See design-qa.md for the local visual scope; no complete 1:1 or hardware acceptance is claimed.

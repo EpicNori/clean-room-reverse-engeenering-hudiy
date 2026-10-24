@@ -157,7 +157,7 @@ export function readPreferences() {
     result.volume = Math.max(0, Math.min(100, result.volume));
     result.barHeight = Math.max(65, Math.min(100, result.barHeight));
     result.accent = Math.max(0, Math.min(7, Math.round(result.accent)));
-    for (const [key, low, high] of [['musicRefreshSeconds', 1, 60], ['contactsRefreshSeconds', 5, 3600]]) {
+    for (const [key, low, high] of [['musicRefreshSeconds', 1, 60], ['contactsRefreshSeconds', 5, 3600], ['notificationDuration', 1, 15], ['toastDuration', 1, 15]]) {
       if (!Number.isInteger(result[key]) || result[key] < low || result[key] > high) result[key] = defaults[key];
     }
     return result;

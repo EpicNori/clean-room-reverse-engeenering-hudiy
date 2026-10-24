@@ -3,6 +3,7 @@
 // ServiceDiscoveryBuilder.cpp. See THIRD_PARTY.md for the pinned source.
 #include "usb_transport.hpp"
 #include "audio_output.hpp"
+#include "notice_overlay.hpp"
 #include <QApplication>
 #include <QAudioSink>
 #include <QAudioSource>
@@ -255,6 +256,7 @@ public:
         taskbar_ = web("taskbar");
         auto* layout = new QVBoxLayout(this); layout->setContentsMargins(0,0,0,0); layout->setSpacing(0);
         layout->addWidget(stack_, 1); layout->addWidget(taskbar_);
+        notice_ = new NoticeOverlay(this);
         video_->touch = [this](int x, int y, int action) {
             oaa::hu::InputChannelHandler::Pointer pointer{x,y,0};
             if (active_) input_.sendTouchIndication(1, &pointer, 0, action, timestamp());
@@ -388,6 +390,7 @@ private:
         if (!taskbar_) return;
         taskbar_->setFixedHeight(qMax(56, qRound(height()*0.1125)));
         taskbar_->setVisible(!visible_ || options_.value("taskbarVisible").toBool(true));
+        if (notice_) notice_->place(taskbar_->isHidden() ? 0 : taskbar_->height());
     }
     void showProjection(bool visible) {
         visible_ = visible && active_; stack_->setCurrentWidget(visible_ ? static_cast<QWidget*>(video_) : content_);
@@ -490,7 +493,8 @@ private:
         while ((end = buffer_.indexOf('\n')) >= 0) {
             const auto command = QJsonDocument::fromJson(buffer_.left(end)).object(); buffer_.remove(0,end+1);
             const QString op = command.value("operation").toString();
-            if (op == "options") {
+            if (op == "notification") { notice_->apply(command); }
+            else if (op == "options") {
                 const bool previous = options_.value("taskbarVisible").toBool(true);
                 options_ = command.value("options").toObject();
                 const QString mode = options_.value("dayNight").toString("Common");
@@ -577,6 +581,7 @@ private:
     QLocalServer ipc_; QLocalSocket* client_ = nullptr; QByteArray buffer_;
     QProcess backend_; QProcessEnvironment environment_;
     QWebEngineProfile* profile_ = nullptr; QWebEngineView *content_ = nullptr, *taskbar_ = nullptr;
+    NoticeOverlay* notice_ = nullptr;
     QStackedWidget* stack_ = nullptr; VideoView* video_ = nullptr;
     QTcpServer tcp_; QTimer check_; oaa::AASession* session_ = nullptr; oaa::ITransport* transport_ = nullptr;
     QElapsedTimer usbRestartCooldown_;

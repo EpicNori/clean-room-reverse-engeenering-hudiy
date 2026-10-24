@@ -53,6 +53,20 @@ class SensorTests(unittest.TestCase):
         finally:obd.disconnect();simulator.shutdown();simulator.server_close()
 
 class HTTPTests(unittest.TestCase):
+    def test_native_notification_action_is_validated_and_does_not_execute_commands(self):
+        notice={'kind':'output','message':'Volume 80','duration':8,'background':'#abcdef','foreground':'#123456'}
+        with self.request('/api/action',{'action':'notification',**notice}) as response:
+            self.assertEqual(response.status,503)
+        fake=server.StandaloneProjection(); fake.enabled=True; fake.available=True; fake.sock=Mock()
+        with patch.object(server,'projection',fake):
+            for extra in ({'duration':False},{'background':'url(file:///etc/passwd)'},{'command':'sh'},{'message':'x'*257}):
+                with self.request('/api/action',{'action':'notification',**notice,**extra}) as response:
+                    self.assertEqual(response.status,400)
+            fake.sock.sendall.assert_not_called()
+            with self.request('/api/action',{'action':'notification',**notice}) as response:
+                self.assertEqual(response.status,200); self.assertEqual(json.load(response),{'accepted':True})
+            self.assertEqual(json.loads(fake.sock.sendall.call_args.args[0]),{'operation':'notification',**notice})
+
     def test_projection_audio_schema_rejects_injection_and_disabled_runtime(self):
         with self.request('/api/audio-settings') as response:
             self.assertFalse(json.load(response)['enabled'])
