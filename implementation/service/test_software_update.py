@@ -31,7 +31,7 @@ class Fixture(unittest.TestCase):
     def setUp(self):
         self.temporary=tempfile.TemporaryDirectory();self.addCleanup(self.temporary.cleanup)
         self.base=Path(self.temporary.name);self.root=self.base/'ota';self.baseline=self.base/'baseline'
-        self.projection=Mock(enabled=True);self.projection.snapshot.return_value={'available':True,'connected':False}
+        self.projection=Mock(enabled=True);self.projection.snapshot.return_value={'available':True,'connected':False,'uiReady':True}
         self.obd=Mock();self.obd.snapshot.return_value={'connected':True,'timestamp':time.time(),'values':{'speed':0,'rpm':0}}
         self.calls=Mock();self.calls.snapshot.return_value={'call':{'state':0}}
         self.recorder=Mock();self.recorder.snapshot.return_value={'recording':False}
@@ -108,6 +108,9 @@ class Fixture(unittest.TestCase):
             self.projection.snapshot.return_value['available']=False
             self.assertFalse(self.update.healthy()['healthy'])
             self.projection.snapshot.return_value['available']=True
+            self.projection.snapshot.return_value['uiReady']=False
+            self.assertFalse(self.update.healthy()['healthy'])
+            self.projection.snapshot.return_value['uiReady']=True
             self.assertTrue(self.update.healthy()['healthy'])
         self.assertTrue(read_json(self.root/f"health-{pending['nonce']}.json")['ready'])
 

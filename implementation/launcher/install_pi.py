@@ -21,7 +21,7 @@ PACKAGES = (
     'libavcodec-dev libavutil-dev libswscale-dev python3-serial python3-dbus python3-gi '
     'bluez bluez-obexd ofono network-manager dnsmasq-base '
     'pipewire pipewire-pulse wireplumber libspa-0.2-bluetooth dbus-user-session '
-    'android-sdk-platform-tools-common'
+    'android-sdk-platform-tools-common swaybg plymouth plymouth-themes'
 ).split()
 NODE_RELEASE = 'https://nodejs.org/dist/latest-v22.x/'
 MAX_ARCHIVE = 80 * 1024 * 1024
@@ -197,6 +197,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Print/check prerequisites without changing the system.')
     parser.add_argument('--yes', action='store_true', help='Accept the printed installation plan.')
+    parser.add_argument('--skip-black-boot', action='store_true', help='Keep the existing OS boot theme and graphical session selection.')
     parser.add_argument('--no-autologin', action='store_true', help='Keep OS login authentication unchanged.')
     parser.add_argument('--skip-hotspot', action='store_true', help='Install without preparing wireless projection.')
     args = parser.parse_args()
@@ -204,6 +205,7 @@ def main():
         release, running = preflight()
         print('Hudiy recreation — independent Raspberry Pi car software')
         print('OS:', release['VERSION_CODENAME'], '| source:', ROOT)
+        print('Black startup: quiet boot and a panel-free car session (unless --skip-black-boot).')
         print('Plan: install OS dependencies; verified user-private Node 22; build/test frontend and native receiver;')
         print('      enable Bluetooth/oFono; configure user audio/device access; back up and select labwc startup;')
         print('      ' + ('keep login settings' if args.no_autologin else 'enable desktop autologin for this user') + '; ' +
@@ -249,6 +251,7 @@ def main():
             user = pwd.getpwuid(os.geteuid()).pw_name
             system = [sys.executable, ROOT / 'implementation/launcher/install_pi_system.py', '--user', user]
             if args.no_autologin: system.append('--no-autologin')
+            if args.skip_black_boot: system.append('--skip-black-boot')
             run(['sudo', *system])
             sys.path.insert(0,str(ROOT/'implementation/service'))
             from ota_state import select_rebuilt_baseline

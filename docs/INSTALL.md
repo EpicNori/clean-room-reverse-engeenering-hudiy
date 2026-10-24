@@ -118,3 +118,8 @@ record the exact local privilege boundaries.
 ## Updating the installed application
 
 After installing the OTA-capable revision once, use Settings → System → Software updates for normal application changes. See [OTA setup, trust and recovery](OTA_UPDATES.md). The normal installer remains necessary for system-package or bootstrap/protocol changes and selects its rebuilt baseline after successful checks. Offline maintenance can start the original installation with `implementation/launcher/launcher.py --baseline` after quitting the app.
+
+
+## Black startup
+
+The installer now includes a reversible black Plymouth/quiet boot setup and a separate panel-free LightDM/labwc car session. `--skip-black-boot` skips these OS changes; `--no-autologin` keeps authentication unchanged. A saved Appearance switch controls the next app/session start. Runtime readiness waits for both web views, with a recovery screen after 60 seconds and saved desktop startup after Quit. This requires one-time privileged setup outside OTA, plus a native rebuild. See [Black startup](BLACK_STARTUP.md) for exact apply/restore commands, backups and pending Pi tests.

@@ -344,7 +344,8 @@ class SoftwareUpdate:
         if not self.enabled:return {'healthy':False}
         with self.lock:
             selected=selection(self.root);nonce=os.environ.get('HUDIY_UPDATE_NONCE')
-            if selected['pending'] and selected['nonce']==nonce and time.monotonic()-self.started>=10 and self.projection.snapshot().get('available'):
+            state=self.projection.snapshot()
+            if selected['pending'] and selected['nonce']==nonce and time.monotonic()-self.started>=10 and state.get('available') and state.get('uiReady') is True:
                 write_json(self.root/f'health-{nonce}.json',{'nonce':nonce,'revision':selected['active'],'ready':True})
                 return {'healthy':True}
             return {'healthy':not selected['pending']}

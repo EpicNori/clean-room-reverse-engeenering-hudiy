@@ -93,6 +93,7 @@ class BluetoothDevices:
         self.automatic = set()
         self.manual_phones = set()
         self.automatic_phone_allowed = lambda: False
+        self.phone_connection_ready = lambda: True
         self.last_attempt = {}
         self.scan_until = 0
         self.data = {'available': False, 'name': 'Hudiy', 'discovering': False,
@@ -163,26 +164,48 @@ class BluetoothDevices:
                 addresses.add(phones[0]['address'])
         return addresses
 
-    def retry_android_auto(self):
-        """Ask only one eligible connected paired phone; never disconnect/pair it."""
-        if not self.enabled or not self.bus or not self.automatic_phone_allowed():return
-        if not self.operation_lock.acquire(blocking=False):return
+    def retry_android_auto(self, manual=False):
+        """Connect the paired phone normally so it can discover our HU service.
+
+        The AA UUID is our server service, not a remote phone client profile.
+        Never pair, disconnect a phone, or reset USB to bootstrap wireless.
+        """
+        if not self.enabled or not self.bus:raise ConnectionError('Bluetooth is not ready')
+        if not manual and not self.automatic_phone_allowed():return 'manual'
+        if not self.operation_lock.acquire(blocking=False):return 'waiting-for-bluetooth'
         try:
             self._refresh()
             addresses=self._automatic_addresses()
             with self.lock:
-                phones=[d for d in self.devices if d['paired'] and d.get('phone') and d['connected']]
-                if len(phones)!=1 or phones[0]['address'] not in addresses:return
-                path=phones[0]['_path']
-            try:self.dbus.Interface(self.bus.get_object('org.bluez',path),'org.bluez.Device1').ConnectProfile(AA_UUID,timeout=3)
-            except Exception:pass # A phone may expose only an incoming wireless profile.
+                phones=[d for d in self.devices if d['paired'] and d.get('phone')]
+                connected=[d for d in phones if d['connected']]
+                if len(connected)>1:return 'phone-selection'
+                if connected:
+                    selected=connected[0]
+                    if not manual and selected['address'] not in addresses:return 'phone-selection'
+                else:
+                    candidates=phones if manual and len(phones)==1 else [d for d in phones if d['address'] in addresses]
+                    if len(candidates)!=1:return 'phone-selection'
+                    selected=candidates[0]
+                now=time.monotonic()
+                if now-self.last_attempt.get(selected['address'],float('-inf'))<(5 if manual else 30):
+                    return 'waiting-for-phone'
+                self.last_attempt[selected['address']]=now
+                path=selected['_path']
+            try:self.dbus.Interface(self.bus.get_object('org.bluez',path),'org.bluez.Device1').Connect(timeout=3)
+            except Exception as error:
+                name=getattr(error,'get_dbus_name',lambda:'')()
+                if name not in ('org.bluez.Error.AlreadyConnected','org.bluez.Error.InProgress'):
+                    raise ConnectionError('The paired phone could not reconnect over Bluetooth') from None
+            return 'waiting-for-phone'
         finally:self.operation_lock.release()
 
     def _reconnect(self):
         now=time.monotonic()
         addresses=self._automatic_addresses()
+        phone_ready=self.phone_connection_ready()
         with self.lock:
-            selected=next((d for d in self.devices if d['paired'] and not d['connected'] and d['address'] in addresses and now-self.last_attempt.get(d['address'],float('-inf'))>=30),None)
+            selected=next((d for d in self.devices if d['paired'] and not d['connected'] and d['address'] in addresses and (not d.get('phone') or phone_ready) and now-self.last_attempt.get(d['address'],float('-inf'))>=30),None)
         if selected:
             self.last_attempt[selected['address']]=now
             try:self.dbus.Interface(self.bus.get_object('org.bluez',selected['_path']),'org.bluez.Device1').Connect(timeout=3)

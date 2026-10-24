@@ -26,6 +26,7 @@ from independent_wireless import IndependentWireless
 from bluez_agent import BluezAgent
 from independent_audio_route import IndependentAudioRoute
 from audio_settings import AudioSettings
+from input_settings import InputSettings
 
 ROOT=Path(__file__).resolve().parents[1]/'dashboard'/'dist'/'client'
 obd=OBD()
@@ -39,6 +40,7 @@ phonebook=Phonebook(enabled=projection.enabled)
 layout=LayoutStore(enabled=projection.enabled)
 updates=UpdateSettings(projection, phonebook)
 audio_dsp=AudioSettings(projection)
+audio_input=InputSettings(projection)
 bluetooth=BluetoothDevices(enabled=projection.enabled)
 native_obd=IndependentOBDSettings(bluetooth,obd)
 display=DisplayBrightness(enabled=projection.enabled)
@@ -47,8 +49,14 @@ wireless=IndependentWireless(projection)
 def automatic_phone_allowed():
     state=projection.snapshot()
     return (state.get('automaticConnectionAllowed') is True and state.get('options',{}).get('autoConnect',True) is not False and state.get('available') is True
-        and wireless.snapshot().get('enabled') is True)
+        and state.get('wirelessListening') is True and not state.get('usbRecoveryRunning')
+        and agent is not None and agent.ready and wireless.snapshot().get('enabled') is True)
 bluetooth.automatic_phone_allowed=automatic_phone_allowed
+def phone_connection_ready():
+    state=projection.snapshot()
+    if state.get('options',{}).get('autoConnect',True) is False or wireless.snapshot().get('enabled') is not True:return True
+    return (agent is not None and agent.ready and state.get('wirelessListening') is True and not state.get('usbRecoveryRunning'))
+bluetooth.phone_connection_ready=phone_connection_ready
 agent=BluezAgent(bluetooth,wireless,projection) if projection.enabled else None
 radio_output=IndependentAudioRoute(bluetooth,projection,calls,enabled=projection.enabled)
 software_update=SoftwareUpdate(projection,obd,calls,obd_logs)
@@ -100,8 +108,9 @@ class Handler(BaseHTTPRequestHandler):
             except (OSError,ConnectionError):return self.send(503,{'error':'Recording could not be read or another export is running'})
         if path=='/api/obd-dashboard':return self.send(200,custom_obd.snapshot())
         if path=='/api/audio-settings':return self.send(200,audio_dsp.snapshot())
+        if path=='/api/audio-input':return self.send(200,audio_input.snapshot())
         if path=='/api/wireless':
-            try:return self.send(200,wireless.snapshot())
+            try:return self.send(200,{**wireless.snapshot(), 'connection':agent.snapshot()['wirelessHandshake'] if agent else None})
             except (OSError,ValueError):return self.send(503,{'error':'Native wireless settings unavailable'})
         if path=='/api/obd-settings':
             try:return self.send(200,native_obd.snapshot())
@@ -233,6 +242,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not radio_output.enabled:return self.send(501,{'error':'Radio output requires the Pi'})
                 if calls.snapshot().get('call',{}).get('state') in (1,2,3):raise ConnectionError('End the phone call before changing the radio output')
                 return self.send(200,radio_output.save(data['address']))
+            if name=='audio-input':
+                if set(data)!={'action','settings'}:raise ValueError('Microphone settings accept only the settings object')
+                try:return self.send(200,audio_input.save(data['settings']))
+                except (OSError,ConnectionError):return self.send(503,{'error':'Microphone settings could not be saved; check the native receiver and storage'})
             if name=='audio-settings':
                 if set(data)!={'action','settings'}:raise ValueError('Audio settings accept only the settings object')
                 return self.send(200,audio_dsp.save(data['settings']))
@@ -262,6 +275,10 @@ class Handler(BaseHTTPRequestHandler):
                 if set(data)!={'action','layout'}:raise ValueError('Layout settings require only a layout')
                 if not layout.enabled:return self.send(501,{'error':'Durable layout requires the Pi host'})
                 return self.send(200,layout.save(data['layout']))
+            if name=='startup-ready':
+                if set(data)!={'action','surface','token'}:raise ValueError('Unexpected startup acknowledgement fields')
+                if not projection.enabled:return self.send(501,{'error':'Startup acknowledgement requires the native application'})
+                return self.send(200,projection.startup_ready(data['surface'],data['token']))
             if name=='projection-settings':
                 if not projection.enabled:return self.send(501,{'error':'Android Auto settings require the Pi projection host'})
                 settings={key:value for key,value in data.items() if key!='action'}
@@ -308,8 +325,9 @@ class Handler(BaseHTTPRequestHandler):
                 if agent and data.get('operation') in {'usb','wifi'}:agent.select_transport(data['operation'])
                 if agent and data.get('operation') in {'resume','wifi'}:
                     state=projection.snapshot()
-                    if data.get('operation')=='wifi' and state.get('transport')=='usb':agent.reconnect_after_layout()
-                    elif not state.get('connected') and state.get('transport')!='usb':agent.retrigger()
+                    if data.get('operation')=='resume' and not state.get('connected'):agent.select_transport('auto')
+                    if data.get('operation')=='wifi' and state.get('connected') and state.get('transport')=='usb':agent.reconnect_after_layout()
+                    else:agent.retrigger()
                 return self.send(200,result)
             if name=='phone-refresh':
                 if set(data)!={'action','view'}:raise ValueError('Phone refresh requires only a view')

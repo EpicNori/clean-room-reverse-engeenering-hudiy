@@ -3,6 +3,13 @@
 // ServiceDiscoveryBuilder.cpp. See THIRD_PARTY.md for the pinned source.
 #include "usb_transport.hpp"
 #include "connection_policy.hpp"
+#include "startup_gate.hpp"
+#include "microphone_pcm.hpp"
+#include <QRegularExpression>
+#include <QUuid>
+#include <QLabel>
+#include <QPalette>
+#include <QPushButton>
 #include "audio_output.hpp"
 #include "notice_overlay.hpp"
 #include <QApplication>
@@ -227,6 +234,8 @@ class CarRuntime final : public QWidget {
 public:
     explicit CarRuntime(const QString& implementation) {
         setWindowTitle("Hudiy recreation");
+        QPalette startupPalette = palette(); startupPalette.setColor(QPalette::Window, Qt::black);
+        setPalette(startupPalette); setAutoFillBackground(true);
         setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
         if (auto* screen = QGuiApplication::primaryScreen()) resize(screen->size());
         QDir().mkpath(stateDir);
@@ -250,8 +259,12 @@ public:
         auto web = [&](const QString& mode) {
             auto* view = new QWebEngineView(this);
             view->setPage(new LocalPage(profile_, view));
+            view->page()->setBackgroundColor(Qt::black);
+            const int surface = mode == "content" ? 0 : 1;
+            connect(view, &QWebEngineView::loadStarted, this, [this,surface] { startupGate_.loading(surface); });
+            connect(view, &QWebEngineView::loadFinished, this, [this,surface](bool success) { startupGate_.loaded(surface,success); revealStartup(); });
             view->setContextMenuPolicy(Qt::NoContextMenu);
-            view->setUrl(QUrl("http://127.0.0.1:8766/?host=" + mode)); return view;
+            view->setUrl(QUrl("http://127.0.0.1:8766/?host=" + mode + "&startup=" + startupToken_)); return view;
         };
         stack_ = new QStackedWidget(this); content_ = web("content"); video_ = new VideoView(this);
         stack_->addWidget(content_); stack_->addWidget(video_);
@@ -259,6 +272,33 @@ public:
         auto* layout = new QVBoxLayout(this); layout->setContentsMargins(0,0,0,0); layout->setSpacing(0);
         layout->addWidget(stack_, 1); layout->addWidget(taskbar_);
         notice_ = new NoticeOverlay(this);
+        startupCover_ = new QWidget(this);
+        startupCover_->setObjectName("startup-cover");
+        startupCover_->setStyleSheet("#startup-cover { background: #000; color: #fff; } #startup-cover QLabel { color: #fff; font-size: 24px; } #startup-cover QPushButton { color: #fff; background: #222; padding: 16px; min-height: 48px; font-size: 20px; }");
+        auto* recovery = new QVBoxLayout(startupCover_);
+        recovery->addStretch();
+        startupError_ = new QLabel("Hudiy could not finish loading.", startupCover_);
+        startupError_->setWordWrap(true); startupError_->setAlignment(Qt::AlignCenter);
+        startupRetry_ = new QPushButton("Retry loading", startupCover_);
+        startupDesktop_ = new QPushButton("Return to desktop", startupCover_);
+        recovery->addWidget(startupError_); recovery->addWidget(startupRetry_); recovery->addWidget(startupDesktop_); recovery->addStretch();
+        startupError_->hide(); startupRetry_->hide(); startupDesktop_->hide();
+        connect(startupRetry_, &QPushButton::clicked, this, [this] {
+            startupToken_ = QUuid::createUuid().toString(QUuid::Id128); startupGate_ = StartupGate();
+            startupError_->hide(); startupRetry_->hide(); startupDesktop_->hide(); startupCover_->setCursor(Qt::BlankCursor);
+            content_->setUrl(QUrl("http://127.0.0.1:8766/?host=content&startup=" + startupToken_));
+            taskbar_->setUrl(QUrl("http://127.0.0.1:8766/?host=taskbar&startup=" + startupToken_));
+            startupTimeout_.start(60000);
+        });
+        connect(startupDesktop_, &QPushButton::clicked, qApp, &QApplication::quit);
+        startupTimeout_.setSingleShot(true);
+        connect(&startupTimeout_, &QTimer::timeout, this, [this] {
+            if (startupGate_.ready() || !startupCover_->isVisible()) return;
+            startupCover_->setCursor(Qt::ArrowCursor); startupError_->show(); startupRetry_->show(); startupDesktop_->show(); startupDesktop_->setFocus();
+        });
+        startupCover_->setCursor(Qt::BlankCursor);
+        startupCover_->setVisible(options_.value("blackStartup").toBool(true));
+        startupTimeout_.start(60000);
         video_->touch = [this](int x, int y, int action) {
             oaa::hu::InputChannelHandler::Pointer pointer{x,y,0};
             if (active_) input_.sendTouchIndication(1, &pointer, 0, action, timestamp());
@@ -334,6 +374,12 @@ public:
                 audioOutput_.enqueue(i,bytes);
             });
         }
+        connect(&inputDevices_, &QMediaDevices::audioInputsChanged, this, [this] {
+            // A selected device disappearing never silently selects another microphone.
+            stopMicrophone();
+            if (micRequested_) startMicrophone();
+            publish();
+        });
         mic_.setCaptureController([this](bool open) { return microphone(open); });
         connect(&tcp_, &QTcpServer::newConnection, this, [this] {
             auto* socket = tcp_.nextPendingConnection();
@@ -370,6 +416,13 @@ public:
 protected:
     void resizeEvent(QResizeEvent* event) override { QWidget::resizeEvent(event); adjustLayout(); }
 private:
+    void revealStartup() {
+        if (!startupCover_ || !startupGate_.ready()) return;
+        startupTimeout_.stop(); startupCover_->hide();
+        if (startupProjectionPending_) showProjection(true);
+        if (!pendingNotice_.isEmpty()) { notice_->apply(pendingNotice_); pendingNotice_ = {}; }
+        publish();
+    }
     void checkConnection() {
         if (!tcp_.isListening()) bindWireless();
         if (!session_ && !usbRecoveryRunning_ && connectionPolicy_.allowsConnection() && preferredTransport_ != "wifi") {
@@ -389,18 +442,23 @@ private:
         publish();
     }
     void adjustLayout() {
+        if (startupCover_) { startupCover_->setGeometry(rect()); if (startupCover_->isVisible()) startupCover_->raise(); }
         if (!taskbar_) return;
         taskbar_->setFixedHeight(qMax(56, qRound(height()*0.1125)));
         taskbar_->setVisible(!visible_ || options_.value("taskbarVisible").toBool(true));
         if (notice_) notice_->place(taskbar_->isHidden() ? 0 : taskbar_->height());
     }
     void showProjection(bool visible) {
+        if (visible && options_.value("blackStartup").toBool(true) && !startupGate_.ready()) {
+            startupProjectionPending_ = true; return;
+        }
+        startupProjectionPending_ = false;
         visible_ = visible && active_; stack_->setCurrentWidget(visible_ ? static_cast<QWidget*>(video_) : content_);
         if (session_) videoChannel_.requestVideoFocus(visible_);
         adjustLayout(); publish();
     }
     void begin(oaa::ITransport* transport, const QString& kind) {
-        transport_ = transport; transportName_ = kind; error_.clear(); admission_ = true;
+        transport_ = transport; transportName_ = kind; error_.clear();
         const int margin = options_.value("taskbarVisible").toBool(true) ? 80 : 0;
         video_->margin = margin; video_->image = {}; frames_ = 0;
         avcodec_flush_buffers(codec_);
@@ -412,8 +470,7 @@ private:
         if (kind == "wifi" && wireless.value("enabled").toBool() && addressFile.open(QIODevice::ReadOnly))
             bssid = QString::fromLatin1(addressFile.read(64)).trimmed().toUpper();
         wifi_ = bssid.isEmpty() ? nullptr : new oaa::hu::WiFiChannelHandler(wireless.value("ssid").toString(),wireless.value("passphrase").toString(),this);
-        const auto microphoneDevice = QMediaDevices::defaultAudioInput();
-        microphoneAvailable_ = !microphoneDevice.isNull() && microphoneDevice.isFormatSupported(audioFormat(16000,1));
+
         session_ = new oaa::AASession(transport, capabilities(margin, adapterAddress, bssid), this);
         auto* current = session_;
         connect(session_->controlChannel(), &oaa::ControlChannel::shutdownRequested, this,
@@ -478,17 +535,72 @@ private:
     }
     void startAudio(int index) { audioOutput_.start(index); }
     void stopAudio(int index) { audioOutput_.stop(index); }
-    bool microphone(bool open) {
-        if (micSource_) { micSource_->stop(); delete micSource_; micSource_ = nullptr; }
-        if (!open) return true;
-        const auto device = QMediaDevices::defaultAudioInput(); const auto format = audioFormat(16000, 1);
-        if (device.isNull() || !device.isFormatSupported(format)) return false;
-        micSource_ = new QAudioSource(device, format, this);
-        auto* data = micSource_->start(); if (!data) return false;
-        connect(data, &QIODevice::readyRead, this, [this,data] {
-            while (data->bytesAvailable() >= 640) mic_.sendMicData(data->read(640), timestamp());
+    static QString inputId(const QAudioDevice& device) {
+        return QString::fromLatin1(device.id().toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+    }
+    QAudioDevice selectedInput() const {
+        const auto selected=inputSettings_.value("device").toString();
+        if (selected=="default") return QMediaDevices::defaultAudioInput();
+        for (const auto& device:QMediaDevices::audioInputs()) if (inputId(device)==selected) return device;
+        return {};
+    }
+    void stopMicrophone() {
+        if (!micSource_) return;
+        micSource_->disconnect(this);
+        micSource_->stop(); delete micSource_; micSource_=nullptr;
+    }
+    bool startMicrophone() {
+        inputError_.clear();
+        if (!inputConfigured_) {inputError_="Waiting for saved microphone settings"; return false;}
+        const auto device=selectedInput(); const auto format=audioFormat(16000,1);
+        if (device.isNull()) {inputError_="Selected microphone unavailable"; return false;}
+        if (!device.isFormatSupported(format)) {inputError_="Microphone needs 16 kHz mono signed 16-bit capture"; return false;}
+        micSource_=new QAudioSource(device,format,this);
+        auto* source=micSource_;
+        connect(source,&QAudioSource::stateChanged,this,[this,source](QAudio::State state) {
+            if (source==micSource_ && state==QAudio::StoppedState && source->error()!=QAudio::NoError)
+                inputError_="Microphone capture stopped; check the device";
+            publish();
+        });
+        auto* data=source->start();
+        if (!data || source->error()!=QAudio::NoError) {
+            inputError_="Could not open microphone"; stopMicrophone(); return false;
+        }
+        connect(data,&QIODevice::readyRead,this,[this,data,source] {
+            if (source!=micSource_ || !micRequested_) return;
+            while (data->bytesAvailable()>=640) {
+                auto pcm=data->read(640);
+                if (pcm.size()!=640) break;
+                scaleMicrophonePCM(pcm.data(),pcm.size(),inputSettings_.value("volume").toInt(100),inputSettings_.value("muted").toBool());
+                mic_.sendMicData(pcm,timestamp());
+            }
         });
         return true;
+    }
+    bool microphone(bool open) {
+        micRequested_=open; stopMicrophone();
+        if (!open) {inputError_.clear(); publish(); return true;}
+        const bool started=startMicrophone();
+        if (!started) micRequested_=false;
+        publish(); return started;
+    }
+    QJsonObject inputState() const {
+        QJsonArray devices;
+        for (const auto& device:QMediaDevices::audioInputs()) {
+            const auto id=inputId(device);
+            if (devices.size()>=32) break;
+            if (id.isEmpty() || id.size()>256) continue;
+            devices.append(QJsonObject{{"id",id},{"name",device.description().left(120)},
+                {"isDefault",device.isDefault()},{"supported",device.isFormatSupported(audioFormat(16000,1))}});
+        }
+        const auto selected=selectedInput();
+        QString error=inputError_;
+        if (selected.isNull()) error="Selected microphone unavailable";
+        else if (!selected.isFormatSupported(audioFormat(16000,1))) error="Microphone needs 16 kHz mono signed 16-bit capture";
+        const bool capturing=micSource_ && (micSource_->state()==QAudio::ActiveState || micSource_->state()==QAudio::IdleState) && micSource_->error()==QAudio::NoError;
+        return {{"configured",inputConfigured_},{"settings",inputSettings_},{"devices",devices},{"resolvedDevice",selected.isNull()?QString():inputId(selected)},
+            {"microphoneAvailable",!selected.isNull() && selected.isFormatSupported(audioFormat(16000,1))},
+            {"captureActive",capturing},{"error",error}};
     }
     void commands() {
         buffer_ += client_->readAll();
@@ -497,7 +609,17 @@ private:
         while ((end = buffer_.indexOf('\n')) >= 0) {
             const auto command = QJsonDocument::fromJson(buffer_.left(end)).object(); buffer_.remove(0,end+1);
             const QString op = command.value("operation").toString();
-            if (op == "notification") { notice_->apply(command); }
+            if (op == "startup-ready") {
+                if (command.value("token").toString() == startupToken_) {
+                    const auto surface = command.value("surface").toString();
+                    if (surface == "content" || surface == "taskbar") startupGate_.painted(surface == "content" ? 0 : 1);
+                    revealStartup();
+                }
+            }
+            else if (op == "notification") {
+                if (startupGate_.ready() || command.value("kind").toString() == "theme") notice_->apply(command);
+                else pendingNotice_ = command;
+            }
             else if (op == "options") {
                 const bool previous = options_.value("taskbarVisible").toBool(true);
                 const bool previousAuto = options_.value("autoConnect").toBool(true);
@@ -513,6 +635,18 @@ private:
                 sensor_.pushNightMode(mode == "Night" || (mode == "Common" && options_.value("darkMode").toBool()));
                 if (previous != options_.value("taskbarVisible").toBool(true) && session_) { session_->stop(); }
                 adjustLayout();
+            } else if (op=="audio-input") {
+                const auto settings=command.value("settings").toObject();
+                const auto volume=settings.value("volume"); const auto device=settings.value("device").toString();
+                const bool valid=settings.size()==3 && settings.value("device").isString()
+                    && QRegularExpression("^[A-Za-z0-9_-]{1,256}$").match(device).hasMatch()
+                    && settings.value("muted").isBool() && volume.isDouble() && volume.toDouble()==volume.toInt()
+                    && volume.toInt()>=0 && volume.toInt()<=100;
+                if (valid) {
+                    const bool changed=device!=inputSettings_.value("device").toString();
+                    inputSettings_=settings; inputConfigured_=true;
+                    if (changed) {stopMicrophone(); inputError_.clear(); if (micRequested_) startMicrophone();}
+                }
             } else if (op=="audio-dsp") {
                 const auto settings=command.value("settings").toObject();
                 const auto bands=settings.value("equalizer").toArray();
@@ -530,6 +664,7 @@ private:
             else if (op == "usb" || op == "wifi" || op == "resume") {
                 requested_ = true; connectionPolicy_.request();
                 if (op != "resume") preferredTransport_ = op;
+                else if (!active_) preferredTransport_ = "auto";
                 if (active_ && (preferredTransport_ == "auto" || preferredTransport_ == transportName_)) {
                     showProjection(true); requested_ = false; connectionPolicy_.connected();
                 }
@@ -584,13 +719,15 @@ private:
             {"connectionAllowed",connectionPolicy_.allowsConnection()},
             {"automaticConnectionAllowed",connectionPolicy_.allowsAutomatic()},
             {"sessionStarting",session_ != nullptr && !active_},
-            {"microphoneAvailable",microphoneAvailable_},
+            {"uiReady",startupGate_.ready()},
+            {"microphoneAvailable",inputState().value("microphoneAvailable")},
+            {"audioInput",inputState()},
             {"audioDSP",audioSettings_},
             {"audioQueuedBytes",queued},
             {"audioDroppedBytes",dropped},
             {"maximumAudioPacket",audio.maximumPacket},
             {"audioChannels",audioChannels},{"maximumAudioFeedGapMs",audio.maximumFeedGapMs},
-            {"media",mediaState_}, {"navigation",navigationState_}, {"signal",signal_}, {"wirelessListening",tcp_.isListening()},
+            {"media",mediaState_}, {"navigation",navigationState_}, {"signal",signal_}, {"wirelessListening",tcp_.isListening()}, {"usbRecoveryRunning",usbRecoveryRunning_},
             {"taskbarVisible",options_.value("taskbarVisible").toBool(true)}};
         if (client_->bytesToWrite() > 65536) { client_->disconnectFromServer(); return; }
         client_->write(QJsonDocument(state).toJson(QJsonDocument::Compact) + '\n');
@@ -611,11 +748,19 @@ private:
     PairedBluetoothChannel bluetooth_; oaa::hu::WiFiChannelHandler* wifi_ = nullptr;
     oaa::hu::AVInputChannelHandler mic_; oaa::hu::AudioChannelHandler* audio_[3]{};
     ProjectionAudio audioOutput_; QAudioSource* micSource_ = nullptr; QJsonObject audioSettings_;
+    QMediaDevices inputDevices_;
+    QJsonObject inputSettings_{{"device","default"},{"volume",100},{"muted",false}};
+    QString inputError_; bool micRequested_=false, inputConfigured_=false;
     AVCodecContext* codec_ = nullptr; AVFrame* frame_ = nullptr; SwsContext* scaler_ = nullptr;
     QJsonObject options_, mediaState_, navigationState_;
     QString route_ = "dashboard", error_, transportName_; int revision_ = 0, phase_ = 0, lastDisconnectPhase_ = 0, signal_ = -1, coverVersion_ = 0;
+    QWidget* startupCover_ = nullptr; QLabel* startupError_ = nullptr;
+    QPushButton *startupRetry_ = nullptr, *startupDesktop_ = nullptr;
+    bool startupProjectionPending_ = false;
+    QTimer startupTimeout_; StartupGate startupGate_;
+    QString startupToken_ = QUuid::createUuid().toString(QUuid::Id128); QJsonObject pendingNotice_;
     ConnectionPolicy connectionPolicy_;
-    bool active_ = false, visible_ = false, requested_ = false, microphoneAvailable_ = false;
+    bool active_ = false, visible_ = false, requested_ = false;
     uint64_t frames_ = 0;
 };
 

@@ -23,10 +23,10 @@ class AutomaticConnectionTests(unittest.TestCase):
     def agent(self):
         projection=Mock()
         projection.snapshot.return_value={'available':True, 'connectionAllowed':True,
-            'automaticConnectionAllowed':True, 'connected':False, 'sessionStarting':False}
+            'automaticConnectionAllowed':True, 'connected':False, 'sessionStarting':False,'wirelessListening':True}
         wireless=Mock()
         wireless.credentials.return_value={'enabled':True,'ipAddress':'192.168.12.1','port':5277}
-        bluetooth=Mock()
+        bluetooth=Mock();bluetooth.retry_android_auto.return_value='waiting-for-phone'
         agent=BluezAgent(bluetooth,wireless,projection)
         agent.ready=True
         return agent, projection, wireless, bluetooth
@@ -97,7 +97,8 @@ class AutomaticConnectionTests(unittest.TestCase):
         device.ConnectProfile.assert_not_called()
         objects[other]['org.bluez.Device1']['Connected']=False
         service.retry_android_auto()
-        device.ConnectProfile.assert_called_once_with(AA_UUID,timeout=3)
+        device.Connect.assert_called_once_with(timeout=3)
+        device.ConnectProfile.assert_not_called()
         device.Disconnect.assert_not_called()
         device.Pair.assert_not_called()
         device.Set.assert_not_called()
@@ -114,10 +115,10 @@ class AutomaticConnectionTests(unittest.TestCase):
         bluetooth.retry_android_auto.assert_not_called()
         projection.action.assert_not_called() # No foreground/open request.
 
-    def test_missing_handoff_uses_targeted_profile_and_does_not_interrupt_active_or_starting_session(self):
+    def test_missing_handoff_connects_paired_phone_and_does_not_interrupt_active_or_starting_session(self):
         agent, projection, _, bluetooth=self.agent()
         agent.automatic_reconnect()
-        bluetooth.retry_android_auto.assert_called_once_with()
+        bluetooth.retry_android_auto.assert_called_once_with(manual=False)
         for state in ({'connected':True},{'sessionStarting':True},
                       {'automaticConnectionAllowed':False},{'options':{'autoConnect':False}},{'available':False}):
             agent.last_reconnect=float('-inf')
@@ -125,7 +126,7 @@ class AutomaticConnectionTests(unittest.TestCase):
             agent.automatic_reconnect()
             self.assertEqual(bluetooth.retry_android_auto.call_count,1)
             projection.snapshot.return_value={'available':True,'connectionAllowed':True,
-                'automaticConnectionAllowed':True,'connected':False,'sessionStarting':False}
+                'automaticConnectionAllowed':True,'connected':False,'sessionStarting':False,'wirelessListening':True}
 
     def test_quit_usb_and_disabled_hotspot_suppress_retries_manual_works_when_master_off(self):
         agent, projection, wireless, bluetooth=self.agent()
@@ -146,7 +147,7 @@ class AutomaticConnectionTests(unittest.TestCase):
         agent.request_connection()
         self.assertTrue(agent.wireless_allowed())
         agent.automatic_reconnect()
-        bluetooth.retry_android_auto.assert_not_called()
+        bluetooth.retry_android_auto.assert_called_once_with(manual=True)
         agent.connection_settings(False)
         self.assertFalse(agent.wireless_allowed())
 

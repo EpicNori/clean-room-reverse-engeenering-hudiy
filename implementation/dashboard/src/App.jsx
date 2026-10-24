@@ -1,3 +1,4 @@
+import {startupIdentity, reportStartup} from "./startup.mjs";
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import "@material-symbols/font-600/rounded.css";
 import "@fontsource/roboto/400.css";
@@ -26,6 +27,7 @@ import { CallButton } from "./CallButton";
 import { WirelessSettings } from "./WirelessSettings";
 import { PhoneReconnect } from "./PhoneReconnect";
 import { RadioOutput } from "./RadioOutput";
+import { AudioInput } from "./AudioInput";
 import { resolveMedia, isRemotePlayer } from "./media.mjs";
 import { NoticeCenter, TrackObserver } from "./notifications.mjs";
 import { LAYOUT_KEY, SHORTCUTS, SCREEN_IDS, REQUIRED_SHORTCUTS, readLayout, normalizeLayout, moveItem, pinShortcut, customizationAttributes } from './layout';
@@ -211,6 +213,22 @@ export function App() {
     }),
     [phonebookData, setPhonebookData] = useState({ views: {}, error: '', syncing: false }),
     [obdPath, setObdPath] = useState("/dev/rfcomm0");
+  useEffect(() => {
+    const identity = startupIdentity(location.search);
+    if (!identity || !service || !status.projection?.available || !status.layout) return;
+    return reportStartup(identity, {
+      fonts: document.fonts.ready,
+      paint: () => new Promise(resolve => requestAnimationFrame(resolve)),
+      request: async payload => {
+        const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 2000);
+        try {
+          const response = await fetch('/api/action', {method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(payload), signal:controller.signal});
+          return response.ok && (await response.json()).accepted === true;
+        } finally {clearTimeout(timeout);}
+      },
+    });
+  }, [service, status.projection?.available, Boolean(status.layout)]);
   const audio = useRef(null),
     viewportRef = useRef(null),
     processor = useRef(null),
@@ -331,11 +349,6 @@ export function App() {
   const pref = (key, value) => {
     if (key === 'volume') { outputVolume(value); return; }
     if (key === 'mute') { outputMute(value); return; }
-    if (key === 'inputVolume' || key === 'muteInput') {
-      setPrefs(p => ({...p, [key]: value}));
-      noticeCenter.current.show('input', key === 'muteInput' ? value ? 'Input mute setting: on' : 'Input mute setting: off' : `Input level setting ${value}`);
-      return;
-    }
     if (['equalizer','balance','preset'].includes(key)) {
       saveAudio({[key]:value,...(key==='equalizer' ? {preset:'Custom'} : {})}); return;
     }
@@ -353,11 +366,11 @@ export function App() {
       return;
     }
     if (
-      ["androidAutoConnect", "androidAutostart", "androidTaskbar"].includes(key) &&
+      ["blackStartup", "androidAutoConnect", "androidAutostart", "androidTaskbar"].includes(key) &&
       status.projection?.enabled
     ) {
       action("projection-settings", {
-        [key === "androidAutoConnect" ? "autoConnect" : key === "androidAutostart" ? "autostart" : "taskbarVisible"]: value,
+        [key === "blackStartup" ? "blackStartup" : key === "androidAutoConnect" ? "autoConnect" : key === "androidAutostart" ? "autostart" : "taskbarVisible"]: value,
       }).then((result) => {
         if (result) setPrefs((p) => ({ ...p, [key]: value }));
       });
@@ -428,6 +441,7 @@ export function App() {
           if (data.enabled)
             setPrefs((p) => ({
               ...p,
+              blackStartup: data.options.blackStartup !== false,
               androidAutoConnect: data.options.autoConnect !== false,
               androidAutostart: data.options.autostart,
               androidTaskbar: data.options.taskbarVisible,
@@ -851,6 +865,8 @@ export function App() {
     appearance: (
       <>
         <DisplayBrightness action={action}/>
+        {toggle("blackStartup", "Black screen during startup")}
+        <p className="setting-note">Keep the screen black until Hudiy and its taskbar are ready. Applies next startup. Turning this off uses the normal desktop session when installed.</p>
         {radio("timeFormat", "Time format", ["24h", "12h"])}
         {toggle("showClock", "Show clock")}
         {slider("barHeight", "Bottom bar height", { min: 65, max: 100 })}
@@ -946,13 +962,15 @@ export function App() {
         <RadioOutput action={action} connections={()=>go('bluetooth-connections')}/>
         {toggle("mute", "Mute output")}
         {slider("volume", "Output volume")}
-        {toggle("muteInput", "Mute input")}
-        {slider("inputVolume", "Input volume")}
+        <button className="setting-row link-row" onClick={()=>go('audio-input')}>
+          Microphone / audio input<Icon name="chevron_right"/>
+        </button>
         {slider("balance", "Balance", { min: -100, max: 100 })}
         {slider("fade", "Fade", { min: -100, max: 100 })}
         {slider("subwoofer", "Subwoofer", { min: -100, max: 100 })}
       </>
     ),
+    "audio-input": <AudioInput action={action} pair={()=>go("pair")}/>,
     "obd-settings": <OBDSettings onLogs={()=>go("obd-logs")} action={action} status={status} demo={prefs.demo} demoControl={toggle("demo", "Demo telemetry")}/>,
   };
   const selectedAccent = prefs.dark ? prefs.darkAccent : prefs.accent;

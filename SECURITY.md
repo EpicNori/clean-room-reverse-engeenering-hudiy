@@ -63,3 +63,9 @@ Configurable diagnostic recording adds only allowlisted read-only Mode 02 frame-
 
 
 Application OTA uses the fixed public GitHub project/main, HTTPS and a validated commit, bounded safe extraction, normal-user isolated builds/tests, private ready/selection/health records and a stable rollback supervisor. It executes project/lockfile build scripts, with GitHub account/HTTPS trust rather than independent signed release verification. No sudo, arbitrary command/URL/revision endpoint or network switching is added. See [OTA controls and limitations](docs/OTA_UPDATES.md) and [backend rules](docs/backend-rules.md). Real Pi update and power-cycle acceptance remain pending.
+
+
+Black startup uses a separate fixed-path privileged installer for firmware/cmdline, Plymouth and LightDM session configuration; no HTTP or OTA action can invoke it. Original files/theme are retained in a root-private manifest, and restore refuses modified managed files/theme. The native readiness action validates an exact surface/token schema and cannot launch commands or access paths. Desktop recovery runs the saved user startup only as that user and stops only the launcher-owned black background. OS setup, native compilation and real boot/recovery acceptance remain pending while the Pi is unavailable; see docs/BLACK_STARTUP.md.
+
+
+Microphone selection uses enumerated opaque IDs on the private native socket; the loopback API accepts no arbitrary input paths or commands. Opening settings never starts capture. Only Android Auto's microphone request opens the selected input, after saved preferences arrive; mute zeroes outgoing PCM. No microphone recordings are saved. See [audio-input scope](docs/AUDIO_INPUT.md) and [backend rules](docs/backend-rules.md). Native/hardware acceptance remains pending on the powered-off Pi.

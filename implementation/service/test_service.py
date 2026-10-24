@@ -53,6 +53,21 @@ class SensorTests(unittest.TestCase):
         finally:obd.disconnect();simulator.shutdown();simulator.server_close()
 
 class HTTPTests(unittest.TestCase):
+    def test_microphone_api_has_exact_payload_and_origin_boundaries(self):
+        with patch.object(server,'audio_input') as microphone:
+            microphone.snapshot.return_value={'available':False,'devices':[]}
+            microphone.save.return_value={'saved':True,'settings':{'device':'default','volume':20,'muted':True}}
+            with self.request('/api/audio-input') as response:self.assertFalse(json.load(response)['available'])
+            for extra in ('command','path','address'):
+                with self.request('/api/action',{'action':'audio-input','settings':{'volume':20},extra:'arbitrary'}) as response:self.assertEqual(response.status,400)
+            with self.request('/api/action',{'action':'audio-input','settings':{'volume':20}},headers={'Origin':'https://evil.example'}) as response:self.assertEqual(response.status,403)
+            microphone.save.assert_not_called()
+            with self.request('/api/action',{'action':'audio-input','settings':{'muted':True}}) as response:self.assertTrue(json.load(response)['saved'])
+            microphone.save.assert_called_once_with({'muted':True})
+            microphone.save.side_effect=OSError('private device path /home/private/input.json')
+            with self.request('/api/action',{'action':'audio-input','settings':{'muted':True}}) as response:
+                self.assertEqual(response.status,503);self.assertNotIn('private',json.load(response)['error'])
+
     def test_ota_api_has_fixed_actions_and_keeps_host_origin_body_boundaries(self):
         with patch.object(server,'software_update') as update:
             update.snapshot.return_value={'available':False}
@@ -207,6 +222,32 @@ class HTTPTests(unittest.TestCase):
             with self.request('/api/action',{'action':'projection-settings','autoConnect':'true'}) as response:
                 self.assertEqual(response.status,400)
             agent.connection_settings.assert_not_called()
+
+    def test_native_startup_ready_has_exact_surface_token_schema_and_no_desktop_privileges(self):
+        projection=Mock(enabled=True);projection.startup_ready.return_value={'accepted':True}
+        with patch.object(server,'projection',projection):
+            with self.request('/api/action',{'action':'startup-ready','surface':'taskbar','token':'a'*32}) as response:
+                self.assertEqual(response.status,200)
+            projection.startup_ready.assert_called_once_with('taskbar','a'*32)
+            projection.reset_mock()
+            with self.request('/api/action',{'action':'startup-ready','surface':'content','token':'a'*32,'command':'shell'}) as response:
+                self.assertEqual(response.status,400)
+            projection.startup_ready.assert_not_called()
+
+    def test_wifi_request_without_prior_usb_bootstraps_and_resume_does_not_stick_to_usb(self):
+        projection=Mock(enabled=True);projection.action.return_value={'accepted':True}
+        projection.snapshot.return_value={'connected':False,'transport':None}
+        agent=Mock()
+        with patch.object(server,'projection',projection),patch.object(server,'agent',agent):
+            with self.request('/api/action',{'action':'projection','operation':'wifi'}) as response:
+                self.assertEqual(response.status,200)
+            agent.request_connection.assert_called_once_with()
+            agent.select_transport.assert_called_once_with('wifi')
+            agent.retrigger.assert_called_once_with()
+            agent.reset_mock();projection.snapshot.return_value={'connected':False,'transport':'usb'}
+            with self.request('/api/action',{'action':'projection','operation':'resume'}) as response:
+                self.assertEqual(response.status,200)
+            agent.select_transport.assert_called_once_with('auto');agent.retrigger.assert_called_once_with()
 
     def test_phone_actions_cannot_accept_caller_supplied_paths_or_missing_confirmation(self):
         with self.request('/api/action',{'action':'phone-call','number':'123456','confirmed':True}) as r:self.assertEqual(r.status,501)

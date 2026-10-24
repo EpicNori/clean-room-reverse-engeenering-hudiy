@@ -47,6 +47,7 @@ def system_commands(user, autologin):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--user', required=True)
+    parser.add_argument('--skip-black-boot',action='store_true')
     parser.add_argument('--no-autologin', action='store_true')
     args = parser.parse_args()
     if os.geteuid() != 0: parser.error('This helper requires sudo from the ordinary-user installer.')
@@ -68,6 +69,9 @@ def main():
         if brightness.is_file():
             os.chown(brightness, -1, video_gid)
             os.chmod(brightness, stat.S_IMODE(brightness.stat().st_mode) | stat.S_IWGRP)
+    if not args.skip_black_boot:
+        from install_black_boot import BlackBoot
+        BlackBoot().apply(Path(__file__).resolve().with_name('session.py'), select_session=not args.no_autologin)
     # Do not restart the display manager, the user's audio stack or active Wi-Fi.
 
 

@@ -23,6 +23,8 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 - [Custom OBD dashboard](docs/CUSTOM_OBD.md)
 - [OBD diagnostic logging](docs/OBD_LOGGING.md)
 - [OTA software updates](docs/OTA_UPDATES.md)
+- [Black startup](docs/BLACK_STARTUP.md)
+- [Microphones and audio capture](docs/AUDIO_INPUT.md)
 - [Architecture](#architecture)
 - [Run locally](#run-locally)
 - [Easy Pi installation](#easy-pi-installation)
@@ -275,11 +277,17 @@ The official Hudiy host/API/configuration bridge has been removed from productio
 
 My OBD also uses the original arc/tick gauges with animated drag/drop and a compact, full-area grid. [View the current layout](docs/images/my-obd-full-area.jpg).
 
+
+## Black startup
+
+The updated installer and native runtime implement a quiet black boot/car session and keep the dashboard covered until both web views are painted. **Settings → System → Appearance → Black screen during startup** selects the behavior for the next start. Quit/recovery can return to the saved desktop. This needs a one-time OS/session setup as well as a native rebuild; the Pi is off, so full boot acceptance remains unchecked. See [setup, recovery and acceptance](docs/BLACK_STARTUP.md).
+
+
 ## OTA software updates
 
 **Settings → System → Software updates** adds selectable notify/manual or automatic-idle updates from this project's GitHub `main`. Check frequency, notifications, background preparation during Android Auto, metered routes and retained versions are configurable. Builds/tests run in a separate managed copy; activation restarts the app and verifies startup with automatic rollback. Ethernet can supply Internet while wireless Android Auto uses Wi-Fi; an existing free Wi-Fi Internet route is supported too. Network profiles remain unchanged.
 
-Install this OTA-capable revision once before using the updater. OS/package or incompatible bootstrap changes still use the normal installer. See the [OTA guide](docs/OTA_UPDATES.md) for initial deployment, source trust, parked/idle conditions and recovery. Real Pi OTA acceptance is pending. Local verification for this revision passes 177 backend tests (four platform skips), 29 frontend/packaging tests and the production build; the dependency audit reports zero known vulnerabilities.
+Install this OTA-capable revision once before using the updater. OS/package or incompatible bootstrap changes still use the normal installer. See the [OTA guide](docs/OTA_UPDATES.md) for initial deployment, source trust, parked/idle conditions and recovery. Real Pi OTA acceptance is pending. Local verification for this revision passes 214 backend tests (four platform skips), 33 frontend/packaging tests and the production build; the dependency audit reports zero known vulnerabilities.
 
 ## Settings and privacy
 
@@ -315,6 +323,31 @@ The custom OBD/dashboard logging revision passes **140 backend tests (four Windo
 - [ ] Compile and verify the new notification overlay on the Pi: popups above Android Auto, touchscreen pass-through and cross-view switch/theme behavior. Local UI/schema tests pass; the Pi powered off before upload.
 
 Unchecked items are still incomplete or require hardware verification. The gallery's demo gauges do not complete the OBD checks.
+
+### Black startup acceptance
+
+- [ ] Rebuild/test and deploy the new native startup cover and one-time black boot/session setup on the Pi.
+- [ ] Record cold boot through Hudiy readiness and verify there is no OS desktop/panel, logo, login flash, cursor or white loading page.
+- [ ] Verify slow/failed loads, Retry, Quit/desktop recovery, the persisted startup switch, Android Auto during startup, OTA rollback and restoration of the previous boot configuration. See [the full checklist](docs/BLACK_STARTUP.md#verification-still-needed-on-the-pi).
+
+### Microphones and audio capture
+
+- [x] Add **Settings → Audio → Audio input**: real native microphone enumeration, explicit Save/Discard, refresh, system-default or saved-device selection, input volume and mute. Preferences survive app restart; the Sound page links to these controls.
+- [x] Validate device IDs/settings, reject unknown or unsupported new selections, roll back runtime preferences on a failed disk write, and migrate the Audio menu without resetting shortcut order. Local API/persistence tests use synthetic devices, with no real capture.
+- [ ] Build the current native receiver and run CTest on the Pi, including `microphone-gain-mute`. The Pi remains off; Windows has no native Qt toolchain.
+- [ ] Verify USB microphone enumeration, selection, gain/mute, refresh, and persistence after a full Pi reboot. Check an unsupported capture format and no-device state.
+- [ ] Verify unplug/replug and a changed system default: a specifically selected missing mic must not silently fall back; settings alone must not record. Confirm capture starts/stops only with an actual Android Auto voice request, including muted startup and live device switching.
+- [ ] Pair a microphone-capable Bluetooth device and verify it appears only when its system audio profile exposes capture. Bluetooth radio output is a separate feature.
+- [ ] Verify HFP call microphone routing separately. This selector controls Android Auto voice capture; it does not yet configure oFono/PipeWire conversation routing or resample unsupported microphone formats.
+
+See [microphone setup and scope](docs/AUDIO_INPUT.md).
+
+### Direct wireless connection without USB
+
+- [ ] Deploy the current receiver/backend and cold-boot the Pi with the Fold4 already paired, Bluetooth/Wi-Fi enabled and **USB unplugged for the entire test**. Verify projection starts through Bluetooth discovery and the Pi hotspot; no wired session should be needed first.
+- [ ] Repeat with automatic connection Off and tap Connect Wi-Fi directly. Test delayed hotspot startup, Resume after a previous USB session, Quit and reconnect, and multiple paired phones. Keep automatic-opening Off during one run and confirm the dashboard stays visible.
+
+The owner confirmed the Pi is still switched off. The missing-handoff/manual bootstrap and readiness fixes were verified only with mocks and a real local socket exchange; device acceptance remains open. See [direct wireless setup and test limits](docs/STANDALONE.md#direct-wireless-startup-without-usb).
 
 ### Android Auto automatic connection acceptance
 

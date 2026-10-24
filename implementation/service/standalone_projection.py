@@ -30,6 +30,7 @@ class StandaloneProjection:
         self.refresh_interval = 5
         self.wireless_default = False
         self.audio_options = None
+        self.input_options = None
 
     def start(self):
         if self.enabled and not self.worker:
@@ -48,6 +49,8 @@ class StandaloneProjection:
                     self._send({'operation': 'options', 'options': self.options})
                     if self.audio_options is not None:
                         self._send({'operation': 'audio-dsp', 'settings': self.audio_options})
+                    if self.input_options is not None:
+                        self._send({'operation': 'audio-input', 'settings': self.input_options})
                 pending = bytearray()
                 while not self.stop.is_set():
                     part = connection.recv(8192)
@@ -103,6 +106,7 @@ class StandaloneProjection:
                     'transport': self.state.get('transport'), 'decodedFrames': self.state.get('frames', 0),
                     'audioBytes': self.state.get('audioBytes', 0),
                     'audioDSP': copy.deepcopy(self.state.get('audioDSP', {})),
+                    'audioInput': copy.deepcopy(self.state.get('audioInput', {})),
                     'audioQueuedBytes': self.state.get('audioQueuedBytes',0),
                     'audioDroppedBytes': self.state.get('audioDroppedBytes',0),
                     'maximumAudioPacket': self.state.get('maximumAudioPacket',0),
@@ -112,6 +116,8 @@ class StandaloneProjection:
                     'microphoneAvailable': self.state.get('microphoneAvailable') is True,
                     'videoReady': self.state.get('connected') is True and self.state.get('frames', 0) > 0,
                     'wirelessListening': self.state.get('wirelessListening', False),
+                    'usbRecoveryRunning': self.state.get('usbRecoveryRunning') is True,
+                    'uiReady': self.state.get('uiReady') is True,
                     'connectionAllowed': self.state.get('connectionAllowed') is True,
                     'automaticConnectionAllowed': self.state.get('automaticConnectionAllowed') is True,
                     'sessionStarting': self.state.get('sessionStarting') is True}
@@ -141,7 +147,7 @@ class StandaloneProjection:
 
     def settings(self, data, path=None):
         if not self.enabled: raise ConnectionError('Settings require the independent Pi application')
-        if not isinstance(data, dict) or not data or set(data) - {'autoConnect', 'autostart', 'taskbarVisible', 'dayNight', 'darkMode'}:
+        if not isinstance(data, dict) or not data or set(data) - {'blackStartup', 'autoConnect', 'autostart', 'taskbarVisible', 'dayNight', 'darkMode'}:
             raise ValueError('Unexpected projection settings')
         for key, value in data.items():
             if key == 'dayNight':
@@ -168,6 +174,12 @@ class StandaloneProjection:
             self._send(command)
             return {'accepted': True, 'message': 'Android Auto connection requested' if operation in {'usb', 'wifi', 'resume'} else ''}
 
+    def startup_ready(self, surface, token):
+        if surface not in ('content', 'taskbar') or not isinstance(token, str) or not re.fullmatch(r'[a-f0-9]{32}', token):
+            raise ValueError('Invalid native startup acknowledgement')
+        with self.lock:self._send({'operation': 'startup-ready', 'surface': surface, 'token': token})
+        return {'accepted': True}
+
     def notification(self, data):
         if not isinstance(data, dict): raise ValueError('Notification must be an object')
         kind = data.get('kind')
@@ -186,6 +198,9 @@ class StandaloneProjection:
         return {'accepted': True}
 
     def set_wireless_default(self, enabled): self.wireless_default = enabled is True
+
+    def apply_input(self, settings):
+        with self.lock: self._send({'operation': 'audio-input', 'settings': settings})
 
     def apply_audio(self, settings):
         with self.lock: self._send({'operation': 'audio-dsp', 'settings': settings})

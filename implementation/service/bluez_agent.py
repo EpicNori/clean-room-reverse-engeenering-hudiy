@@ -6,6 +6,8 @@ import threading
 import time
 from bluetooth_devices import ADDRESS, DEVICE_PATH
 from runtime_support import field
+from pathlib import Path
+from independent_wireless import IndependentWireless
 
 AA_UUID='4de17a00-52cb-11e6-bdf4-0800200c9a66'
 AGENT_PATH='/org/epicnori/hudiy_recreation/agent'
@@ -47,7 +49,7 @@ class BluezAgent:
         self.paused=False
         self.transport_preference='auto'
         self.connection_lock=threading.RLock()
-        self.wireless_status={'connected':False,'lastMessage':None,'credentialRequests':0,'error':''}
+        self.wireless_status={'connected':False,'lastMessage':None,'credentialRequests':0,'error':'','stage':'idle'}
 
     def snapshot(self):
         with self.lock:return {'pairingAvailable':self.ready,'pairingBusy':self.pairing_busy,'pairing':copy.deepcopy(self.pending),'pairingError':self.error,'wirelessHandshake':dict(self.wireless_status)}
@@ -209,38 +211,66 @@ class BluezAgent:
 
     def _start_frame(self):
         credentials=self.wireless.credentials()
+        if credentials.get('ipAddress')!='192.168.12.1' or credentials.get('port')!=5277:
+            raise ConnectionError('Car Wi-Fi endpoint is not configured')
         return wifi_frame(1,field(1,credentials['ipAddress'])+field(2,credentials['port']))
+
+    def _credential_frame(self):
+        config=self.wireless.credentials()
+        IndependentWireless.validate(config)
+        bssid=Path('/sys/class/net/wlan0/address').read_text().strip().upper()
+        if not ADDRESS.fullmatch(bssid) or bssid=='00:00:00:00:00:00':
+            raise ConnectionError('Car Wi-Fi access point address is not ready')
+        return wifi_frame(3,field(1,config['ssid'])+field(2,config['passphrase'])+
+            field(3,bssid)+field(4,8)+field(5,1))
 
     def wireless_allowed(self):
         state=self.projection.snapshot()
         with self.lock:return (not self.paused and self.transport_preference!='usb' and self.wireless.credentials().get('enabled') is True
             and (state.get('connectionAllowed') is True or time.monotonic()<self.manual_until))
 
+    def _stage(self, value):
+        with self.lock:
+            self.wireless_status['stage']=value
+            if value in ('connected','starting-wireless','credentials-sent','waiting-for-phone'):self.wireless_status['error']=''
+
+    def _wireless_ready(self, state=None):
+        state=self.projection.snapshot() if state is None else state
+        return self.ready and state.get('wirelessListening') is True and not state.get('usbRecoveryRunning')
+
     def automatic_reconnect(self):
         state=self.projection.snapshot()
-        if (not self.ready or state.get('available') is not True or
-            state.get('automaticConnectionAllowed') is not True or state.get('options',{}).get('autoConnect',True) is False or state.get('connected') or
-            state.get('sessionStarting') or not self.wireless_allowed()):return
+        with self.lock:manual=time.monotonic()<self.manual_until
+        if state.get('connected'):
+            if state.get('transport')=='wifi':self._stage('connected')
+            with self.lock:
+                if state.get('transport')==self.transport_preference or self.transport_preference=='auto':self.manual_until=0
+            return
+        with self.lock:
+            if self.wireless_status['stage']=='connected':self.wireless_status['stage']='idle'
+        automatic=(state.get('automaticConnectionAllowed') is True and state.get('options',{}).get('autoConnect',True) is not False)
+        if state.get('available') is not True or not (automatic or manual) or not self.wireless_allowed():return
+        if not self.ready:self._stage('waiting-for-bluetooth');return
+        if not self._wireless_ready(state):self._stage('waiting-for-hotspot');return
+        if state.get('sessionStarting'):self._stage('projection-starting');return
         now=time.monotonic()
         with self.lock:
             if now-self.last_reconnect<30:return
             self.last_reconnect=now
-        with self.connection_lock:connected=self.connection is not None
-        try:
-            if connected:self.retrigger()
-            else:self.bluetooth.retry_android_auto()
-        except OSError:pass
+        self.retrigger(manual=manual)
 
     def _reconnect_loop(self):
         while not self.stop.is_set():
             try:self.automatic_reconnect()
             except Exception:
-                with self.lock:self.wireless_status['error']='Automatic connection is waiting for Bluetooth'
+                with self.lock:self.wireless_status['error']='Wireless connection is waiting for Bluetooth'
             self.stop.wait(5)
 
     def request_connection(self):
         with self.lock:
-            self.manual_until=time.monotonic()+5
+            self.manual_until=time.monotonic()+60
+            self.last_reconnect=float("-inf")
+            self.wireless_status.update(stage="requested",error="")
             self.paused=False
 
     def pause_connection(self):
@@ -258,15 +288,27 @@ class BluezAgent:
                 self.transport_preference="auto"
 
     def select_transport(self,transport):
-        if transport not in ('usb','wifi'):raise ValueError('Select USB or Wi-Fi')
+        if transport not in ('usb','wifi','auto'):raise ValueError('Select USB or Wi-Fi')
         with self.lock:self.transport_preference=transport
         if transport=='usb':self._close_connection()
 
     def _handshake(self,connection):
         pending=bytearray()
-        with self.lock:self.wireless_status.update(connected=True,error='')
+        with self.connection_lock:
+            if self.connection is not connection:
+                connection.close();return
+            with self.lock:self.wireless_status.update(connected=True,error='')
         try:
+            # Phones may connect before NetworkManager has finished bringing up the AP.
+            deadline=time.monotonic()+15
+            while not self._wireless_ready():
+                with self.connection_lock:
+                    if self.connection is not connection:raise ConnectionError('Wireless setup was superseded')
+                self._stage('waiting-for-hotspot')
+                if self.stop.wait(.25) or not self.wireless_allowed() or time.monotonic()>=deadline:
+                    raise ConnectionError('Car Wi-Fi is not ready')
             connection.sendall(self._start_frame())
+            self._stage('starting-wireless')
             while not self.stop.is_set():
                 try:part=connection.recv(4096)
                 except socket.timeout:continue
@@ -281,23 +323,32 @@ class BluezAgent:
                     with self.lock:self.wireless_status['lastMessage']=kind
                     if kind==2:
                         with self.lock:self.wireless_status['credentialRequests']+=1
-                        config=self.wireless.credentials()
-                        # Current AP address; never expose credentials through HTTP or logs.
-                        bssid=__import__('pathlib').Path('/sys/class/net/wlan0/address').read_text().strip().upper()
-                        payload=field(1,config['ssid'])+field(2,config['passphrase'])+field(3,bssid)+field(4,8)+field(5,1)
-                        connection.sendall(wifi_frame(3,payload))
+                        connection.sendall(self._credential_frame())
+                        self._stage('credentials-sent')
         except (OSError,ValueError):
-            with self.lock:self.wireless_status['error']='Wireless handoff ended; reconnect the paired phone'
-        finally:
-            with self.lock:self.wireless_status['connected']=False
             with self.connection_lock:
-                if self.connection is connection:self.connection=None
+                if self.connection is connection:
+                    with self.lock:self.wireless_status['error']='Wireless setup did not complete; check Bluetooth and car Wi-Fi'
+        finally:
+            with self.connection_lock:
+                if self.connection is connection:
+                    self.connection=None
+                    with self.lock:self.wireless_status['connected']=False
             connection.close()
 
-    def retrigger(self):
+    def retrigger(self, manual=None):
         if not self.wireless_allowed():return
+        state=self.projection.snapshot()
+        if state.get('connected') or state.get('sessionStarting'):return
+        if not self._wireless_ready(state):self._stage('waiting-for-hotspot');return
+        if manual is None:
+            with self.lock:manual=time.monotonic()<self.manual_until
         with self.connection_lock:
-            if self.connection:self.connection.sendall(self._start_frame())
+            if self.connection:
+                self.connection.sendall(self._start_frame())
+                self._stage('starting-wireless')
+                return
+        self._stage(self.bluetooth.retry_android_auto(manual=manual))
 
     def reconnect_after_layout(self):
         if self.restart_thread and self.restart_thread.is_alive():return
@@ -318,6 +369,7 @@ class BluezAgent:
                 try:self.connection.shutdown(socket.SHUT_RDWR)
                 except OSError:pass
                 self.connection.close();self.connection=None
+                with self.lock:self.wireless_status['connected']=False
 
     def close(self):
         self.stop.set()
@@ -325,3 +377,4 @@ class BluezAgent:
         self._close_connection()
         if self.worker:self.worker.join(timeout=4)
         if self.reconnect_thread:self.reconnect_thread.join(timeout=4)
+        if self.connection_thread and self.connection_thread is not threading.current_thread():self.connection_thread.join(timeout=2)

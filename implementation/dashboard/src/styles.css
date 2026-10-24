@@ -67,7 +67,7 @@
 .refresh-input input:focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
 .refresh-setting .layout-reset { margin: 0; }
 .refresh-setting .setting-note { flex-basis: 100%; margin: 0; }
-.radio-output-setting select { max-width: 100%; min-height: 48px; min-width: 0; border: 2px solid var(--selected); border-radius: 12px; padding: 8px 12px; color: var(--primary-text); background: var(--active); font: inherit; }
+.radio-output-setting select, .audio-input-device select { max-width: 100%; min-height: 48px; min-width: 0; border: 2px solid var(--selected); border-radius: 12px; padding: 8px 12px; color: var(--primary-text); background: var(--active); font: inherit; }
 .wireless-setting label, .radio-output-setting label { min-width: 0; overflow-wrap: anywhere; }
 .phonebook-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .bluetooth-device-list { position: absolute; left: calc(85 * var(--x)); right: calc(129 * var(--x)); top: calc(30 * var(--y)); bottom: 16px; overflow-y: auto; scrollbar-width: none; touch-action: pan-y; }
@@ -121,6 +121,7 @@
 .settings-scroll.settings-music-settings,
 .settings-scroll.settings-obd-settings,
 .settings-scroll.settings-sound,
+.settings-scroll.settings-audio-input,
 .settings-scroll.settings-contacts-settings {
   right: calc(129 * var(--x));
 }
@@ -1606,6 +1607,7 @@ a {
   .settings-scroll.settings-music-settings,
   .settings-scroll.settings-obd-settings,
   .settings-scroll.settings-sound,
+.settings-scroll.settings-audio-input,
   .settings-scroll.settings-contacts-settings {
     right: 52px;
   }
@@ -2246,3 +2248,27 @@ a {
 /* OBD logging entry remains available before its page is lazy-loaded. */
 .telemetry-log-link {position:absolute;z-index:3;right:24px;top:12px;min-height:48px;padding:8px 14px;border:0;border-radius:12px;background:var(--active);color:var(--primary-text);font:inherit;font-size:17px;cursor:pointer;}
 @media(max-width:640px),(max-aspect-ratio:1/1){.telemetry-log-link{right:12px;top:60px;}}
+
+/* Microphone settings reuse the audio settings palette and touch targets. */
+.audio-input-settings {padding:16px; min-width:0;}
+.audio-input-settings .setting-note {margin:8px 0 20px;}
+.audio-input-device, .audio-input-actions {display:flex; flex-wrap:wrap; align-items:center; gap:12px;}
+.audio-input-device label {font-size:clamp(20px,3vw,32px);}
+.audio-input-device select {flex:1 1 240px; width:100%;}
+.audio-input-settings .layout-reset {margin:0;}
+.audio-input-controls {border:0; padding:0; margin:0; min-width:0;}
+.audio-input-controls:disabled, .audio-input-settings button:disabled, .audio-input-settings select:disabled {opacity:.5;}
+.audio-input-controls .setting-row {padding-left:0; padding-right:0;}
+.audio-input-volume {padding:16px 0 24px;}
+.audio-input-volume label {display:flex; justify-content:space-between; gap:16px; font-size:clamp(20px,3vw,32px);}
+.audio-input-volume input {display:block; width:100%; height:48px; margin:8px 0 0; accent-color:var(--primary); touch-action:pan-x;}
+.audio-input-settings :is(button,select,input):focus-visible {outline:3px solid var(--primary); outline-offset:3px;}
+.audio-input-add {margin-top:28px; padding-top:24px; border-top:1px solid var(--selected);}
+.audio-input-add strong {font-size:clamp(20px,3vw,28px); font-weight:400;}
+.audio-input-actions span {color:var(--muted);}
+
+.audio-input-legend {position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap;}
+
+.audio-input-controls .switch {min-width:80px; min-height:48px; flex-shrink:0;}
+.audio-input-controls .switch > span {left:6px; top:50%; transform:translateY(-50%); width:clamp(20px,calc(32 * var(--unit)),32px); height:clamp(20px,calc(32 * var(--unit)),32px);}
+.audio-input-controls .switch.on > span {left:auto; right:6px; width:clamp(28px,calc(48 * var(--unit)),48px); height:clamp(28px,calc(48 * var(--unit)),48px);}

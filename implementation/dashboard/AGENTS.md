@@ -33,3 +33,10 @@ OTA notification preference is separate from check/install policy; notify throug
 My OBD must maximize usable display area like the existing OBD pages. Keep outer gutters and gaps small, reserve Back space only in the header, and size rows from the actual available content area above the taskbar. Do not leave a wide empty gutter around the custom grid. Preserve readable gauges, touch targets, edit controls and responsive scrolling.
 
 Android Auto needs a visible persistent automatic-connection master switch, separate from automatic screen opening and per-phone Bluetooth selection. Do not require contact-sharing permission to recognize phones for reconnect controls. Respect explicit Quit/manual disconnect and avoid stealing focus during background reconnection.
+
+The owner requests a black startup instead of exposing the operating-system desktop. Keep the native cover until saved layout/fonts and both native web views are painted; acknowledge only the current generation token. Startup behavior must have a persistent Appearance switch. Keep recovery/normal Quit back to the desktop, and do not claim hardware boot acceptance while the Pi is unavailable.
+
+Wireless Android Auto must have a direct no-USB bootstrap from a paired phone. Connect Wi-Fi must initiate a missing Bluetooth handoff in manual mode as well as retry an existing one. Wait for the actual listener/profile, preserve automatic-opening and phone reconnect choices, and show concise live setup progress. Keep USB-unplugged cold-start acceptance unchecked while the Pi is unavailable.
+
+
+Microphone preferences belong to the native capture service, not localStorage placeholders. Keep Audio input device selection, gain/mute and explicit Save/Discard in the existing settings design. Enumerate real Qt devices; never invent a microphone or start capture from a settings page. Specific missing inputs stay selected, and saved mute must apply before capture at startup. Android Auto voice capture and HFP call routing are separate; document all native/hardware checks still pending while the Pi is off. See docs/AUDIO_INPUT.md and docs/backend-rules.md.

@@ -13,7 +13,7 @@ MENU_IDS = {
     'Hudiy': ['active-apps', 'settings', 'quit', 'obd-charts', 'obd-blocks', 'combined', 'gauges', 'gauges-2', 'custom-obd', 'obd-logs', 'marketplace'],
     'System': ['theme', 'appearance', 'application', 'notification-settings', 'overlays', 'about', 'music-settings', 'contacts-settings', 'software-update'],
     'Projections': ['android-settings', 'autobox-settings'],
-    'Audio': ['sound', 'equalizer', 'presets'],
+    'Audio': ['sound', 'audio-input', 'equalizer', 'presets'],
     'Bluetooth': ['pair', 'remove', 'bluetooth-connections'],
 }
 REQUIRED = {'dashboard', 'apps', 'android-resume'}
@@ -46,6 +46,8 @@ def validate_layout(value):
     bluetooth = groups['Bluetooth']
     if isinstance(bluetooth,list) and 'bluetooth-connections' not in bluetooth:
         groups['Bluetooth']=bluetooth+['bluetooth-connections']
+    audio=groups['Audio']
+    if isinstance(audio,list) and 'audio-input' not in audio:groups['Audio']=audio+['audio-input']
     hudiy=groups['Hudiy']
     if isinstance(hudiy,list):groups['Hudiy']=hudiy+[id for id in ('custom-obd','obd-logs') if id not in hudiy]
     system = groups['System']

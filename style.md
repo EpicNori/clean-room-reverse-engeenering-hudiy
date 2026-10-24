@@ -203,3 +203,20 @@ Place Connect Android Auto automatically before per-phone Bluetooth reconnect an
 ## Complete screenshot refresh — 24 October 2026
 
 Retake all public documentation images from the current production build; replace the earlier JPEG gallery with unedited 1280×720 native JPEG viewport captures. Retain the light purple/pink palette and show dark amber with contrast 0. Use descriptive alt text, full-size image links and paired Markdown gallery tables. Include both original gauge variants, the full-area My OBD grid, logging, OTA and the separate automatic Android Auto connection/opening controls. Mark synthetic/demo/local-only views clearly in captions and preserve hardware acceptance limits. The capture preview is isolated/read-only and never changes the owner's app settings or contacts. No production UI style changes were made for these pictures.
+
+
+## Black startup and readiness recovery
+
+Use solid #000000 for normal boot, compositor background, native window/page background and an opaque full-window cover. No logo, spinner, progress text, animation or dashboard fragment appears until both dashboard/taskbar views are loaded and painted. Match any display geometry on resize. Hide the pointer over the startup cover. A 60-second failure state uses white text, 24px wrapped explanation and 20px Retry/Return to desktop buttons on #222 with at least 48px targets; safe desktop return receives initial keyboard focus. Use the existing themed Appearance switch for Black screen during startup, with a concise next-start note. Preserve normal touch scrolling and theme controls once ready.
+
+
+## Direct wireless connection feedback
+
+Keep the existing Android Auto settings layout, theme and controls. State explicitly that pairing over Bluetooth and connecting to the Pi hotspot does not require USB. Show sanitized live setup progress in an existing setting-note with role=status, refreshing every five seconds without interrupting a hotspot confirmation/save. Use plain phone/Bluetooth/Wi-Fi wording; do not expose credentials, addresses or raw protocol errors, or call a completed handoff a connected projection. No new colors or animation.
+
+
+## Audio input settings
+
+The Audio category gains an `Audio input` tile using the existing rounded `mic` Material Symbol. Sound links to the same page instead of displaying browser-only input controls. The page uses Roboto, existing theme tokens (`--selected`, `--active`, `--primary`, `--primary-text`, `--text`, `--muted`), the existing switch and rounded settings buttons. No fixed pink accents, new bitmap assets or external fonts are introduced.
+
+Device selector, Refresh and Save/Discard controls wrap within the settings scroll region and reserve its existing scroll-button gutter. Selects/buttons/range controls keep 48px touch targets. The slider uses a visible percentage and accessible label/value; mute exposes a labeled switch. Native status and unsaved drafts use polite status text. Missing/unsupported devices are named explicitly; a disabled preview/offline state never resembles active capture. Focus has a visible theme-colored outline. No new animation or motion is added.
