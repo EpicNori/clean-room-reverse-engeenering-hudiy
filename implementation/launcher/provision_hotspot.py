@@ -38,7 +38,8 @@ def terminal_authentication(terminal_path='/dev/tty', startup_timeout=5):
         yield False
         return
     try:
-        terminal = open(terminal_path, 'r', encoding='utf-8')
+        terminal = open(terminal_path, 'r', encoding='utf-8',
+            opener=lambda path, flags: os.open(path, flags | getattr(os, 'O_NOCTTY', 0)))
     except OSError:
         yield False
         return

@@ -197,7 +197,8 @@ def confirm_installation(terminal_path='/dev/tty'):
     # r+ selects BufferedRandom, which requires seekability; a terminal is not seekable.
     # Read from the controlling terminal because curl | bash occupies standard input.
     try:
-        with open(terminal_path, 'r', encoding='utf-8') as terminal:
+        with open(terminal_path, 'r', encoding='utf-8',
+            opener=lambda path, flags: os.open(path, flags | getattr(os, 'O_NOCTTY', 0))) as terminal:
             print('Apply this installation plan? [y/N] ', end='', flush=True)
             return terminal.readline().strip().lower() in ('y', 'yes')
     except OSError as error:
