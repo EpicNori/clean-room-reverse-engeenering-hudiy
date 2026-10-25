@@ -115,8 +115,9 @@ addresses it without shell evaluation of checkout paths.
 See [the installation acceptance report](INSTALL_VERIFICATION.md) for the exact
 results and remaining checks. This app reinstall on an existing Bookworm system
 does not establish installation on a freshly flashed Bookworm or Trixie image.
-The public command needs the tested source fixes to be published before it can
-be accepted as repaired.
+The repaired session booted automatically with both web views ready. After the
+fix was published, the exact public piped command passed on this reference Pi
+with exit 0, 35 frontend tests, 246 backend tests and all six native checks.
 
 References: [Raspberry Pi system configuration](https://www.raspberrypi.com/documentation/computers/configuration.html),
 [WirePlumber Bluetooth configuration](https://pipewire.pages.freedesktop.org/wireplumber/daemon/configuration/bluetooth.html),

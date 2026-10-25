@@ -102,13 +102,26 @@ recordings again matched their backup hashes. A physical display screenshot was
 saved privately on the Pi. No complete physical power-on video was captured,
 so absence of every firmware/login flash remains unverified.
 
+## Published-command retry
+
+After publishing `8cdfbb7626e02dcd051e10b1bb9820fbe33b0a4b`, we reran the exact
+README `curl | bash` command on the reference Pi. The previously deployed local
+patch was saved privately, then only those owned source modifications were
+restored so the bootstrap could fast-forward a clean `main` checkout itself.
+It fetched the published commit, accepted interactive confirmation, executed the
+explicit `qt6-wayland` package plan, rebuilt the frontend, passed **35 frontend
+tests, 246 backend tests without skips and all six native CTests**, reapplied
+startup idempotently and exited **0**. The protected hotspot stayed unchanged.
+This repeat used the newly installed Node/build cache; the earlier corrected
+full reinstall is the fresh app/runtime/build evidence.
+
 ## Remaining acceptance
 
 - [x] Reconnect after the second reboot; inspect actual session/app logs and
   verify the new native executable, backend and both web views become ready.
 - [x] Restore the owner's original recording preference and recheck all
   preserved preferences/recordings after startup.
-- [ ] Publish the reviewed installer/session fixes after owner authorization,
+- [x] Publish the reviewed installer/session fixes after owner authorization,
   then rerun the exact public piped command against that GitHub revision.
 - [ ] Test an entirely fresh 64-bit Bookworm image and a fresh Trixie image,
   including the Qt Wayland runtime and first-login phone/audio services.
