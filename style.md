@@ -74,7 +74,7 @@ The pairing view uses the shared left-aligned Pair heading, a live discovery lis
 
 ## Refresh settings
 
-Settings → System includes Music and Contacts tiles with existing library_music/contacts icons. Each page has a themed numeric field, seconds unit, touchscreen plus/minus buttons, explicit Save button, current interval and allowed range. Controls wrap on compact screens with 48 px touch targets and existing accent/surface/text tokens. Gear icons in music players and contact lists link directly to these settings. Music defaults to 5 seconds (1–60); phonebook downloads default to 60 seconds (5–3600). Contact screens check completed results every 5 seconds and keep immediate Refresh. New refresh pages reserve the scroll-arrow gutter; compact displays place content below Back.
+Settings → System includes Music and Contacts tiles with existing library_music/contacts icons. Each page has a themed numeric field, seconds unit, touchscreen plus/minus buttons, explicit Save button, current interval and allowed range. Controls wrap on compact screens with 48 px touch targets and existing accent/surface/text tokens. Gear icons in music players and contact lists link directly to these settings. Music defaults to 1 second (1–60); phonebook downloads default to 60 seconds (5–3600). Contact screens check completed results every 5 seconds and keep immediate Refresh. New refresh pages reserve the scroll-arrow gutter; compact displays place content below Back.
 
 Layout changes report Layout saved after the Pi backend confirms its durable save. Edits before hydration report that the layout has not been saved. New settings tiles extend existing ordering without discarding saved shortcuts. No new images or fixed colors.
 
@@ -243,3 +243,16 @@ show a concise capture summary, including an explicit no-vehicle-response state.
 No new colors, fonts, images, spacing system, motion or external assets are added.
 Labels describe automatic discovery without asking for a vehicle model and
 state the limits of exposed diagnostics instead of promising every vehicle signal.
+
+
+## Scrollbar visibility — 25 October 2026
+
+Hide native scrollbar tracks, thumbs and their occupied width/height throughout
+all application web views, including settings, contacts, Bluetooth lists, My OBD,
+OBD Logs, software updates, license notices, customization panels and nested
+edit dialogs. Use global `scrollbar-width: none` plus the Chromium/Qt WebEngine
+`::-webkit-scrollbar` fallback. Keep existing `overflow: auto/scroll` behavior,
+touch panning, mouse-drag scrolling, wheel/trackpad input, keyboard scrolling and
+explicit scroll arrows. Do not use `overflow: hidden` to conceal scrollbars.
+This policy applies in both themes and to horizontal scrolling on compact screens.
+No colors, assets, typography, focus indicators or animation are changed.

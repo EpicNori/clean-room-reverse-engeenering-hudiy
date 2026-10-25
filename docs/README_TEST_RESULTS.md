@@ -42,7 +42,7 @@ Three failures were found and repaired:
 | Final backend suite inside actual Pi OTA preparation | **259 passed**, no skips, in a headless Linux runner |
 | Frontend/packaging tests | **35 passed**; production frontend build passed |
 | Native ARM64 Release build | Passed; all **six CTests** passed, including in the final hotspot revision's actual OTA build |
-| Windows backend | 258 tests run, 10 platform skips, before the final call-interlock regression; all seven new hotspot regressions passed afterward |
+| Windows backend | 259 tests run, 10 platform skips; all executable checks passed after the one-second-default change |
 | Runtime dependency audit | Zero known advisories at the check; this is not a whole-project security guarantee |
 | Silent-sink audio stress | Worker received/wrote 5,819,712 bytes, dropped 0, final queue 0; old diagnostic path dropped 394,368 bytes. Sink underrun diagnostic code 3 was present; no audible-hardware claim |
 | Existing isolated process recovery tests | Actual owned subprocess checks cover health success, early exit, timeout cleanup and wrong-token rejection; they do not emulate a physical power cut |
@@ -70,11 +70,16 @@ The final hotspot repair was published and prepared through the same updater.
 Its complete build passed 259 backend tests, 35 frontend tests and six native
 CTests. Real activation reported exact revision `e479050`, `current`, no pending
 restart, UI readiness and connected/visible decoded wireless video. The normal
-Quit test then returned to the desktop. **The final cold reboot has not returned
-to the network**: pinned-host SSH to the hostname and last Ethernet address timed
-out, and the owner was asked for the physical screen/link state. Therefore the
-cold-boot hotspot repair is **not yet accepted**, despite its passing regressions
-and successful application activation. It must be repeated when the Pi is reachable.
+Quit test then returned to the desktop. Initial follow-up SSH attempts timed out;
+the owner subsequently confirmed the Pi was switched off. After the owner powered
+it on, the normal car session selected `e479050`, reported `current` with no pending
+restart, and restored the enabled hotspot. NetworkManager reported the car profile
+activated; native status reported the Wi-Fi listener ready, connected wireless
+projection, decoded video ready and no error. USB enumeration showed only root hubs.
+All seven preference hashes still matched. The owner confirmed Android Auto opened
+automatically and that they then switched back to the dashboard. **The repaired
+cold wireless startup and automatic opening passed this power-on test.** The
+powered-off interval is not evidence of a software boot failure.
 
 ## Phone, display and interface
 
@@ -101,13 +106,20 @@ and successful application activation. It must be repeated when the Pi is reacha
 | Startup visuals | Owner watched the real reboot and reported “no flashes”; no complete boot video was captured |
 | Display orientation | Existing owner's rotation retained; no remote screenshot claim about finger alignment |
 
-The final network loss prevented restoration of temporary acceptance settings.
-Pending restoration: automatic opening **On → Off**, music refresh **3 → 5 seconds**,
-contacts **120 → 60 seconds**, microphone **70%/muted → 100%/unmuted**, original
-OBD Logs/My OBD shortcut order, and original speed/RPM tile order. Private originals
-remain in the Pi's test directory. Volume was already restored to 80, brightness
-to 97%, and the original dark/pink theme restored. The newly paired phone and
-explicitly enabled protected hotspot are intended to remain available.
+After reconnecting, the temporary taskbar and My OBD tile orders, contact refresh
+interval (60 seconds), microphone gain/mute (100%/unmuted) and automatic opening
+(Off) were restored through the validated APIs. Native microphone settings matched
+and capture remained idle. Music refresh was set to the owner's subsequent request
+of **1 second**, replacing the temporary 3-second test value. Wireless projection
+stayed connected. Volume was already 80, brightness 97%, and the original dark/pink
+theme restored. The paired phone and explicitly enabled protected hotspot remain.
+
+The later source changes also set the frontend/backend music default to one second
+without overwriting saved custom choices, and hide scrollbar chrome globally while
+retaining scrolling. The production frontend build and 35 tests passed; local
+browser checks verified wheel/drag/keyboard scrolling, OBD Logs, My OBD editing,
+update details, menus and nested license text. Device deployment of these subsequent
+source changes is recorded separately when completed.
 
 ## Security and privacy checks
 
@@ -136,7 +148,6 @@ The following README groups cannot honestly be marked complete by this run:
   Remote mouse drag/input is useful device evidence but cannot replace finger tests.
 - **Phone permutations:** USB at boot, full USB switch matrix, multiple/disabled
   phones, contact-sharing denied, range loss and late Bluetooth service recovery.
-- **Final recovery:** regain access after the last reboot, accept the hotspot fix across a cold boot and restore the temporary settings listed above.
 - **Boot/recovery:** complete recorded power-on sequence, slow/failed native web-view
   loads with Retry/desktop recovery, helper restore and multiple monitors. Existing
   automated checks do not establish the entire physical sequence.

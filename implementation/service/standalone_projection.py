@@ -27,7 +27,7 @@ class StandaloneProjection:
         self.available = False
         self.exit_requested = False
         self.updated = None
-        self.refresh_interval = 5
+        self.refresh_interval = 1
         self.wireless_default = False
         self.audio_options = None
         self.input_options = None

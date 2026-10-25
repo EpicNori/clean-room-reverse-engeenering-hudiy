@@ -102,7 +102,7 @@ export const defaults = {
   androidAutoConnect: true,
   androidAutostart: false,
   androidTaskbar: true,
-  musicRefreshSeconds: 5,
+  musicRefreshSeconds: 1,
   contactsRefreshSeconds: 60,
   androidDayNight: "Common",
   autoboxWireless: true,

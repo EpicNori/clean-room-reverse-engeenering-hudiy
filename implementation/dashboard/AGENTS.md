@@ -10,7 +10,7 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 
 The user requests long-press customization: allow pinning shortcuts to the taskbar and repositioning taskbar items, application tiles and dashboard cards. Preserve swipe scrolling and full responsiveness; keep editing usable inside the native taskbar overlay over Android Auto. Persist layout independently of theme preferences.
 
-Shortcut layouts must survive a full Pi reboot with durable backend acknowledgement. Music and Contacts settings must provide separate configurable refresh intervals in seconds and persist them on the Pi. Contact settings govern actual Bluetooth phonebook downloads.
+Shortcut layouts must survive a full Pi reboot with durable backend acknowledgement. Music and Contacts settings must provide separate configurable refresh intervals in seconds and persist them on the Pi. Contact settings govern actual Bluetooth phonebook downloads. Music refresh defaults to one second across the frontend and backend; preserve explicitly saved custom intervals.
 
 Contacts, Favorites and Call log must be usable without a keyboard: use tappable name groups instead of a search field. Pair must share the other menus' left-aligned title, themed controls and list layout, with one main discovery action and explicit pairing confirmations handled by our own agent. Sound must keep receiver selection concise and omit receiver-specific explanatory paragraphs such as JJ33 instructions. Preserve required Bluetooth OBD independently of optional radio audio.
 
@@ -40,3 +40,9 @@ Wireless Android Auto must have a direct no-USB bootstrap from a paired phone. C
 
 
 Microphone preferences belong to the native capture service, not localStorage placeholders. Keep Audio input device selection, gain/mute and explicit Save/Discard in the existing settings design. Enumerate real Qt devices; never invent a microphone or start capture from a settings page. Specific missing inputs stay selected, and saved mute must apply before capture at startup. Android Auto voice capture and HFP call routing are separate; document all native/hardware checks still pending while the Pi is off. See docs/AUDIO_INPUT.md and docs/backend-rules.md.
+
+
+Hide native scrollbar chrome in every application view and nested scrollable
+panel/dialog, in both themes and at all viewport sizes. Preserve touch, mouse-drag,
+wheel/trackpad, keyboard and explicit-arrow scrolling; never disable overflow just
+to remove a visible scrollbar. Keep this policy in the shared global stylesheet.

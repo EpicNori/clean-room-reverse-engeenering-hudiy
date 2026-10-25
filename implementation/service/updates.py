@@ -4,7 +4,7 @@ from pathlib import Path
 import threading
 from runtime_support import save_json
 
-DEFAULTS = {'musicRefreshSeconds': 5, 'contactsRefreshSeconds': 60}
+DEFAULTS = {'musicRefreshSeconds': 1, 'contactsRefreshSeconds': 60}
 LIMITS = {'musicRefreshSeconds': (1, 60), 'contactsRefreshSeconds': (5, 3600)}
 
 

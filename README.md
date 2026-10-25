@@ -144,7 +144,7 @@ Our own native executable links `prodigy-oaa-protocol`, pinned to a documented o
 - The taskbar setting changes the advertised video/touch viewport and reconnects the session; the application stays running.
 - **Settings → Projections → Android Auto → Connect Android Auto automatically** saves automatic versus manual USB/Wi-Fi connection. **Open Android Auto automatically** separately controls foreground opening; enable both for unattended opening. Turning connection off leaves an active session running. The new native connection policy still needs a Pi rebuild and hardware acceptance; see the [test checklist](#android-auto-automatic-connection-acceptance).
 - Per-phone Bluetooth reconnect is separate. With the master switch and Car Wi-Fi on, one recognized paired phone is selected by default unless its Bluetooth switch was explicitly turned off; several paired phones require selection. Phone detection also uses hands-free services/device class, so contact sharing is optional for reconnection. These choices are saved privately alongside Connections preferences.
-- Five-second connection checks and event-driven phone metadata feed the backend. Wireless handoff retries are limited to one every 30 seconds, wait during an active/starting session and never open the screen themselves; the existing music/contact refresh settings remain configurable.
+- Music and navigation refresh defaults to **1 second**, configurable from **1–60 seconds** in Music settings. Saved custom intervals are preserved. Five-second connection checks and event-driven phone metadata feed the backend. Wireless handoff retries are limited to one every 30 seconds, wait during an active/starting session and never open the screen themselves; the existing music/contact refresh settings remain configurable.
 - Day/Night is sent through the Android Auto sensor channel. Physical brightness still writes the real panel backlight.
 - Quit stops connection admission until manual USB/Wi-Fi/Resume. USB and Wi-Fi select their respective transport. USB pauses the competing wireless bootstrap; its reconnect targets only one uniquely identified Android accessory, runs outside the UI thread and has a 15-second cooldown. Wired Quit/Resume has been checked without unplugging the cable. Resume can retrigger the owned wireless handshake.
 - The audio-input protocol service remains present without a physical microphone. Actual capture requests fail explicitly when no supported input exists; no fabricated microphone audio is sent. Public status separates decoded video readiness from protocol connection and reports microphone availability.
@@ -464,7 +464,7 @@ The backend binds to **127.0.0.1** and is designed for a local application, not 
 
 ## Tests and observed results
 
-The latest [real-Pi README acceptance report](docs/README_TEST_RESULTS.md) records **259 backend tests**, **35 frontend tests** and **six native CTests** passing in actual OTA preparation, plus real USB/wireless projection, managed activation/rollback/reinstallation, persistence and Quit checks. The final reboot did not return to the network; hotspot cold-boot acceptance and restoration of temporary test settings remain pending. The paragraphs below retain historical revision-specific results.
+The latest [real-Pi README acceptance report](docs/README_TEST_RESULTS.md) records **259 backend tests**, **35 frontend tests** and **six native CTests** passing in actual OTA preparation, plus real USB/wireless projection, managed activation/rollback/reinstallation, persistence and Quit checks. The initial follow-up timed out because the Pi was switched off. Its subsequent power-on passed managed-release selection, hotspot restoration and automatic wireless projection/opening, with matching saved-preference hashes. Temporary settings were restored, with music refresh set to the subsequently requested one second. The paragraphs below retain historical revision-specific results.
 
 **coscarOS rename (24 October 2026):** production build and all 35 frontend/packaging tests pass. The 219-test backend suite passes with four Linux-only checks skipped on Windows. New regressions cover shortcut persistence through the display-name change, exact managed startup migration/rollback, and fixed-repository OTA archives/redirects. The production dependency audit reports zero known vulnerabilities. All 11 public screenshots were retaken with synthetic fixtures. Native rebuild and hardware acceptance for this rename remain pending; the existing Pi app was left running because it reports an active diagnostic recording. See [upgrade instructions](docs/BRANDING.md).
 
@@ -502,7 +502,7 @@ values and gallery images do not count as live vehicle evidence.
 - [x] Verify accent and light/dark changes across the dashboard/taskbar controls and native popup; restore the owner's theme.
 - [x] Reorder a taskbar shortcut through its context menu and drag a My OBD tile on the real Pi; verify both saved configurations survive reboot.
 - [x] Verify changed music/contact refresh intervals and input gain/mute settings survive reboot.
-- [ ] Restore temporary acceptance settings after the final reboot returns to the network; exact original/test values are in the device report.
+- [x] Restore temporary acceptance layouts, contact/input/opening settings after power-on; apply the owner’s subsequent one-second music-refresh request.
 - [ ] Verify physical finger long-press, scrolling, popup pass-through and multitouch; remote mouse input is not a physical touch test.
 
 ### Black startup acceptance
@@ -534,11 +534,11 @@ values and gallery images do not count as live vehicle evidence.
 - [x] With connection On and opening Off, receive projection/media in the background while the dashboard stays visible; manually Resume through the taskbar.
 - [x] Verify connection Off waits for manual connection, opening On alone does not bypass it, and disabling automatic connection does not terminate an active session.
 - [x] Verify Quit pauses retries for an observed 35-second interval and manual Wi-Fi/Resume works with automatic connection Off.
-- [x] Enable connection and automatic opening, restart through a real OTA activation and verify automatic wireless foreground opening. Restore opening Off afterward.
+- [x] Enable connection and automatic opening, verify automatic wireless foreground opening after real OTA activation and a subsequent normal power-on with USB unplugged. The owner confirmed automatic opening; restore opening Off afterward.
 - [x] Verify master/opening preferences are retained through application restart and reboot, along with the other saved application preferences.
 - [ ] Complete the entire switch matrix on USB as well as Wi-Fi; test USB already attached at boot, contact sharing disabled, explicitly disabled and multiple paired phones, per-phone setting persistence, Bluetooth/radio/OBD exclusion, range loss and late-service recovery.
 
-See [the current hardware report](docs/README_TEST_RESULTS.md) and [direct wireless details](docs/STANDALONE.md#direct-wireless-startup-without-usb). The first cold reboot exposed an inactive saved hotspot; the published recovery fix restores only enabled car mode and keeps retries bounded. Its application activation passed, but the final cold reboot did not return to the network; that acceptance and restoration of test settings remain pending in the report.
+See [the current hardware report](docs/README_TEST_RESULTS.md) and [direct wireless details](docs/STANDALONE.md#direct-wireless-startup-without-usb). The first cold reboot exposed an inactive saved hotspot; the published recovery fix restores only enabled car mode and keeps retries bounded. Its subsequent power-on restored the hotspot and wireless projection with USB unplugged, retained all seven saved preference hashes, and opened Android Auto automatically as confirmed by the owner. Temporary test settings have been restored.
 
 ### Required car functionality and verification
 

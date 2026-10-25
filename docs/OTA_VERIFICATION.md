@@ -89,3 +89,14 @@ did not hang up or bypass that interlock. Ethernet carried the actual downloads.
 - [ ] Test a client Wi-Fi Internet route separately from car-hotspot mode, and controlled network/power interruption recovery. No abrupt power cut or corruption of the working installation is justified by the current results.
 
 The install-dialog action was blocked by automatic approval review because the parked state had not yet been explicitly confirmed. The earlier authorization to save the recording did not establish that prerequisite. No bypass or alternate activation path was used. See [OTA operation and recovery](OTA_UPDATES.md) for the normal behavior and [backend rules](backend-rules.md) for trust boundaries.
+
+
+## Hotspot repair power-on retest
+
+The owner explained that the final unreachable interval was a switched-off Pi.
+After power-on, `e479050` started through the normal car session, was current with
+no pending restart, restored the enabled protected hotspot and connected wireless
+Android Auto with decoded video ready and no error. Only USB root hubs were present.
+All seven private preference hashes matched. The owner confirmed automatic opening,
+then manually returned to the dashboard. Temporary settings/layouts were restored;
+music refresh follows the later one-second request. See [the device report](README_TEST_RESULTS.md).
