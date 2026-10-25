@@ -223,3 +223,17 @@ This repeat reused the build/runtime from the genuine fresh-image run above.
 The repair adds no API route, cloud rule or application privilege. The additional
 system wrapper belongs to the existing one-time privileged installer and is
 covered by its backup/restore manifest; see [backend rules](backend-rules.md).
+
+
+## Later README device acceptance — 25 October 2026
+
+The fresh Trixie image subsequently passed real Fold4 wireless projection without
+prior USB, wired projection after USB was attached, PBAP contact filtering,
+backlight writes, saved-layout/input/refresh persistence and managed OTA
+activation/rollback/reinstallation/reboot. The owner reported no boot flashes.
+The fresh image lacked `pactl`; `pulseaudio-utils` is now an explicit installer
+dependency and was installed on the device. The headless OTA test runner and
+cold-boot hotspot failures were also reproduced and repaired. These later results
+supersede the phone/OTA portions of the earlier pending list; microphone/radio,
+powered ELM327, full physical touch and fresh Bookworm acceptance remain open.
+See [the complete README test report](README_TEST_RESULTS.md).

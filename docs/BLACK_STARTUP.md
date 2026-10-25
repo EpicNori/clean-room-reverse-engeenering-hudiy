@@ -68,3 +68,13 @@ backup/restore manifest; exact verified migration preserves previous originals.
 All 18 startup tests passed on the Pi, including actual shell execution and
 migration/failure rollback. The first reboot failed before this repair; the repaired session subsequently booted automatically with both web views ready.
 Full physical power-on display acceptance is tracked in [the installation report](INSTALL_VERIFICATION.md).
+
+
+## Fresh Trixie and managed-release startup — 25 October 2026
+
+A normal reboot selected the actual managed OTA native executable, reached both
+web-view readiness gates and preserved all seven current JSON preference hashes.
+The owner watched the physical display and reported no flashes. No complete boot
+video was captured, so recorded power-on acceptance remains unchecked. Rotation
+and panel brightness were retained; physical finger alignment and multiple-monitor
+checks remain separate. See [the current device report](README_TEST_RESULTS.md).

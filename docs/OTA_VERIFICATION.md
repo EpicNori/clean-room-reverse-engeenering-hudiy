@@ -1,6 +1,10 @@
 # OTA acceptance test — 25 October 2026
 
-This records a real reference-Pi test, separately from mocked/UI-fixture checks. The test is **incomplete** until activation, native startup health and rollback have been exercised. A successfully built release is not proof of a successful installation.
+This records successive real reference-Pi tests, separately from mocked/UI-fixture
+checks. The later fresh-Trixie run **passed managed activation, native/UI health,
+manual rollback, reinstallation and managed-release reboot**. Automatic activation
+with actual vehicle data and interruption acceptance remain open. Earlier sections
+retain their historical results; see [the current README acceptance report](README_TEST_RESULTS.md).
 
 ## Failure reproduced and repair
 
@@ -48,18 +52,39 @@ The owner subsequently confirmed that the vehicle was parked and requested a
 clean application uninstall/reinstall before further OTA testing. That test
 archived the old baseline/staged release in private recovery storage and installed
 a fresh baseline. Its successful boot does not verify managed OTA activation or
-rollback. See [installer acceptance](INSTALL_VERIFICATION.md). The checklist below
-retains the actual incomplete OTA status; parked confirmation is now established.
+rollback. See [installer acceptance](INSTALL_VERIFICATION.md). The checklist below records the later managed-release retest; parked confirmation is established.
+
+## Later fresh-Trixie retest
+
+The updater on the freshly installed `51e0f57` baseline first exposed an unrelated
+headless-test SIGHUP failure. The terminal helpers were repaired with `O_NOCTTY`
+and real session-leading subprocess regressions. GitHub revision `152596f` then
+built with 252 Linux backend tests, 35 frontend tests and six native CTests,
+activated and passed normal UI/native health and process-stability gates.
+
+The actual native executable was under that exact managed release. Manual rollback
+started the real baseline executable, preserved preference hashes and paused
+immediate automatic reapplication. Reinstallation passed health again. Enabling
+both Android Auto switches caused wireless projection to open after that restart;
+opening Off was restored afterward. A normal Pi reboot selected the managed release
+and preserved all seven current top-level preference files. The owner reported no
+visual boot flashes. The initial wireless cold boot exposed inactive car mode;
+its separate recovery repair and retest are documented in the README report.
+
+Preparation cancellation retained the installed app and ready UI. Automatic-idle
+mode waited for fresh stationary OBD evidence when no adapter was available.
+A later real active call also caused manual OTA activation to be refused; the test
+did not hang up or bypass that interlock. Ethernet carried the actual downloads.
 
 ## Remaining acceptance
 
 - [x] Confirm the vehicle is parked.
-- [ ] Prepare/activate a release through the real app on the newly installed baseline.
-- [ ] Verify the native process comes from the managed release, reports the exact installed SHA, reaches UI readiness and leaves pending verification only after the normal stability gate.
-- [ ] Restore the previous baseline, verify its actual process/source identity, then reinstall the prepared release.
-- [ ] Reboot normally and verify that boot startup selects the managed release and retains preferences.
+- [x] Prepare/activate a release through the real app on the newly installed baseline.
+- [x] Verify the native process comes from the managed release, reports the exact installed SHA, reaches UI readiness and leaves pending verification only after the normal stability gate.
+- [x] Restore the previous baseline, verify its actual process/source identity, then reinstall the prepared release.
+- [x] Reboot normally and verify that boot startup selects the managed release and retains preferences.
 - [x] Restore the original automatic recording and update preferences while waiting for activation; no sessions were deleted.
-- [ ] Recheck recording/settings integrity after installation, rollback and reboot.
+- [x] Compare current fresh-image preferences across activation/rollback and all seven top-level JSON files across reboot; no saved recording was deleted. Live vehicle recording remains untested.
 - [ ] Test actual automatic activation with fresh real zero-speed/zero-RPM data when vehicle hardware is available.
 - [ ] Test a client Wi-Fi Internet route separately from car-hotspot mode, and controlled network/power interruption recovery. No abrupt power cut or corruption of the working installation is justified by the current results.
 

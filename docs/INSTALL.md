@@ -203,3 +203,13 @@ After installing the OTA-capable revision once, use Settings → System → Soft
 ## Black startup
 
 The installer now includes a reversible black Plymouth/quiet boot setup and a separate panel-free LightDM/labwc car session. `--skip-black-boot` skips these OS changes; `--no-autologin` keeps authentication unchanged. A saved Appearance switch controls the next app/session start. Runtime readiness waits for both web views, with a recovery screen after 60 seconds and saved desktop startup after Quit. This requires one-time privileged setup outside OTA, plus a native rebuild. See [Black startup](BLACK_STARTUP.md) for exact apply/restore commands, backups and pending Pi tests.
+
+
+## Later device-test repairs
+
+The guided package list now includes `pulseaudio-utils` for `pactl` on PipeWire
+systems. Run the normal installer for OS-package additions; OTA stays unprivileged
+and does not run apt. Headless installer/provisioning terminal checks use
+`O_NOCTTY`. Saved enabled car mode is restored by the runtime after login, with
+bounded retries and existing NetworkManager permissions. See
+[the current Pi acceptance report](README_TEST_RESULTS.md).

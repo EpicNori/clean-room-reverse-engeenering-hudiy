@@ -33,6 +33,7 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 - [Run on the Raspberry Pi](#run-on-the-raspberry-pi)
 - [Settings and privacy](#settings-and-privacy)
 - [Tests and observed results](#tests-and-observed-results)
+- [Real-Pi README acceptance report](docs/README_TEST_RESULTS.md)
 - [Remaining work checklist](#remaining-work)
 - [Legal documentation, Austrian/EU review and provenance](LEGAL.md)
 - [Clean-room approach and legal basis](#clean-room-approach-and-legal-basis)
@@ -50,7 +51,7 @@ The default Pi launcher now starts **our own native application and Android Auto
 
 The standalone engine has displayed real USB and wireless Android Auto video from the owner's phone with proprietary Hudiy stopped and its API port absent. Taskbar switching, Quit/Resume, taskbar hiding, live cover art, Day/Night and physical brightness have been checked on our engine. An actual Pi reboot loaded our app and preserved preferences. We corrected USB accessory identification and a post-reboot service-discovery failure when no microphone device existed. USB and wireless now deliver decoded video again. See [standalone verification](docs/STANDALONE.md). The previous Hudiy API bridge and compatibility launcher have now been removed; only our independent runtime is supported. See [dependency inventory](docs/HUDIY_DEPENDENCIES.md).
 
-The reference installation was Hudiy **1.24 / native API 1.3**, on a Raspberry Pi running **Debian 12 Bookworm with labwc**, with a **1280×720** touchscreen. That was the original observation environment. The installer, native app startup, landscape persistence and saved settings have since passed a fresh 64-bit Trixie desktop test; phone/vehicle integration on that fresh image remains unverified. See [installation acceptance](docs/INSTALL_VERIFICATION.md). The interface adapts to other screen sizes rather than depending on those reference dimensions. This is an ongoing recreation, not a claim of complete or pixel-perfect compatibility.
+The reference installation was Hudiy **1.24 / native API 1.3**, on a Raspberry Pi running **Debian 12 Bookworm with labwc**, with a **1280×720** touchscreen. That was the original observation environment. The installer, native app startup, landscape persistence and saved settings have since passed a fresh 64-bit Trixie desktop test; USB/wireless phone projection, PBAP and managed OTA have also been exercised on that fresh image; powered-vehicle and audible hardware acceptance remain open. See [the current Pi report](docs/README_TEST_RESULTS.md) and [installation acceptance](docs/INSTALL_VERIFICATION.md). The interface adapts to other screen sizes rather than depending on those reference dimensions. This is an ongoing recreation, not a claim of complete or pixel-perfect compatibility.
 
 ## Screenshot gallery
 
@@ -74,7 +75,7 @@ Every screenshot below was **retaken on 24 October 2026** from the current produ
 | 📱 Android Auto connection settings — LOCAL PREVIEW | 📦 OTA updates — SIMULATOR |
 | --- | --- |
 | [![Separate automatic connection and automatic opening switches in the current Android Auto settings](docs/images/android-auto-connection.jpg)](docs/images/android-auto-connection.jpg) | [![Current GitHub OTA status and preferences with an explicit simulated-data notice](docs/images/software-updates-preview.jpg)](docs/images/software-updates-preview.jpg) |
-| Connection, opening and taskbar visibility are separate choices. The Pi/phone acceptance checklist remains open. | Update controls shown with simulated status; no real installation occurred during capture. |
+| Connection, opening and taskbar visibility are separate choices. USB and wireless device checks are recorded separately in the acceptance report. | Update controls shown with simulated status; no real installation occurred during capture. |
 
 | 🎛️ Original tick gauges — DEMO | ↔️ My OBD using the full available area — SIMULATOR |
 | --- | --- |
@@ -226,6 +227,7 @@ coscarOS/
 │   ├── OBD_CAPTURE.md
 │   ├── OBD_CAPTURE_VERIFICATION.md
 │   ├── OBD_LOGGING.md
+│   ├── README_TEST_RESULTS.md
 │   ├── OTA_UPDATES.md
 │   ├── STANDALONE.md
 │   └── VERIFICATION.md
@@ -405,7 +407,7 @@ Then open a terminal as your ordinary desktop user:
 bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'
 ```
 
-The guided installer shows its plan, installs OS dependencies, checks/downloads a private Node runtime, builds/tests our frontend and native receiver, configures Bluetooth/audio/device access, selects startup and prepares an inactive protected hotspot. Default setup enables desktop autologin; `--no-autologin` preserves login authentication. It does not reboot or switch Wi-Fi automatically. See [installation, options and recovery](docs/INSTALL.md). The 25 October app reinstall found and repaired confirmation/session startup bugs locally; the repaired installation now boots automatically and retains user data. The published one-liner also passed on that reference Pi. See [the exact installation test results](docs/INSTALL_VERIFICATION.md). A freshly flashed 64-bit Trixie desktop subsequently passed installation, first launch, saved settings, landscape persistence and automatic boot. Fresh Bookworm and phone/vehicle acceptance remain open.
+The guided installer shows its plan, installs OS dependencies, checks/downloads a private Node runtime, builds/tests our frontend and native receiver, configures Bluetooth/audio/device access, selects startup and prepares an inactive protected hotspot. Default setup enables desktop autologin; `--no-autologin` preserves login authentication. It does not reboot or switch Wi-Fi automatically. See [installation, options and recovery](docs/INSTALL.md). The 25 October app reinstall found and repaired confirmation/session startup bugs locally; the repaired installation now boots automatically and retains user data. The published one-liner also passed on that reference Pi. See [the exact installation test results](docs/INSTALL_VERIFICATION.md). A freshly flashed 64-bit Trixie desktop subsequently passed installation, first launch, saved settings, landscape persistence and automatic boot. Fresh Bookworm, powered-vehicle and audible hardware acceptance remain open. See [the real-Pi README test report](docs/README_TEST_RESULTS.md) for the later phone and OTA checks.
 
 ## Run on the Raspberry Pi
 
@@ -414,7 +416,8 @@ Build the frontend first, then install the native build/runtime dependencies:
 ```sh
 sudo apt install build-essential cmake pkg-config qt6-base-dev qt6-wayland qt6-multimedia-dev qt6-webengine-dev qt6-connectivity-dev \
   libprotobuf-dev protobuf-compiler libssl-dev libusb-1.0-0-dev libavcodec-dev libavutil-dev libswscale-dev \
-  python3-serial python3-dbus python3-gi bluez bluez-obexd network-manager
+  python3-serial python3-dbus python3-gi bluez bluez-obexd network-manager \
+  ofono pipewire pipewire-pulse pulseaudio-utils wireplumber libspa-0.2-bluetooth dbus-user-session
 cmake -S implementation/native -B implementation/native/build -DCMAKE_BUILD_TYPE=Release
 cmake --build implementation/native/build -j3
 python3 implementation/launcher/launcher.py
@@ -461,6 +464,8 @@ The backend binds to **127.0.0.1** and is designed for a local application, not 
 
 ## Tests and observed results
 
+The latest [real-Pi README acceptance report](docs/README_TEST_RESULTS.md) records **259 backend tests**, **35 frontend tests** and **six native CTests** passing in actual OTA preparation, plus real USB/wireless projection, managed activation/rollback/reinstallation, persistence and Quit checks. The final reboot did not return to the network; hotspot cold-boot acceptance and restoration of temporary test settings remain pending. The paragraphs below retain historical revision-specific results.
+
 **coscarOS rename (24 October 2026):** production build and all 35 frontend/packaging tests pass. The 219-test backend suite passes with four Linux-only checks skipped on Windows. New regressions cover shortcut persistence through the display-name change, exact managed startup migration/rollback, and fixed-repository OTA archives/redirects. The production dependency audit reports zero known vulnerabilities. All 11 public screenshots were retaken with synthetic fixtures. Native rebuild and hardware acceptance for this rename remain pending; the existing Pi app was left running because it reports an active diagnostic recording. See [upgrade instructions](docs/BRANDING.md).
 
 
@@ -485,82 +490,82 @@ The custom OBD/dashboard logging revision passes **140 backend tests (four Windo
 
 ## Remaining work
 
-- [ ] Compile and verify the new notification overlay on the Pi: popups above Android Auto, touchscreen pass-through and cross-view switch/theme behavior. Local UI/schema tests pass; the Pi powered off before upload.
+The [25 October real-Pi acceptance report](docs/README_TEST_RESULTS.md) maps the
+README checks to device evidence and remaining limits. Checked items below are
+scoped results, not a declaration that every integration is finished. Simulator
+values and gallery images do not count as live vehicle evidence.
 
-Unchecked items are still incomplete or require hardware verification. The gallery's demo gauges do not complete the OBD checks.
+### Interface and saved configuration
+
+- [x] Build the current native runtime and pass all six CTests on the Pi, including notification/startup/connection-policy checks.
+- [x] Display a real native volume popup above Android Auto; verify pointer input still reaches the projected app launcher.
+- [x] Verify accent and light/dark changes across the dashboard/taskbar controls and native popup; restore the owner's theme.
+- [x] Reorder a taskbar shortcut through its context menu and drag a My OBD tile on the real Pi; verify both saved configurations survive reboot.
+- [x] Verify changed music/contact refresh intervals and input gain/mute settings survive reboot.
+- [ ] Restore temporary acceptance settings after the final reboot returns to the network; exact original/test values are in the device report.
+- [ ] Verify physical finger long-press, scrolling, popup pass-through and multitouch; remote mouse input is not a physical touch test.
 
 ### Black startup acceptance
 
-- [x] Build/test the native startup cover and install reversible black boot/session configuration on the existing reference Pi. Cold boot acceptance remains open.
-- [ ] Record cold boot through coscarOS readiness and verify there is no OS desktop/panel, logo, login flash, cursor or white loading page.
-- [ ] Verify slow/failed loads, Retry, Quit/desktop recovery, the persisted startup switch, Android Auto during startup, OTA rollback and restoration of the previous boot configuration. See [the full checklist](docs/BLACK_STARTUP.md#verification-still-needed-on-the-pi).
+- [x] Build/test the startup cover and install reversible quiet-boot/car-session configuration.
+- [x] Boot the managed OTA release from the dedicated car session, reach both web-view readiness gates and retain saved settings.
+- [x] Normal Quit stops the owned app/backend/background and starts one ordinary desktop panel and file manager.
+- [x] Owner observed the actual display during the reboot and reported no flashes. This is an eyewitness check, not a recorded boot video.
+- [ ] Record the complete physical power-on sequence and repeat on fresh Bookworm, including slow/failed loads, Retry, desktop recovery and restore. See [the detailed checklist](docs/BLACK_STARTUP.md#verification-still-needed-on-the-pi).
 
 ### Legal review and distribution
 
-- [ ] Complete independent review of GUI expression, dependency distribution and the new coscarOS name before a release.
-- [x] Prepare complete font/library notice packaging and an in-app About viewer with an artifact regression check.
-- [ ] Choose independent branding and assess distinctive copied interface arrangements; an Artcraft comparison is not legal clearance.
-- [ ] Review accepted original terms/entitlement and complete native binary/image licensing before distributing binaries or appliances.
+- [ ] Complete independent review of GUI expression, dependency distribution and the coscarOS name before a release.
+- [x] Package font/library notices and provide an in-app About viewer with an artifact regression check.
+- [ ] Assess distinctive copied interface arrangements and original terms/entitlement, and complete native binary/image licensing before distributing binaries or appliances. An Artcraft comparison is not legal clearance.
 
 ### Microphones and audio capture
 
-- [x] Add **Settings → Audio → Audio input**: real native microphone enumeration, explicit Save/Discard, refresh, system-default or saved-device selection, input volume and mute. Preferences survive app restart; the Sound page links to these controls.
-- [x] Validate device IDs/settings, reject unknown or unsupported new selections, roll back runtime preferences on a failed disk write, and migrate the Audio menu without resetting shortcut order. Local API/persistence tests use synthetic devices, with no real capture.
-- [x] Build the native receiver on the reference Bookworm Pi and run all six CTests, including `microphone-gain-mute` with Release assertions enabled. All passed on 24 October 2026; real capture/hotplug tests remain open.
-- [ ] Verify USB microphone enumeration, selection, gain/mute, refresh, and persistence after a full Pi reboot. Check an unsupported capture format and no-device state.
-- [ ] Verify unplug/replug and a changed system default: a specifically selected missing mic must not silently fall back; settings alone must not record. Confirm capture starts/stops only with an actual Android Auto voice request, including muted startup and live device switching.
-- [ ] Pair a microphone-capable Bluetooth device and verify it appears only when its system audio profile exposes capture. Bluetooth radio output is a separate feature.
-- [ ] Verify HFP call microphone routing separately. This selector controls Android Auto voice capture; it does not yet configure oFono/PipeWire conversation routing or resample unsupported microphone formats.
+- [x] Add real native enumeration, Save/Discard, refresh, default/saved device selection, gain and mute with bounded validation and private persistence.
+- [x] Pass native `microphone-gain-mute`, API/persistence and device-loss tests; synthetic devices do not prove capture hardware works.
+- [x] On the Pi, verify the no-device message, idle capture, native application of gain/mute, Discard and reboot persistence.
+- [ ] Verify USB microphone enumeration, selection, supported/unsupported formats, unplug/replug, changed defaults, missing-device refusal and real voice-request capture/start/stop, including live switching and muted startup.
+- [ ] Verify microphone-capable Bluetooth capture and HFP conversation routing separately; the selector does not implement conversation routing or format resampling. See [audio-input scope](docs/AUDIO_INPUT.md).
 
-See [microphone setup and scope](docs/AUDIO_INPUT.md).
+### Direct wireless connection and automatic connection
 
-### Direct wireless connection without USB
+- [x] On the fresh Trixie installation, pair the Fold4 and project wirelessly without a preceding USB session. Test USB separately afterward.
+- [x] Run the native connection-policy build/test and observe actual admission status through the backend.
+- [x] With connection On and opening Off, receive projection/media in the background while the dashboard stays visible; manually Resume through the taskbar.
+- [x] Verify connection Off waits for manual connection, opening On alone does not bypass it, and disabling automatic connection does not terminate an active session.
+- [x] Verify Quit pauses retries for an observed 35-second interval and manual Wi-Fi/Resume works with automatic connection Off.
+- [x] Enable connection and automatic opening, restart through a real OTA activation and verify automatic wireless foreground opening. Restore opening Off afterward.
+- [x] Verify master/opening preferences are retained through application restart and reboot, along with the other saved application preferences.
+- [ ] Complete the entire switch matrix on USB as well as Wi-Fi; test USB already attached at boot, contact sharing disabled, explicitly disabled and multiple paired phones, per-phone setting persistence, Bluetooth/radio/OBD exclusion, range loss and late-service recovery.
 
-- [ ] Deploy the current receiver/backend and cold-boot the Pi with the Fold4 already paired, Bluetooth/Wi-Fi enabled and **USB unplugged for the entire test**. Verify projection starts through Bluetooth discovery and the Pi hotspot; no wired session should be needed first.
-- [ ] Repeat with automatic connection Off and tap Connect Wi-Fi directly. Test delayed hotspot startup, Resume after a previous USB session, Quit and reconnect, and multiple paired phones. Keep automatic-opening Off during one run and confirm the dashboard stays visible.
-
-The Pi is now deployed and its native build/tests pass; direct wireless cold-start acceptance remains open. The missing-handoff/manual bootstrap and readiness fixes were verified only with mocks and a real local socket exchange; device acceptance remains open. See [direct wireless setup and test limits](docs/STANDALONE.md#direct-wireless-startup-without-usb).
-
-### Android Auto automatic connection acceptance
-
-The Pi was switched off during this change. Local persistence, validation and retry-policy checks pass; the following steps are deliberately unchecked until the updated native application is built and tested on the device.
-
-- [ ] Build the updated native runtime on the Pi and run CTest, including `android-auto-connection-policy`; verify the published admission status reaches the backend.
-- [ ] Enable **Connect Android Auto automatically** and **Open Android Auto automatically**, cold-boot with the previously paired phone nearby, and verify wireless projection opens without tapping Connect. Repeat with USB already plugged in.
-- [ ] Test all connection/opening switch combinations on USB and Wi-Fi: connection On + opening Off must collect background media/navigation without covering the dashboard; connection Off must wait for manual USB/Wi-Fi/Resume.
-- [ ] Change each switch, restart the application and reboot the Pi; confirm master, opening and per-phone Bluetooth choices persist. Verify a phone with contact sharing disabled still has reconnect controls.
-- [ ] Test the single-phone default, an explicitly disabled phone and several paired phones. Confirm the ELM327 and optional radio receiver are never selected as Android Auto phones.
-- [ ] Leave and return to Bluetooth range, then interrupt only Android Auto while keeping Bluetooth connected. Confirm recovery and the 30-second retry bound; verify there are no repeated handoffs while a session is starting/active and no disruption to OBD, calls or radio audio.
-- [ ] Use Quit and confirm automatic retries pause. Verify manual Resume works with automatic connection Off, and switching connection Off then On re-enables automatic admission without stealing focus when automatic opening is Off.
-- [ ] Turn automatic connection Off during an active session and verify it stays connected, then stops reconnecting after disconnection. Also test Bluetooth/hotspot services starting late during boot.
+See [the current hardware report](docs/README_TEST_RESULTS.md) and [direct wireless details](docs/STANDALONE.md#direct-wireless-startup-without-usb). The first cold reboot exposed an inactive saved hotspot; the published recovery fix restores only enabled car mode and keeps retries bounded. Its application activation passed, but the final cold reboot did not return to the network; that acceptance and restoration of test settings remain pending in the report.
 
 ### Required car functionality and verification
 
-- [ ] Verify required live Bluetooth ELM327 readings with the adapter powered in a real vehicle.
-- [ ] Verify OBD disconnect/reconnect and stale-data clearing during vehicle use.
-- [ ] Verify active navigation instructions and speech through our standalone Android Auto engine.
-- [ ] Verify physical touchscreen multitouch with Android Auto.
-- [ ] Verify microphone capture, an incoming call and conversation audio end to end.
-- [ ] Verify unattended cold boot, automatic phone reconnection and recovery after going out of range.
-- [ ] Verify the complete ignition/power lifecycle and implement safe shutdown with suitable power hardware.
-- [x] Add independent protected hotspot preparation with an inactive profile, private settings, conflict checks and owned rollback. See [setup verification](docs/HOTSPOT_SETUP.md).
-- [x] Add guided one-line setup for dependencies, builds/tests, device/audio configuration, desktop autologin/startup and inactive hotspot preparation.
-- [ ] Verify the complete one-line installer, hotspot activation and phone/audio services on freshly flashed Bookworm and Trixie images.
-- [x] Reproduce GUI-stall audio overflow and replace GUI-thread feeding with a bounded independent worker; verify the silent-sink regression and live projection counters.
-- [ ] Verify extended audible media/navigation/conversation output through actual hardware, including clock drift and output-device recovery.
+- [ ] Verify required Bluetooth ELM327 readings in a powered vehicle, custom mappings, diagnostic coverage, recording/exports, reconnect and stale-data clearing. The adapter was unavailable for this test.
+- [x] Verify My OBD and Logs show unavailable data honestly with no adapter; verify actual drag/layout persistence without injecting simulated vehicle readings into the live app.
+- [ ] Verify active navigation instructions/speech, real microphone capture, an incoming call and conversation audio end to end.
+- [ ] Verify unattended range recovery and the complete ignition/power lifecycle; implement safe shutdown with suitable power hardware.
+- [x] Add protected inactive hotspot preparation and guided one-line installation; verify the published installer on a freshly flashed 64-bit Trixie desktop image.
+- [ ] Repeat the full install on fresh 64-bit Bookworm and verify all phone/vehicle/audio devices; install/build success alone is insufficient.
+- [x] Prepare, activate, health-confirm, roll back and reinstall a real GitHub OTA release; verify the actual managed native executable and preference hashes. Verify managed-release selection after reboot.
+- [x] Verify automatic-idle OTA waits when fresh stationary OBD evidence is unavailable; test cancellation without changing the active release.
+- [ ] Verify automatic activation with real fresh zero-speed/zero-RPM readings, client Wi-Fi Internet separately from the car hotspot, and controlled network/power interruption recovery. See [OTA acceptance](docs/OTA_VERIFICATION.md).
+- [x] Reproduce GUI-stall overflow in the old audio path and verify the worker delivers every submitted byte with no dropped/queued bytes to a temporary silent sink.
+- [ ] Verify extended audible media/navigation/conversation output on actual hardware, including drift and output-device recovery.
 
 ### Optional integrations and later extensions
 
-- [ ] Test a separate Bluetooth-to-radio receiver for audible music, navigation and calls.
-- [x] Connect persistent native projection equalizer/balance settings and verify signal processing, IPC acknowledgement and app-restart hydration. Audible hardware validation remains open.
-- [ ] Verify Bluetooth cover art and audible AVRCP playback end to end.
-- [ ] Implement CarPlay/Autobox integration if it remains in scope.
-- [ ] Implement FM tuner playback with supported hardware.
-- [ ] Implement notification integration.
+- [ ] Test the separate optional Bluetooth-to-radio receiver for audible music, navigation and calls.
+- [x] Connect persistent native projection equalizer/balance and verify signal processing, IPC acknowledgement and hydration; audible hardware validation remains open.
+- [ ] Verify Bluetooth cover art and audible AVRCP playback end to end. Spotify Connect playback on a different device is not a definitive phone-local metadata test.
+- [ ] Implement CarPlay/Autobox, supported FM tuner playback and phone notification integration if they remain in scope.
 - [ ] Replace the marketplace placeholder with a real catalog, or remove it from the release.
-- [ ] Review visual similarity, branding and all dependency/source-distribution obligations before a public binary release.
+- [ ] Complete the distribution review before publishing a binary/appliance release.
 
-CarPlay/Autobox, FM tuner playback, notification integration and a real marketplace catalog are not implemented. A visible menu entry does not prove its hardware integration exists.
+CarPlay/Autobox, FM tuner playback, phone notification integration and a real
+marketplace catalog are not implemented. The native status popup is implemented;
+it is separate from importing phone notifications.
 
 ## Clean-room approach and legal basis
 
