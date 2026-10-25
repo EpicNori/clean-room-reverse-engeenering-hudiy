@@ -388,14 +388,14 @@ On **64-bit Raspberry Pi OS Desktop (Bookworm or Trixie)**, open a terminal as y
 bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'
 ```
 
-The guided installer shows its plan, installs OS dependencies, checks/downloads a private Node runtime, builds/tests our frontend and native receiver, configures Bluetooth/audio/device access, selects startup and prepares an inactive protected hotspot. Default setup enables desktop autologin; `--no-autologin` preserves login authentication. It does not reboot or switch Wi-Fi automatically. See [installation, options and recovery](docs/INSTALL.md). A full freshly flashed image/reboot test is still pending.
+The guided installer shows its plan, installs OS dependencies, checks/downloads a private Node runtime, builds/tests our frontend and native receiver, configures Bluetooth/audio/device access, selects startup and prepares an inactive protected hotspot. Default setup enables desktop autologin; `--no-autologin` preserves login authentication. It does not reboot or switch Wi-Fi automatically. See [installation, options and recovery](docs/INSTALL.md). The 25 October app reinstall found and repaired confirmation/session startup bugs locally; the repaired installation now boots automatically and retains user data. Publication/public-command acceptance is recorded separately. See [the exact installation test results](docs/INSTALL_VERIFICATION.md). A freshly flashed OS test remains open.
 
 ## Run on the Raspberry Pi
 
 Build the frontend first, then install the native build/runtime dependencies:
 
 ```sh
-sudo apt install build-essential cmake pkg-config qt6-base-dev qt6-multimedia-dev qt6-webengine-dev qt6-connectivity-dev \
+sudo apt install build-essential cmake pkg-config qt6-base-dev qt6-wayland qt6-multimedia-dev qt6-webengine-dev qt6-connectivity-dev \
   libprotobuf-dev protobuf-compiler libssl-dev libusb-1.0-0-dev libavcodec-dev libavutil-dev libswscale-dev \
   python3-serial python3-dbus python3-gi bluez bluez-obexd network-manager
 cmake -S implementation/native -B implementation/native/build -DCMAKE_BUILD_TYPE=Release
@@ -425,7 +425,7 @@ My OBD also uses the original arc/tick gauges with animated drag/drop and a comp
 
 ## Black startup
 
-The updated installer and native runtime implement a quiet black boot/car session and keep the dashboard covered until both web views are painted. **Settings → System → Appearance → Black screen during startup** selects the behavior for the next start. Quit/recovery can return to the saved desktop. This needs a one-time OS/session setup as well as a native rebuild; the Pi is off, so full boot acceptance remains unchecked. See [setup, recovery and acceptance](docs/BLACK_STARTUP.md).
+The updated installer and native runtime implement a quiet black boot/car session and keep the dashboard covered until both web views are painted. **Settings → System → Appearance → Black screen during startup** selects the behavior for the next start. Quit/recovery can return to the saved desktop. This needs a one-time OS/session setup as well as a native rebuild; full physical cold-boot acceptance remains unchecked; see [the reinstall test](docs/INSTALL_VERIFICATION.md). See [setup, recovery and acceptance](docs/BLACK_STARTUP.md).
 
 
 ## OTA software updates

@@ -181,3 +181,21 @@ bounded, and existing private storage/export/path/Host/Origin limits still apply
 Coverage and saved summaries distinguish empty/partial captures from finished
 files. See [automatic capture](OBD_CAPTURE.md) for address derivation, 32-ECU/
 64-DTC-detail limits, protocol scope, timing and chunk reconstruction.
+
+
+## Installer and session repair — 25 October 2026
+
+The guided installer explicitly includes `qt6-wayland` for its native Wayland
+platform plugin. Confirmation reads the controlling terminal without opening a
+nonseekable terminal in `r+` mode; `--yes` remains the explicit noninteractive choice.
+No HTTP, Origin, cloud, device-access or application privilege changes are added.
+
+The existing privileged black-boot helper also owns the fixed, root-written
+`/usr/lib/coscaros/session.py` launcher. Its ordinary-user execution uses Python
+`runpy` with a literal checkout path; no shell command is built from that path.
+The LightDM entry passes only fixed unquoted arguments, surviving Debian Xsession's
+word splitting, including when the checkout path contains spaces or percent signs.
+Migration verifies all previous managed-file digests, permits only the exact old
+entry for the same checkout, refuses an unmanaged wrapper, retains original restore
+data and rolls back files/manifest if theme generation fails. Restore removes the
+added wrapper. This remains installer-only; OTA and HTTP cannot apply system changes.

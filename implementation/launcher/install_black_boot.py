@@ -13,6 +13,7 @@ import tempfile
 BEGIN = '# BEGIN HUDIY BLACK BOOT'
 END = '# END HUDIY BLACK BOOT'
 THEME = 'hudiy-black'
+SESSION_WRAPPER = 'usr/lib/coscaros/session.py'
 MANIFEST = 'var/lib/hudiy-recreation/black-boot.json'
 PLYMOUTH = '''[Plymouth Theme]
 Name=coscarOS black startup
@@ -96,14 +97,17 @@ def lightdm_session(text):
 
 def managed_files(config, cmdline, launcher, select_session=True, lightdm=''):
 
+    # Debian Xsession flattens argv and uses exec $STARTUP: quoted paths break.
+    desktop_quote(launcher.as_posix())  # Reject control characters before generating a literal Python path.
     files = {
+        SESSION_WRAPPER: 'import runpy\nrunpy.run_path(' + repr(launcher.as_posix()) + ', run_name="__main__")\n',
         'boot/firmware/config.txt': firmware_config(config),
         'boot/firmware/cmdline.txt': quiet_cmdline(cmdline),
         'usr/share/plymouth/themes/hudiy-black/hudiy-black.plymouth': PLYMOUTH,
         'usr/share/plymouth/themes/hudiy-black/hudiy-black.script': SCRIPT,
         'usr/share/wayland-sessions/hudiy-recreation.desktop':
             '[Desktop Entry]\nName=coscarOS\nComment=Black startup and independent car dashboard\n'
-            'Type=Application\nDesktopNames=labwc\nExec=/usr/bin/python3 ' + desktop_quote(launcher.as_posix()) + '\n',
+            'Type=Application\nDesktopNames=labwc\nExec=/usr/bin/python3 /' + SESSION_WRAPPER + '\n',
     }
     if select_session:
         files['etc/lightdm/lightdm.conf']=lightdm_session(lightdm)
@@ -148,9 +152,12 @@ class BlackBoot:
         if self.manifest.exists():
             state=self._load()
             self._verify(state)
-            if set(files)!=set(state['files']):
+            migrating_wrapper = set(files) == set(state['files']) | {SESSION_WRAPPER} and SESSION_WRAPPER not in state['files']
+            if migrating_wrapper and checked_path(self.root, SESSION_WRAPPER).exists():
+                raise ValueError('Session wrapper already exists outside the managed installation')
+            if set(files)!=set(state['files']) and not migrating_wrapper:
                 raise ValueError('Black boot target changed; restore the saved setup before applying a different target')
-            previous = {name: checked_path(self.root, name).read_bytes() for name in files}
+            previous = {name: checked_path(self.root, name).read_bytes() if checked_path(self.root, name).exists() else None for name in files}
             replacements = {
                 'usr/share/plymouth/themes/hudiy-black/hudiy-black.plymouth': (b'Name=Hudiy black startup', b'Name=coscarOS black startup'),
                 'usr/share/wayland-sessions/hudiy-recreation.desktop': (b'Name=Hudiy recreation', b'Name=coscarOS'),
@@ -158,7 +165,10 @@ class BlackBoot:
             }
             for name, content in files.items():
                 allowed = previous[name]
+                if migrating_wrapper and name == SESSION_WRAPPER: continue
                 if name in replacements: allowed = allowed.replace(*replacements[name])
+                if migrating_wrapper and name == 'usr/share/wayland-sessions/hudiy-recreation.desktop':
+                    allowed = allowed.replace(('Exec=/usr/bin/python3 ' + desktop_quote(launcher.as_posix()) + '\n').encode(), ('Exec=/usr/bin/python3 /' + SESSION_WRAPPER + '\n').encode())
                 if allowed != content.encode():
                     raise ValueError('Black boot target changed; restore the saved setup before applying a different target')
             if all(previous[name] == content.encode() for name, content in files.items()): return False
@@ -168,11 +178,17 @@ class BlackBoot:
             try:
                 for name, content in files.items():
                     atomic(checked_path(self.root, name), content.encode())
+                    if name not in state['files']:
+                        state['files'][name] = {'before': None, 'mode': 0o644}
                     state['files'][name]['installed'] = hashlib.sha256(content.encode()).hexdigest()
                 self.run(['plymouth-set-default-theme', '-R', THEME])
                 atomic(self.manifest, json.dumps(state).encode(), 0o600)
             except Exception:
-                for name, data in previous.items(): atomic(checked_path(self.root, name), data)
+                for name, data in previous.items():
+                    path = checked_path(self.root, name)
+                    if data is None:
+                        if path.exists(): path.unlink()
+                    else: atomic(path, data)
                 atomic(self.manifest, manifest_before, 0o600)
                 self.run(['plymouth-set-default-theme', '-R', THEME])
                 raise

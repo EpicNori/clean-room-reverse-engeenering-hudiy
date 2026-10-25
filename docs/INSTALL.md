@@ -31,7 +31,7 @@ Git/Python and an existing checkout; it does not install packages or clone one.
    branch, dirty checkout or symlinked target is retained and refused. Set
    `COSCAROS_INSTALL_DIR` (legacy `HUDIY_INSTALL_DIR` is also accepted) if you need a different directory.
 3. Installs native build dependencies, BlueZ/OBEX/oFono, NetworkManager/DHCP,
-   PipeWire/WirePlumber, Python OS packages and the standard Android USB rules.
+   PipeWire/WirePlumber, the Qt Wayland runtime, Python OS packages and the standard Android USB rules.
 4. Downloads the current official **Node 22 ARM64** release into our private user
    state directory, checks the official HTTPS checksum manifest, validates
    extraction paths/links and builds with that runtime. System Node stays unchanged.
@@ -72,13 +72,14 @@ Installation cannot supply missing microphone, panel backlight, car power
 controller, radio receiver or a powered vehicle. No real call/playback action
 or ECU write is part of setup. Bluetooth conversation audio, cold boot/recovery,
 fresh-image phone services and live OBD data still require hardware checks.
-Sustained native audio currently has a documented queue-overflow issue.
+The earlier native audio queue-overflow issue was corrected; audible car-radio routing still needs hardware acceptance.
 
 ## Options and retry
 
 ```sh
 bash install.sh --check           # Inspect prerequisites without changes
 bash install.sh --no-autologin    # Keep OS login authentication
+bash install.sh --skip-black-boot  # Keep existing OS boot theme/session selection
 bash install.sh --skip-hotspot    # Prepare USB/dashboard without a car AP
 bash install.sh --yes             # Accept the printed default plan; sudo still applies
 ```
@@ -102,11 +103,20 @@ selection/failure, safe archives/internal npm links, audio configuration version
 idempotent user backups, read-only checks, running-app refusal, option handling and
 build-failure gates. Mocked apply-flow tests never execute sudo or change services.
 
-On the existing Bookworm Pi we also checked the actual package plan with
-`apt-get --simulate`, piped bootstrap syntax/read-only execution, and a genuine
-official Node 22.23.3 download/checksum/extraction/version run. Its running phone
-session was not stopped to test installation. These checks do not establish an
-end-to-end install/reboot on a freshly flashed Bookworm or Trixie image.
+On 25 October 2026 we removed the existing application's active source/build,
+private Node runtime, OTA selection and managed startup configuration, keeping
+recoverable backups and user data. The public piped one-liner reproduced a real
+confirmation failure (`File or stream is not seekable`). The corrected installer
+completed the actual dependency installation, fresh Node download, frontend/backend
+checks, ARM64 compilation, six native tests and startup setup. A subsequent reboot
+exposed a separate LightDM/Xsession quoting failure; the fixed-path session wrapper
+addresses it without shell evaluation of checkout paths.
+
+See [the installation acceptance report](INSTALL_VERIFICATION.md) for the exact
+results and remaining checks. This app reinstall on an existing Bookworm system
+does not establish installation on a freshly flashed Bookworm or Trixie image.
+The public command needs the tested source fixes to be published before it can
+be accepted as repaired.
 
 References: [Raspberry Pi system configuration](https://www.raspberrypi.com/documentation/computers/configuration.html),
 [WirePlumber Bluetooth configuration](https://pipewire.pages.freedesktop.org/wireplumber/daemon/configuration/bluetooth.html),

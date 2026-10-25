@@ -139,12 +139,66 @@ class BlackStartupTests(unittest.TestCase):
             self.assertFalse((Path(folder)/'etc/lightdm/lightdm.conf.d/99-hudiy-recreation-session.conf').exists())
             with self.assertRaises(ValueError):manager.apply(Path('/different/session.py'),False)
 
-    def test_session_entry_quotes_spaces_and_percent_without_command_injection(self):
+    def test_fixed_session_entry_keeps_special_paths_out_of_shell_arguments(self):
         files=boot.managed_files('[all]\n','root=fixture\n',Path('/home/driver/car software/100%/session.py'))
         entry=files['usr/share/wayland-sessions/hudiy-recreation.desktop']
-        self.assertIn('"/home/driver/car software/100%%/session.py"',entry)
+        self.assertIn('Exec=/usr/bin/python3 /usr/lib/coscaros/session.py\n',entry)
+        self.assertNotIn('car software',entry)
+        self.assertIn(repr('/home/driver/car software/100%/session.py'),files[boot.SESSION_WRAPPER])
         with self.assertRaises(ValueError):boot.desktop_quote('/source\nExec=bad')
         with self.assertRaises(ValueError):boot.checked_path(Path('/fixture'),'../../outside')
+
+    def legacy_session(self, manager, target):
+        import hashlib
+        state=manager._load()
+        (manager.root/boot.SESSION_WRAPPER).unlink()
+        del state['files'][boot.SESSION_WRAPPER]
+        name='usr/share/wayland-sessions/hudiy-recreation.desktop'
+        path=manager.root/name
+        path.write_bytes(path.read_text().replace('Exec=/usr/bin/python3 /'+boot.SESSION_WRAPPER,
+            'Exec=/usr/bin/python3 '+boot.desktop_quote(target.as_posix())).encode())
+        state['files'][name]['installed']=hashlib.sha256(path.read_bytes()).hexdigest()
+        boot.atomic(manager.manifest,json.dumps(state).encode(),0o600)
+
+    def test_legacy_session_upgrade_preserves_originals_and_restores_added_wrapper(self):
+        with tempfile.TemporaryDirectory() as folder:
+            manager,_,_=self.fixture(folder);target=Path('/source with spaces/100%/session.py')
+            manager.apply(target);self.legacy_session(manager,target)
+            before=manager._load()
+            with self.assertRaises(ValueError):manager.apply(Path('/other/session.py'))
+            self.assertTrue(manager.apply(target));self.assertFalse(manager.apply(target))
+            for name,saved in before['files'].items():
+                self.assertEqual(saved['before'],manager._load()['files'][name]['before'])
+            manager.restore();self.assertFalse((manager.root/boot.SESSION_WRAPPER).exists())
+
+    def test_legacy_session_upgrade_failure_rolls_back_and_refuses_unmanaged_wrapper(self):
+        with tempfile.TemporaryDirectory() as folder:
+            manager,runner,_=self.fixture(folder);target=Path('/source/session.py')
+            manager.apply(target);self.legacy_session(manager,target)
+            before=manager.manifest.read_bytes();runner.fail=True
+            with self.assertRaises(RuntimeError):manager.apply(target)
+            self.assertEqual(before,manager.manifest.read_bytes())
+            self.assertFalse((manager.root/boot.SESSION_WRAPPER).exists())
+            manager._verify(manager._load())
+            wrapper=manager.root/boot.SESSION_WRAPPER;wrapper.write_text('administrator')
+            with self.assertRaises(ValueError):manager.apply(target)
+            self.assertEqual(wrapper.read_text(),'administrator')
+
+    @unittest.skipUnless(__import__('os').name=='posix','Debian Xsession uses POSIX shell word splitting')
+    def test_session_entry_survives_real_xsession_word_splitting(self):
+        import subprocess,sys
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);target=root/'source with spaces'/'100%'/'session.py'
+            target.parent.mkdir(parents=True)
+            target.write_text('print("SESSION_STARTED")')
+            files=boot.managed_files('[all]\n','root=fixture\n',target)
+            wrapper=root/'wrapper.py';wrapper.write_text(files[boot.SESSION_WRAPPER])
+            entry=files['usr/share/wayland-sessions/hudiy-recreation.desktop']
+            command=next(line[5:] for line in entry.splitlines() if line.startswith('Exec='))
+            command=command.replace('/usr/bin/python3',sys.executable).replace('/'+boot.SESSION_WRAPPER,str(wrapper))
+            result=subprocess.run(['/bin/sh','-c','STARTUP=$1; exec $STARTUP','xsession',command],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(result.stdout.strip(),'SESSION_STARTED')
 
     def test_lightdm_main_config_overrides_only_session_and_delay_preserving_authentication(self):
         source='[LightDM]\nlogind-check-graphical=true\n[Seat:*]\nautologin-user=driver\nautologin-session=LXDE-pi-labwc\nautologin-user-timeout=5\n[Seat:seat1]\nautologin-session=other\n'

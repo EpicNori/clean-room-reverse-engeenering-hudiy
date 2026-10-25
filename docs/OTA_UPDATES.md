@@ -1,6 +1,6 @@
 # Software updates over the air
 
-Open **Applications → Hudiy → Settings → System → Software updates**. The app checks the fixed public GitHub repository `EpicNori/coscarOS`, branch `main`. It never accepts a caller-supplied repository, branch, shell command or download URL.
+Open **Applications → coscarOS → Settings → System → Software updates**. The app checks the fixed public GitHub repository `EpicNori/coscarOS`, branch `main`. It never accepts a caller-supplied repository, branch, shell command or download URL.
 
 ![OTA settings with clearly labelled simulated update data](images/software-updates-preview.jpg)
 
@@ -66,6 +66,8 @@ Use your actual original installation path if different. This selects the existi
 Private update files are under `~/.local/share/hudiy-recreation/software-updates/`: settings/status, atomic selection, bounded build log, health markers and managed releases. Build failures retain the current application. Only validated unreferenced managed release directories are pruned. Incomplete builds are never activatable and can be replaced on retry.
 
 ## Trust and verification
+
+See the [25 October 2026 real-Pi OTA acceptance record](OTA_VERIFICATION.md). The old installed updater's repository-rename failure was reproduced and repaired, and the real GitHub release built and tested successfully; activation/rollback remain explicitly unverified until the remaining steps are completed.
 
 This is a fixed-repository, HTTPS/commit-pinned source updater. It executes that project's build scripts and lockfile dependencies as the desktop user. The downloaded archive digest is retained, but it is **not** an independent publisher signature or reproducible-build proof. No additional firewall rule, public listener, cloud account, token store or root runtime service is introduced.
 

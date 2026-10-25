@@ -27,6 +27,26 @@ class PiInstallerTests(unittest.TestCase):
             with self.assertRaises(installer.InstallError):
                 installer.validate_platform({'VERSION_CODENAME': version}, arch, model, desktop, uid)
 
+    @unittest.skipUnless(hasattr(os, 'openpty'), 'Real terminal regression requires a POSIX pseudo-terminal')
+    def test_confirmation_reads_a_real_non_seekable_terminal_without_standard_input(self):
+        import contextlib
+        for answer, expected in ((b'yes\n', True), (b'y\n', True), (b'no\n', False), (b'\n', False)):
+            with self.subTest(answer=answer):
+                master, slave = os.openpty()
+                try:
+                    os.write(master, answer)
+                    with contextlib.redirect_stdout(io.StringIO()) as output:
+                        actual = installer.confirm_installation(os.ttyname(slave))
+                    self.assertIs(actual, expected)
+                    self.assertIn('Apply this installation plan?', output.getvalue())
+                finally:
+                    os.close(master); os.close(slave)
+
+    def test_unavailable_terminal_explains_the_explicit_noninteractive_option(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(installer.InstallError, '--yes'):
+                installer.confirm_installation(str(Path(folder)/'no-terminal'))
+
     def test_memory_limit_avoids_high_parallelism_on_small_boards(self):
         self.assertEqual(installer.jobs_for_memory(2 * 1024 ** 2), 1)
         self.assertEqual(installer.jobs_for_memory(4 * 1024 ** 2), 2)

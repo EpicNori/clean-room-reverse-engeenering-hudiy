@@ -55,3 +55,16 @@ The car session is configured under `~/.config/hudiy-recreation/labwc/`; `deskto
 - [labwc configuration-directory option](https://labwc.github.io/labwc.1.html)
 - [labwc background and autostart guidance](https://labwc.github.io/getting-started.html)
 - [LightDM session and login configuration](https://github.com/ubuntu/lightdm/blob/main/data/lightdm.conf)
+
+
+## Reinstall and session repair - 25 October 2026
+
+A real reinstall and reboot exposed a quoted-path failure in the generated
+LightDM command on Bookworm: Debian Xsession later splits the startup string
+without interpreting its embedded quotes. The session entry now calls a fixed
+root-owned Python wrapper at `/usr/lib/coscaros/session.py`, which loads the
+ordinary-user checkout by its literal path. This file is included in the existing
+backup/restore manifest; exact verified migration preserves previous originals.
+All 18 startup tests passed on the Pi, including actual shell execution and
+migration/failure rollback. The first reboot failed before this repair; the repaired session subsequently booted automatically with both web views ready.
+Full physical power-on display acceptance is tracked in [the installation report](INSTALL_VERIFICATION.md).

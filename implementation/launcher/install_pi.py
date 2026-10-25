@@ -16,7 +16,7 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGES = (
     'build-essential cmake pkg-config git curl ca-certificates xz-utils '
-    'qt6-base-dev qt6-multimedia-dev qt6-webengine-dev qt6-connectivity-dev '
+    'qt6-base-dev qt6-wayland qt6-multimedia-dev qt6-webengine-dev qt6-connectivity-dev '
     'libprotobuf-dev protobuf-compiler libssl-dev libusb-1.0-0-dev '
     'libavcodec-dev libavutil-dev libswscale-dev python3-serial python3-dbus python3-gi '
     'bluez bluez-obexd ofono network-manager dnsmasq-base '
@@ -193,6 +193,17 @@ def preflight():
     return release, app_running()
 
 
+def confirm_installation(terminal_path='/dev/tty'):
+    # r+ selects BufferedRandom, which requires seekability; a terminal is not seekable.
+    # Read from the controlling terminal because curl | bash occupies standard input.
+    try:
+        with open(terminal_path, 'r', encoding='utf-8') as terminal:
+            print('Apply this installation plan? [y/N] ', end='', flush=True)
+            return terminal.readline().strip().lower() in ('y', 'yes')
+    except OSError as error:
+        raise InstallError('No interactive terminal is available. Run from a terminal or use --yes to accept the printed plan.') from error
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Print/check prerequisites without changing the system.')
@@ -216,11 +227,8 @@ def main():
                               'autologin': not args.no_autologin, 'prepareHotspot': not args.skip_hotspot}))
             return 0
         if running: raise InstallError('Quit the running car app before installation; --check can run while it is open.')
-        if not args.yes:
-            with open('/dev/tty', 'r+') as terminal:
-                terminal.write('Apply this installation plan? [y/N] '); terminal.flush()
-                if terminal.readline().strip().lower() not in ('y', 'yes'):
-                    print('Installation cancelled.'); return 1
+        if not args.yes and not confirm_installation():
+            print('Installation cancelled.'); return 1
         import fcntl
         state = Path.home() / '.local/share/hudiy-recreation'
         from provision_hotspot import private_directory
