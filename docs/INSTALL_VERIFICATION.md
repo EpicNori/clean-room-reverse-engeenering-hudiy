@@ -192,6 +192,18 @@ All **15 hotspot tests passed on the Pi**, including real child-process cleanup
 after failure and registration timeout. The complete patched suite passed
 **250 backend tests**; Windows skips its eight POSIX/platform checks.
 
+### Published repair retest
+
+After publishing `51e0f57fddb6126666de8f7786322bd48fe04c60`, the Pi's two owned
+local patch files were backed up and compared with that published source. The
+exact public one-liner then fast-forwarded a clean checkout itself and repeated
+installation. It passed **35 frontend tests, 250 backend tests without skips and
+all six native CTests**, displayed the normal terminal authorization prompt,
+verified the existing inactive hotspot with `changed: false`, emitted **no hotspot
+preparation warning** and finished with **exit 0**. The final native app was
+restarted successfully with UI readiness and original default preferences.
+This repeat reused the build/runtime from the genuine fresh-image run above.
+
 ## Remaining acceptance
 
 - [x] Reconnect after the second reboot; inspect actual session/app logs and
