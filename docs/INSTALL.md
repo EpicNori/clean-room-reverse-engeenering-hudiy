@@ -82,7 +82,8 @@ bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/cosca
 
 The command downloads and executes this repository's installer as your user.
 It shows the plan and asks for confirmation and your sudo password for OS
-steps. It builds from source, so allow time for downloads and native compilation.
+steps. SSH hotspot setup may also show a normal Polkit password prompt for
+NetworkManager. It builds from source, so allow time for downloads and native compilation.
 No proprietary Hudiy installation, activation or API service is required.
 
 To inspect the script before running it, clone this repository and run
@@ -180,8 +181,9 @@ exposed a separate LightDM/Xsession quoting failure; the fixed-path session wrap
 addresses it without shell evaluation of checkout paths.
 
 See [the installation acceptance report](INSTALL_VERIFICATION.md) for the exact
-results and remaining checks. This app reinstall on an existing Bookworm system
-does not establish installation on a freshly flashed Bookworm or Trixie image.
+results and remaining checks. A subsequent genuinely fresh **64-bit Trixie desktop**
+install also passed the public installer, native launch, landscape persistence and
+automatic boot. A freshly flashed 64-bit Bookworm image remains untested.
 The repaired session booted automatically with both web views ready. After the
 fix was published, the exact public piped command passed on this reference Pi
 with exit 0, 35 frontend tests, 246 backend tests and all six native checks.

@@ -199,3 +199,17 @@ Migration verifies all previous managed-file digests, permits only the exact old
 entry for the same checkout, refuses an unmanaged wrapper, retains original restore
 data and rolls back files/manifest if theme generation fails. Restore removes the
 added wrapper. This remains installer-only; OTA and HTTP cannot apply system changes.
+
+
+## Hotspot terminal authentication — 25 October 2026
+
+Installer-only NetworkManager profile creation, secret verification and owned
+rollback deletion may register a temporary `pkttyagent` for the provisioning
+process. It reads `/dev/tty`, uses existing Polkit authorization, preserves an
+existing agent, waits at most five seconds for registration and reaps the owned
+agent on every exit. Interactive calls have a 120-second bound; ordinary calls
+retain 15 seconds. No terminal/agent preserves normal noninteractive permissions.
+No authentication password enters Python storage, command arguments or profile
+data. No permissive Polkit rule, root provisioning process, HTTP action, cloud
+rule or additional runtime privilege is introduced. The inactive protected
+profile, exact-UUID rollback and private settings checks remain unchanged.

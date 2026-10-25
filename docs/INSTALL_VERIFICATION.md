@@ -132,6 +132,66 @@ showed `DSI-2`, 720×1280 at normal transform: portrait orientation, requiring
 an appropriate quarter-turn for the owner's horizontal mounting. Touch alignment
 was not tested remotely. A repeat on a genuinely 64-bit desktop image is pending.
 
+## Fresh 64-bit Trixie installation — 25 October 2026
+
+The next reflash installed 64-bit Raspberry Pi OS Desktop based on Debian 13
+Trixie on the Pi 5. `dpkg` reported **arm64** and Python used 64-bit pointers.
+Preflight evidence confirmed there was no former app checkout/build, managed
+Node installation or private application state. Qt/receiver dependencies were
+not already installed. This is a genuine fresh-image test, distinct from the
+earlier Bookworm application reinstall and the rejected armhf image.
+
+The exact public one-liner fetched `a31810b7f8dec7c7e14290f783487019e28b833a`
+and completed with **exit 0**. It installed the actual OS dependencies, downloaded
+and verified the private Node runtime, built the production frontend, passed
+**35 frontend tests and 246 backend tests without skips**, compiled the native
+receiver against **Qt 6.8.2**, passed **all six CTests** and configured startup.
+The runtime dependency audit reported **zero known vulnerabilities**.
+
+The panel initially reported `DSI-2`, 720×1280 and normal transform. With the
+owner's authorization, its previously empty user kanshi configuration was backed
+up and a 90-degree transform saved for that output. First launch produced an
+actual **1280×720** dashboard/taskbar screenshot and **uiReady=true** from the
+new native executable running as the ordinary user. Normal Quit stopped both
+the app and its owned backend. A controlled reboot then automatically started
+the dedicated panel-free car session and the same installed app. Both web views
+became ready, landscape rotation persisted, and a saved Contacts taskbar shortcut
+and a nondefault automatic-connection preference survived. Original defaults
+were restored afterward. Bluetooth and oFono were enabled.
+
+This is logical display/session verification. Physical touch alignment and the
+mounting direction still need the owner's confirmation; a remote screenshot
+cannot establish where a finger lands. No complete power-on display video was
+recorded. Phone projection, microphone, radio, calls and powered-vehicle OBD
+were not exercised by this clean-install acceptance test.
+
+### SSH hotspot authentication failure and repair
+
+The first successful full install reported that car-hotspot preparation was
+unavailable. The hardware/regulatory checks passed, but NetworkManager returned
+**Settings.PermissionDenied: Insufficient privileges** when an SSH session tried
+to create its user-only profile without a terminal authentication agent. After
+reboot, verifying the saved profile's secret had the same authorization gap.
+
+The provisioning adapter now registers a temporary `pkttyagent` for its own
+process around profile creation, secret verification and rollback deletion.
+It reads the controlling terminal even under `curl | bash`, preserves existing
+agents with `--fallback`, waits for registration and terminates/reaps its owned
+agent on success, failure or timeout. The normal system policy/password prompt
+authorizes the operation; no Polkit policy is installed or relaxed, the provisioning process
+stays unprivileged, and credentials are never arguments or stored application input.
+Authenticated D-Bus calls allow at most 120 seconds; other calls keep 15 seconds.
+Missing terminal/agent retains normal noninteractive authorization behavior.
+
+On the real Pi, the corrected path verified the existing inactive car profile,
+created a separate inactive test profile, matched its secret and deleted it by
+its exact UUID. Active connections were identical before/after; the test profile
+and terminal agent were gone at completion. The production hotspot remains
+protected, user-restricted and **disabled** until explicitly enabled in the app.
+All **15 hotspot tests passed on the Pi**, including real child-process cleanup
+after failure and registration timeout. The complete patched suite passed
+**250 backend tests**; Windows skips its eight POSIX/platform checks.
+
 ## Remaining acceptance
 
 - [x] Reconnect after the second reboot; inspect actual session/app logs and
@@ -140,8 +200,10 @@ was not tested remotely. A repeat on a genuinely 64-bit desktop image is pending
   preserved preferences/recordings after startup.
 - [x] Publish the reviewed installer/session fixes after owner authorization,
   then rerun the exact public piped command against that GitHub revision.
-- [ ] Test an entirely fresh 64-bit Bookworm image and a fresh Trixie image,
-  including the Qt Wayland runtime and first-login phone/audio services.
+- [x] Test the installer, native launch, landscape persistence and automatic
+  boot on a freshly flashed 64-bit Trixie desktop image.
+- [ ] Repeat on a freshly flashed 64-bit Bookworm image.
+- [ ] Verify first-login phone/audio services and physical touch alignment.
 - [ ] Capture the complete physical cold-boot display sequence and recovery.
 - [ ] Verify live phone, microphone/radio and powered-vehicle OBD behavior;
   installation/build success alone does not verify those devices.

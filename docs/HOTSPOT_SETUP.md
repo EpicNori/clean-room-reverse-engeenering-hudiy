@@ -69,6 +69,22 @@ Preparation itself never activates, deactivates or restarts a network. Repeating
 the key, replace settings or interrupt a phone session. `--ssid` only supplies a
 name for a fresh installation.
 
+## Password prompts during SSH setup
+
+On Trixie, an SSH session may need normal Polkit authentication even when the
+same user is logged into the desktop. Setup temporarily registers `pkttyagent`
+for its own process when creating a profile, verifying its stored key or deleting
+its own newly created profile after a save failure. Enter the requested desktop
+user/admin password in the terminal. The agent uses `/dev/tty`, so a piped
+one-liner still works, and is removed on completion or failure.
+
+This does not install a permission policy, run provisioning with sudo, activate
+Wi-Fi or store the authentication password. With no terminal or no agent binary,
+existing noninteractive permissions still apply; use a desktop terminal if the
+system requires interactive authentication. See NetworkManager's [terminal agent
+documentation](https://networkmanager.dev/docs/api/latest/nmcli.html#secret-agent)
+and [fresh-image acceptance](INSTALL_VERIFICATION.md).
+
 ## Conflicts and failed setup
 
 The tool refuses duplicate car profiles, a profile without matching private
@@ -100,9 +116,11 @@ On the reference Bookworm Pi / NetworkManager 1.42.4:
 - Eleven installer tests pass both on Windows and on the Pi. These use fake
   NetworkManager operations and do not activate a real network.
 
-This verifies profile creation, ownership, persistence, repeated setup and
-non-disruption. It does **not** establish a complete clean-image installation,
-regulatory/channel availability, fresh phone pairing or unattended cold boot.
+These historical checks verify profile creation, ownership, persistence, repeated
+setup and non-disruption. The subsequent [fresh 64-bit Trixie test](INSTALL_VERIFICATION.md)
+also verified app installation and automatic boot, and reproduced/repaired SSH
+authentication for profile creation and inspection. Fresh phone pairing and
+actual radio/channel availability still need hardware acceptance.
 
 The profile and typed settings follow NetworkManager's
 [AddConnection API](https://networkmanager.dev/docs/api/latest/gdbus-org.freedesktop.NetworkManager.Settings.html),

@@ -10,6 +10,9 @@ import json
 import os
 from pathlib import Path
 import secrets
+import select
+import shutil
+import subprocess
 import socket
 import sys
 import tempfile
@@ -25,6 +28,43 @@ STATE = Path.home() / '.local/share/hudiy-recreation/wireless.json'
 
 class SetupError(ValueError):
     pass
+
+
+@contextmanager
+def terminal_authentication(terminal_path='/dev/tty', startup_timeout=5):
+    """Offer normal Polkit authentication for this installer process only."""
+    executable = shutil.which('pkttyagent')
+    if os.name != 'posix' or not executable:
+        yield False
+        return
+    try:
+        terminal = open(terminal_path, 'r', encoding='utf-8')
+    except OSError:
+        yield False
+        return
+    with terminal:
+        readfd, writefd = os.pipe()
+        agent = None
+        try:
+            # A piped installer has no usable stdin. The agent reads the controlling
+            # terminal; credentials never become argv, profile data or Python input.
+            agent = subprocess.Popen([executable, '--process', str(os.getpid()),
+                '--notify-fd', str(writefd), '--fallback'], stdin=terminal,
+                pass_fds=(writefd,))
+            os.close(writefd); writefd = None
+            if not select.select([readfd], [], [], startup_timeout)[0]:
+                raise SetupError('Terminal authentication agent did not become ready; retry from the desktop terminal.')
+            os.read(readfd, 1)
+            # --fallback preserves an already registered agent instead of replacing it.
+            yield agent.poll() is None
+        finally:
+            os.close(readfd)
+            if writefd is not None: os.close(writefd)
+            if agent is not None:
+                if agent.poll() is None: agent.terminate()
+                try: agent.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    agent.kill(); agent.wait(timeout=3)
 
 
 def validate_ssid(ssid):
@@ -87,7 +127,9 @@ class NetworkManager:
                 for path in self.settings.ListConnections(timeout=TIMEOUT)]
 
     def profile_secret(self, path):
-        data = self._connection(path).GetSecrets('802-11-wireless-security', timeout=TIMEOUT)
+        with terminal_authentication() as interactive:
+            data = self._connection(path).GetSecrets('802-11-wireless-security',
+                timeout=120 if interactive else TIMEOUT)
         return str(data.get('802-11-wireless-security', {}).get('psk', ''))
 
     def add(self, profile):
@@ -108,14 +150,17 @@ class NetworkManager:
                 converted[key] = value
             typed[section] = d.Dictionary(converted, signature='sv')
         # autoconnect is false: AddConnection saves but cannot activate this AP.
-        return str(self.settings.AddConnection(d.Dictionary(typed, signature='sa{sv}'), timeout=TIMEOUT))
+        with terminal_authentication() as interactive:
+            return str(self.settings.AddConnection(d.Dictionary(typed, signature='sa{sv}'),
+                timeout=120 if interactive else TIMEOUT))
 
     def delete_owned(self, path, expected_uuid):
         connection = self._connection(path)
         actual = connection.GetSettings(timeout=TIMEOUT).get('connection', {})
         if str(actual.get('uuid')) != expected_uuid:
             raise SetupError('Rollback refused a profile with a different UUID.')
-        connection.Delete(timeout=TIMEOUT)
+        with terminal_authentication() as interactive:
+            connection.Delete(timeout=120 if interactive else TIMEOUT)
 
 
 def read_state(path):
