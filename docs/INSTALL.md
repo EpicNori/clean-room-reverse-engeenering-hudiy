@@ -5,9 +5,76 @@ at least 4 GiB free space. Configure the user, internet connection and actual
 Wi-Fi country in Raspberry Pi Imager/system settings first. OS Lite and 32-bit
 images are not supported by this installer.
 
+## Choose and check the OS image
+
+In Raspberry Pi Imager, select **Raspberry Pi OS (64-bit)** with a graphical
+desktop, based on Bookworm or Trixie. The Desktop/Full editions include a
+desktop; Lite does not. Check the explicit **64-bit** label before writing.
+Configure your user, SSH access and network in Imager if remote setup is needed.
+See Raspberry Pi's [OS editions and architectures](https://www.raspberrypi.com/documentation/computers/os.html)
+and [Imager instructions](https://www.raspberrypi.com/documentation/computers/getting-started.html).
+
+After first boot, run:
+
+```sh
+dpkg --print-architecture
+```
+
+The result must be **`arm64`**. **`armhf` means 32-bit userspace** and is not
+supported by this installer. A Pi can report `aarch64` from `uname -m` while
+still running 32-bit packages, so the kernel architecture alone is insufficient.
+Enabling a 64-bit kernel does not convert an existing 32-bit OS image. For the
+supported setup, back up any files you need and reflash with the 64-bit desktop
+image, then repeat this check. The installer refuses an unsupported architecture
+before cloning/building the app or changing OS packages.
+
+## Optional: screen orientation before installing
+
+**Skip this section if the image is already upright and touch input is aligned.**
+For the usual car mounting, use **landscape (horizontal)** orientation. A fresh
+OS image may start in portrait, sideways or upside down depending on the panel
+and how it is mounted. coscarOS adapts its layout to the screen size, but does
+not automatically rotate the OS display or calibrate touch input. Configure
+these on the Pi desktop before installation so the first fullscreen start is
+usable. An already correct horizontal image does not need rotation.
+
+1. Open **Preferences → Control Centre → Screens** on the Raspberry Pi desktop.
+   On older images, open **Preferences → Screen Configuration** instead.
+2. Right-click the rectangle for the car display and select **Orientation**.
+   Check the selected output: it may be `DSI-1`, `HDMI-A-1` or another name.
+   With multiple monitors, change the car display rather than the other screen.
+3. Select **Left** or **Right** for a quarter-turn, **Inverted** for an upside-down
+   image, or **Normal** to undo rotation. The native orientation depends on the
+   panel, so choose by the visible result in its physical mounting. Do not assume
+   that Normal always means landscape.
+4. Select **Apply**, then confirm only if the result is usable. If it is wrong,
+   cancel/revert it; if the tool offers a confirmation timeout, let it revert.
+   A USB mouse or keyboard can help while touch is not aligned.
+5. Tap near each corner and drag across the screen. Touch should follow the
+   same direction and land where you tap. In Screen Configuration, the
+   **Touchscreen** option, when available, assigns the touch device to its display.
+   If the image is correct but touch remains rotated, follow the panel vendor's
+   Wayland/labwc touch-mapping instructions; changing image rotation repeatedly
+   is not touch calibration.
+6. Reboot and check the desktop orientation and touch again, then continue with
+   [one-line setup](#one-line-setup). After installation, verify them once more
+   in coscarOS's dedicated car session; rotation/touch persistence across that
+   session is still a hardware acceptance check. **Quit**, or **Ctrl+Alt+Shift+Q**,
+   returns to the desktop if you need to correct settings. If display preferences
+   are changed after installation, recheck them after the next car-session start.
+
+Use the desktop/Wayland method for this installer. The kernel-command-line
+`rotate=` example in Raspberry Pi's documentation affects the text console and
+does not replace graphical-session rotation. No blanket `config.txt` display or
+touch overlay edit is required by this guide.
+
+Sources: Raspberry Pi's [Touch Display 2 orientation guide](https://www.raspberrypi.com/documentation/accessories/touch-display-2.html#change-display-orientation)
+and [Touch Display screen/touch assignment instructions](https://www.raspberrypi.com/news/how-to-use-the-raspberry-pi-touch-display/#change-screen-orientation).
+
 ## One-line setup
 
-Open a terminal as your ordinary desktop user and paste:
+After checking screen orientation (or skipping it if already correct), open a
+terminal as your ordinary desktop user and paste:
 
 ```sh
 bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'

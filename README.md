@@ -382,7 +382,24 @@ Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/). Vite proxies `/api` to th
 
 ## Easy Pi installation
 
-On **64-bit Raspberry Pi OS Desktop (Bookworm or Trixie)**, open a terminal as your ordinary desktop user:
+Choose **Raspberry Pi OS (64-bit) with Desktop** in Raspberry Pi Imager. Check `dpkg --print-architecture` on the Pi: it must return `arm64`. An `armhf` result means a 32-bit image, even if `uname -m` says `aarch64`; reflash with the 64-bit desktop image before installing. See [OS-image selection](docs/INSTALL.md#choose-and-check-the-os-image).
+
+On **64-bit Raspberry Pi OS Desktop (Bookworm or Trixie)**, check your screen orientation before installing. For the usual car dashboard, the image should be upright in **landscape (horizontal)** orientation. A freshly flashed Pi may use portrait or a sideways orientation depending on the display and its mounting. Rotate it only if needed; an already upright horizontal screen can skip this step. The installer does not rotate the display automatically.
+
+<details>
+<summary>Optional: rotate the screen and check touch input (skip if already correct)</summary>
+
+1. On the Raspberry Pi desktop, open **Preferences → Control Centre → Screens**. Older images call this **Preferences → Screen Configuration**.
+2. Right-click your display rectangle, then choose **Orientation**. Select the actual car display, such as `DSI-1` or an HDMI output.
+3. Try **Left** or **Right** for a quarter-turn, or **Inverted** if upside down. Choose the option that makes the image upright in its physical mounting; **Normal** is display-dependent.
+4. Apply and confirm the usable result. Tap the corners to check that touch follows the displayed image; if available, use **Touchscreen** to assign the touch device to that display.
+5. Reboot and check again before installation. Check once more after coscarOS starts in its dedicated car session. If it is already installed, **Quit** returns to desktop controls.
+
+See the [full orientation and recovery guide](docs/INSTALL.md#optional-screen-orientation-before-installing) and Raspberry Pi's [display orientation instructions](https://www.raspberrypi.com/documentation/accessories/touch-display-2.html#change-display-orientation).
+
+</details>
+
+Then open a terminal as your ordinary desktop user:
 
 ```sh
 bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'

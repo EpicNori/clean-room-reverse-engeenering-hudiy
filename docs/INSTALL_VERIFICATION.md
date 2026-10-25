@@ -115,6 +115,23 @@ startup idempotently and exited **0**. The protected hotspot stayed unchanged.
 This repeat used the newly installed Node/build cache; the earlier corrected
 full reinstall is the fresh app/runtime/build evidence.
 
+## Freshly flashed image attempt — 25 October 2026
+
+The owner reflashed the reference Pi 5 and requested another public-one-liner
+test. No former app checkout, native build, private Node runtime or app state
+directory existed on that image. It booted Raspbian Bookworm with an `aarch64`
+kernel, but `dpkg --print-architecture` returned **`armhf`** and Python reported
+**32-bit** pointers. The installed userspace was therefore the unsupported
+32-bit edition, not a fresh 64-bit OS acceptance target.
+
+The exact published `curl | bash` command was executed and exited **1** with
+`Use 64-bit Raspberry Pi OS Desktop (Bookworm or Trixie).` This is correct
+preflight rejection, not successful installation. No app packages, builds,
+startup or rotation changes were applied by this test. Display enumeration
+showed `DSI-2`, 720×1280 at normal transform: portrait orientation, requiring
+an appropriate quarter-turn for the owner's horizontal mounting. Touch alignment
+was not tested remotely. A repeat on a genuinely 64-bit desktop image is pending.
+
 ## Remaining acceptance
 
 - [x] Reconnect after the second reboot; inspect actual session/app logs and
