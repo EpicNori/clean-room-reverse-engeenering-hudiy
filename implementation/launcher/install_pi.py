@@ -20,7 +20,7 @@ PACKAGES = (
     'libprotobuf-dev protobuf-compiler libssl-dev libusb-1.0-0-dev '
     'libavcodec-dev libavutil-dev libswscale-dev python3-serial python3-dbus python3-gi '
     'bluez bluez-obexd ofono network-manager dnsmasq-base '
-    'pipewire pipewire-pulse wireplumber libspa-0.2-bluetooth dbus-user-session '
+    'pipewire pipewire-pulse pulseaudio-utils wireplumber libspa-0.2-bluetooth dbus-user-session '
     'android-sdk-platform-tools-common swaybg plymouth plymouth-themes'
 ).split()
 NODE_RELEASE = 'https://nodejs.org/dist/latest-v22.x/'
