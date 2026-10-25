@@ -213,3 +213,23 @@ No authentication password enters Python storage, command arguments or profile
 data. No permissive Polkit rule, root provisioning process, HTTP action, cloud
 rule or additional runtime privilege is introduced. The inactive protected
 profile, exact-UUID rollback and private settings checks remain unchanged.
+
+
+## Saved car hotspot recovery — 25 October 2026
+
+The standalone backend now restores an already enabled car hotspot after login
+and retries at most once every 30 seconds if NetworkManager starts late or a
+client profile won the initial boot race. A disabled hotspot remains disabled.
+Recovery uses only the existing fixed `hudiy-recreation-car` profile and existing
+ordinary-user NetworkManager authorization; it never creates a profile, changes
+credentials or adds a Polkit rule. Active calls postpone recovery. Manual mode
+changes serialize with recovery, and status polling does not wait on network
+commands. An already active car profile is left running. A bounded diagnostic
+error is exposed in the existing sanitized wireless status; secrets remain absent.
+The owned worker stops with the backend. No new HTTP action, listener, cloud rule
+or runtime privilege is required.
+
+The installer also includes `pulseaudio-utils` for `pactl` on PipeWire systems.
+Installer confirmation and hotspot terminal authorization open terminal devices
+with `O_NOCTTY`, preventing headless OTA test processes from accidentally acquiring
+a controlling terminal and dying from SIGHUP when the test PTY closes.

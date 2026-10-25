@@ -45,7 +45,7 @@ bluetooth=BluetoothDevices(enabled=projection.enabled)
 native_obd=IndependentOBDSettings(bluetooth,obd)
 display=DisplayBrightness(enabled=projection.enabled)
 calls=PhoneCalls(enabled=projection.enabled)
-wireless=IndependentWireless(projection)
+wireless=IndependentWireless(projection,recovery_allowed=lambda:calls.snapshot().get('call',{}).get('state') not in (1,2,3))
 def automatic_phone_allowed():
     state=projection.snapshot()
     return (state.get('automaticConnectionAllowed') is True and state.get('options',{}).get('autoConnect',True) is not False and state.get('available') is True
@@ -349,6 +349,7 @@ def main():
     if args.port not in ALLOWED_PORTS:parser.error('Supported ports: 8766 or 4173')
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
     projection.start()
+    wireless.start()
     software_update.start()
     if projection.enabled:obd.start_independent(native_obd)
     phonebook.start()
@@ -363,6 +364,7 @@ def main():
     except KeyboardInterrupt:pass
     finally:
         software_update.close()
+        wireless.close()
         if agent:agent.close()
         radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();obd_logs.close();server.server_close()
 if __name__=='__main__':main()
