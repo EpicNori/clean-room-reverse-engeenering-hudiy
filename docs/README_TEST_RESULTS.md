@@ -118,8 +118,17 @@ The later source changes also set the frontend/backend music default to one seco
 without overwriting saved custom choices, and hide scrollbar chrome globally while
 retaining scrolling. The production frontend build and 35 tests passed; local
 browser checks verified wheel/drag/keyboard scrolling, OBD Logs, My OBD editing,
-update details, menus and nested license text. Device deployment of these subsequent
-source changes is recorded separately when completed.
+update details, menus and nested license text. Actual deployment then prepared and activated GitHub revision
+`0db7f7e983787fe61f3ecdc969cfdb233f3e63fc` through OTA. Its Pi build passed all 259
+backend tests without skips, 35 frontend tests and six native CTests. The native
+executable came from that exact managed release, reported `current` with no pending
+restart, reached UI readiness and reconnected wireless video. Automatic opening Off
+was respected. All seven preference hashes matched; music remained 1 second and
+contacts 60 seconds. On the actual Pi display, OBD Logs had no scrollbar, wheel
+scrolling moved the page and pointer-drag scrolling reached Saved sessions without
+selecting text. No recording was started. The original dashboard was restored.
+The separate physical-finger/multitouch and unavailable vehicle/audio tests remain
+unchecked. A fresh dependency audit reported zero known advisories at this check.
 
 ## Security and privacy checks
 

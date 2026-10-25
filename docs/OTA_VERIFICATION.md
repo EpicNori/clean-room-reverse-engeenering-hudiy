@@ -100,3 +100,18 @@ Android Auto with decoded video ready and no error. Only USB root hubs were pres
 All seven private preference hashes matched. The owner confirmed automatic opening,
 then manually returned to the dashboard. Temporary settings/layouts were restored;
 music refresh follows the later one-second request. See [the device report](README_TEST_RESULTS.md).
+
+
+## Published UI update activation
+
+GitHub source `0db7f7e983787fe61f3ecdc969cfdb233f3e63fc` (one-second music default
+and globally hidden scrollbars) was subsequently downloaded, built and activated
+through the actual updater. Its build passed 259 Linux backend tests without skips,
+35 frontend tests and all six native CTests. The managed native executable reached
+UI health, cleared pending verification and reported current; wireless video
+reconnected while automatic opening Off kept the dashboard visible. All seven
+preference hashes matched, including the applied 1-second music and 60-second
+contact intervals. The new scrollbar behavior was verified on the actual Pi using
+wheel and drag scrolling. No vehicle recording was started or existing session
+removed. The dependency audit found zero known advisories. These results do not
+complete the unavailable vehicle, microphone/radio or physical-finger tests.
