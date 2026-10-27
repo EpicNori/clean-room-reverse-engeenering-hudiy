@@ -125,8 +125,8 @@ Replay it from **Settings → System → Application → Replay introduction**.
 
 The tour previews pages without pairing devices, placing calls, starting playback
 or recording, or installing updates. The browser workflow and progress storage are
-tested; native Pi deployment and Android Auto foreground/lease acceptance remain
-pending. See the [complete new user guide](docs/NEW_USER_GUIDE.md).
+tested. Native OTA deployment and startup health passed on the reference Pi;
+physical tour interaction and Android Auto foreground/lease acceptance remain open. See the [complete new user guide](docs/NEW_USER_GUIDE.md).
 
 ## Dashboard widgets and layout packs
 

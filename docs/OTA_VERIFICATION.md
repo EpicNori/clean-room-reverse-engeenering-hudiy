@@ -148,3 +148,59 @@ and installer operations were stubbed, so this test made no OS changes. The sour
 was tested with the LF line endings used by GitHub. Native preparation of published
 `7fdd228` has passed its frontend and Python service tests and is building the
 independent receiver; activation has not yet been attempted for this repair.
+
+
+### Published repair prepared successfully on the Pi
+
+All completed changes were published as
+`e4cca1170711ba74d19272686da75048c71fc73d`. The repaired updater fetched that exact
+commit from the canonical GitHub source, built the production frontend, passed all
+51 frontend tests and all 279 Python tests on the Pi without skips, compiled the
+native receiver and passed all six native CTest checks. It reported **Ready to
+install** with the matching prepared revision. The Pi-served update page also
+showed the correct version and enabled Install & restart only after preparation.
+
+At that preparation checkpoint, activation was waiting for a fresh parked/restart confirmation from the owner.
+Download, build and tests are verified; successful activation/health and rollback
+for this specific revision are not yet claimed. The running baseline remains
+`0db7f7e983787fe61f3ecdc969cfdb233f3e63fc` with the source-owner hotfix.
+
+
+The owner then confirmed the vehicle was parked and authorized activation. The
+actual Pi-served UI's Install & restart action selected `e4cca11`, both native web
+views reached `uiReady`, and the launcher completed its 30-second stability window.
+The selection's pending flag cleared automatically. A subsequent UI Check for
+updates succeeded against `desquerteur/coscarOS` and returned **Up to date** with
+`e4cca11` installed. The native first-launch introduction also reported active,
+pending step zero, as intended for the existing profile's first use of this feature.
+Rollback/reinstallation acceptance is being checked separately before leaving the
+new release running.
+
+
+### Activation, manual rollback and reinstallation passed
+
+The owner authorized the parked restart. Installation through the real Pi-served
+update UI passed. Manual Restore previous version then returned to `0db7f7e9`,
+including a successful stability/health window. Reinstalling the cached verified
+`e4cca11` release passed again without rebuilding. The final state was:
+
+- Source: `desquerteur/coscarOS`.
+- Installed: `e4cca1170711ba74d19272686da75048c71fc73d`.
+- Phase: `current`; pending restart: false; native `uiReady`: true.
+- A fresh GitHub Check succeeded after initial activation.
+- Update preferences matched their values before the test; no call or recording
+  was active. The native introduction remained available for the owner to watch.
+
+![Verified Pi-served updater after reinstallation](images/ota-verified-current.jpg)
+
+The screenshot is the production update UI served by the actual Pi through a local
+SSH tunnel, displaying real updater state. It is not a physical-display capture.
+The API/launcher checks confirm deployment and stability; no phone/audio/vehicle
+behavior is inferred from this screenshot. Forced startup failure, cold boot and
+automatic idle activation with live stationary OBD data were not repeated in this
+repair run. Private repair/acceptance records remain on the Pi under
+`~/.cache/coscaros-ota-owner-20261027/`.
+
+The final verification-notes commit changes documentation/images only; it is not
+a second application binary deployment. The installed/tested application remains
+`e4cca11`.

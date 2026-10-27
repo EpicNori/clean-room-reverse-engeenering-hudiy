@@ -173,14 +173,18 @@ introduction once when this feature is first installed.
   Settings replay, Keep learning and confirmed Skip/reload checked. Narrow 390×844 layout has no horizontal overflow.
 - [x] Automated: corrupt/missing state, bounds, save failures, durable reload,
   confirmation, lease renewal/expiry, API Origin/body limits and sanitized errors.
-- [ ] Build the updated native runtime on Raspberry Pi OS and verify first install,
-  both web views, real touch input, interrupted tour/reboot persistence, foreground
+- [x] Build the updated native runtime on Raspberry Pi OS and pass all six native tests.
+- [ ] Verify first install, both web views, real touch input, interrupted tour/reboot
+  persistence, foreground
   protection during Android Auto connection, and lease expiry after renderer failure.
 
 Production build and 51 frontend tests passed. The backend suite ran 279 tests
 without failures, with ten platform skips. The runtime dependency audit reported
 zero vulnerabilities. No standalone type-checker or linter is configured. The native
-Qt executable has not been compiled on this Windows host.
+Qt executable was also compiled by OTA on the Pi, where all six native tests passed.
 
-The current tour has not been deployed to the Pi. See [backend rules](backend-rules.md)
+The tour was deployed to the reference Pi in `e4cca11`. First-run state became
+active at step zero and both native views passed startup health/stability checks.
+Real finger input, replay/skip on the physical display and cold-reboot/foreground
+acceptance remain open. See [backend rules](backend-rules.md)
 for the local API contract.

@@ -90,11 +90,13 @@ No new dependencies, cloud rules or system privileges are required.
 - [x] Automated tests cover invalid/oversized packs, duplicate/out-of-grid widgets,
   private durable storage/reload, stale revisions, disk errors, export limits,
   API origin/body boundaries and unavailable sensor values.
-- [ ] Deploy backend and frontend together to the Pi; verify native startup,
-  cross-view saves, reboot persistence, real finger drag/scroll and the title keyboard.
+- [x] Deploy backend and frontend together to the Pi via OTA and verify native startup.
+- [ ] Verify cross-view saves, reboot persistence, real finger drag/scroll and the title keyboard.
 - [ ] Check actual phone/OBD data, both gauge variants and audible playback outside
   edit mode. Profile optional blur with projection active on the target display.
 - [ ] Add a versioned community catalog/download path and contributor workflow.
 
-The widget feature is included in this repository; deployment to the Pi remains pending.
-The Pi retains the separately verified notification hotfix.
+The widget feature was deployed to the reference Pi in `e4cca11` by the repaired
+OTA flow. Native startup passed health/stability checks; the remaining interaction
+and hardware checks above are still open. The release also includes the earlier
+notification controls.

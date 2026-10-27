@@ -77,3 +77,13 @@ service is disconnected from phone/vehicle hardware and telemetry demo mode is o
 The spotlight, wording, SVG mask and themed card are our own HTML/CSS/React work;
 no external illustration or shell assets are used. It demonstrates the browser
 workflow, not native Pi acceptance.
+
+
+### OTA repair acceptance — 27 October 2026
+
+`docs/images/ota-verified-current.jpg` is an unedited 1280×720 capture of the
+production Software updates view served by the reference Pi through a loopback-only
+SSH tunnel. Its API data is real: `e4cca11` installed/current after manual rollback
+and reinstallation, no pending restart, native startup verified. The browser's
+existing profile supplies its dark yellow appearance. It is a Pi-backed browser
+capture, not proof of a physical screen, audible output or live vehicle data.
