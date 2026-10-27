@@ -77,7 +77,7 @@ After checking screen orientation (or skipping it if already correct), open a
 terminal as your ordinary desktop user and paste:
 
 ```sh
-bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'
+bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/desquerteur/coscarOS/main/install.sh | bash'
 ```
 
 The command downloads and executes this repository's installer as your user.

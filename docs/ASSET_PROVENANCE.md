@@ -67,3 +67,13 @@ injected. The widget surfaces/backdrops and pack thumbnails are original CSS
 and code using the existing licensed font/icon packages. The before/after local
 captures are not native Pi hardware acceptance. No Hyprland/Celestia shell code,
 assets or compositor configuration is shipped by this feature.
+
+
+### First-launch introduction — 27 October 2026
+
+`docs/images/introduction.jpg` is an unedited 1280×720 capture of the local production
+frontend, based on commit `7fdd228` with the new introduction changes. The real local
+service is disconnected from phone/vehicle hardware and telemetry demo mode is off.
+The spotlight, wording, SVG mask and themed card are our own HTML/CSS/React work;
+no external illustration or shell assets are used. It demonstrates the browser
+workflow, not native Pi acceptance.

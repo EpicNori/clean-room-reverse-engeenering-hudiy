@@ -165,7 +165,7 @@ Native IPC adds only `audio-input` settings and bounded `audioInput` status: at 
 
 ## coscarOS rename compatibility
 
-The OTA source is fixed to `EpicNori/coscarOS` and its exact HTTPS API/codeload paths; source archives must use `coscarOS-<verified revision>`. Other repositories, unsafe entries and changed trust domains remain rejected. Existing releases/state and their rollback paths are retained. Old updater installations need the one-time source migration in BRANDING.md. New diagnostic exports use `Downloads/coscarOS-OBD-Logs`. Existing saved logs/settings and internal `HUDIY_*`, app/profile/menu IDs remain compatible; no new route, privilege, Origin allowance or cloud rule is introduced.
+The OTA source is fixed to `desquerteur/coscarOS` and its exact HTTPS API/codeload paths; source archives must use `coscarOS-<verified revision>`. Other repositories, unsafe entries and changed trust domains remain rejected. Existing releases/state and their rollback paths are retained. Old updater installations need the one-time source migration in BRANDING.md. New diagnostic exports use `Downloads/coscarOS-OBD-Logs`. Existing saved logs/settings and internal `HUDIY_*`, app/profile/menu IDs remain compatible; no new route, privilege, Origin allowance or cloud rule is introduced.
 
 ## Automatic model-independent diagnostic capture — 24 October 2026
 
@@ -267,3 +267,30 @@ a controlling terminal and dying from SIGHUP when the test PTY closes.
 - Imports run through the same frontend schema before preview and through the backend
   validator at native save. Bundled packs are local; no community download endpoint
   or executable extension loader exists yet. See [widget guide](DASHBOARD_WIDGETS.md).
+
+
+## First-launch introduction
+
+`GET /api/onboarding` returns native availability, guide version, bounded step,
+pending/completed/skipped outcome and whether the temporary guide lease is active.
+`POST /api/onboarding` accepts at most 1024 bytes of JSON and exactly one action:
+`{"action":"begin"}`, `{"action":"heartbeat"}`, `{"action":"progress","step":0}`,
+or `{"action":"finish","outcome":"completed","confirmed":true}` (also `skipped`).
+Step is an integer from 0 through 18; boolean indices and extra keys are rejected.
+Finishing/skipping requires literal boolean `true`. Existing loopback Host/Origin
+checks apply. Invalid bodies return 400, oversize 413, unavailable/failed storage a
+sanitized 503. Native writes require the Pi runtime; preview progress stays separate.
+
+The fixed private file `~/.local/share/hudiy-recreation/onboarding.json` contains
+only version/outcome/step and uses atomic/fsync writes. Failed writes do not advance
+in-memory progress. Replay preserves earlier completion until a new outcome is saved.
+No arbitrary paths, executable content, device addresses or live readings are accepted.
+No new cloud rules, system privileges or package dependencies are needed.
+
+Begin/heartbeat sends the allowlisted internal IPC `guide-hold` boolean. The native
+runtime hides projection and ignores route/resume/USB/Wi-Fi foreground commands while
+its monotonic 30-second lease is alive. The view renews every ten seconds. Finishing
+releases it without changing automatic connection/opening preferences or disconnecting
+the phone. The IPC client reasserts an unexpired hold before options on reconnect.
+No heartbeat means the lease expires; no guide-active flag is persisted. See
+[the new user guide](NEW_USER_GUIDE.md) for pending native/hardware acceptance.

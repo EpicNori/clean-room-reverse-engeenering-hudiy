@@ -115,3 +115,36 @@ contact intervals. The new scrollbar behavior was verified on the actual Pi usin
 wheel and drag scrolling. No vehicle recording was started or existing session
 removed. The dependency audit found zero known advisories. These results do not
 complete the unavailable vehicle, microphone/radio or physical-finger tests.
+
+
+## GitHub owner migration repair — 27 October 2026
+
+The reference Pi reproduced `Unexpected update download redirect` in its live
+`0db7f7e983787fe61f3ecdc969cfdb233f3e63fc` updater. Its source still used
+`EpicNori/coscarOS`. The public endpoint redirected to a numeric GitHub repository
+path, rejected by the existing strict source guard. Ethernet was allowed/unmetered;
+there was no active recording or call, so this was not a network or idle interlock.
+
+A minimal owner-URL hotfix was backed up and applied to that active release and
+`~/coscarOS` recovery baseline. Backup/repair hashes are kept privately at
+`~/.cache/coscaros-ota-owner-20261027/`. The same supervised session was restarted.
+The Pi then reported repository `desquerteur/coscarOS`, phase `available`, and the
+published main revision `7fdd22896671b3f9130c21d29fc7266574a55bb8`.
+
+The local repair requests the canonical owner directly, retains redirect/archive
+protections, migrates exact historical installer origins, and adds clear bounded
+HTTP/network failure messages. Local verification: 28 updater/supervisor tests
+passed; the full backend suite ran 279 tests, ten skipped, no failures. A real
+canonical API check and 1,300,968-byte checked source archive download/extraction
+also passed. Those are check/download validations; native staging, activation and
+rollback for this repair must be recorded separately below. The owner approved publishing all completed work, including the guide and Bluetooth
+audio shortcut. The previously published candidate was cancelled during native
+compilation so the final published revision can receive a fresh OTA test.
+
+
+Installer migration smoke checks on the Pi also passed for the current owner and
+both exact historical origins; a foreign owner was refused before fetching. Git
+and installer operations were stubbed, so this test made no OS changes. The source
+was tested with the LF line endings used by GitHub. Native preparation of published
+`7fdd228` has passed its frontend and Python service tests and is building the
+independent receiver; activation has not yet been attempted for this repair.

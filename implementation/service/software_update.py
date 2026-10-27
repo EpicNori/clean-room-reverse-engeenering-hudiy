@@ -14,10 +14,11 @@ import tempfile
 import threading
 import time
 import urllib.request
+import urllib.error
 
 from ota_state import SHA, private_directory, read_json, write_json, selection, release_path, activate
 
-REPOSITORY='EpicNori/coscarOS'
+REPOSITORY='desquerteur/coscarOS'
 API=f'https://api.github.com/repos/{REPOSITORY}/git/ref/heads/main'
 DEFAULTS={'autoCheck':True,'notifyUpdates':True,'mode':'notify','checkIntervalHours':6,'prepareDuringAndroidAuto':True,'allowMetered':False,'keepVersions':2}
 
@@ -54,16 +55,23 @@ def download(url,target=None,limit=65536,cancel=None):
     opener=urllib.request.build_opener(HTTPSOnly)
     request=urllib.request.Request(url,headers={'User-Agent':'coscarOS-Updater','Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2026-03-10'})
     result=bytearray();digest=hashlib.sha256();total=0
-    with opener.open(request,timeout=30) as response:
-        while True:
-            if cancel and cancel.is_set():raise InterruptedError('Update cancelled')
-            block=response.read(65536)
-            if not block:break
-            total+=len(block)
-            if total>limit:raise ValueError('Update download exceeds its size limit')
-            digest.update(block)
-            if target:target.write(block)
-            else:result.extend(block)
+    try:
+        with opener.open(request,timeout=30) as response:
+            while True:
+                if cancel and cancel.is_set():raise InterruptedError('Update cancelled')
+                block=response.read(65536)
+                if not block:break
+                total+=len(block)
+                if total>limit:raise ValueError('Update download exceeds its size limit')
+                digest.update(block)
+                if target:target.write(block)
+                else:result.extend(block)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403,429):raise ConnectionError('GitHub refused the request or its rate limit was reached. Wait, then check again.') from None
+        if exc.code==404:raise ConnectionError('The configured GitHub update source or revision was not found.') from None
+        raise ConnectionError('GitHub update request failed (HTTP '+str(exc.code)+'). Try again later.') from None
+    except (urllib.error.URLError,TimeoutError):
+        raise ConnectionError('Cannot reach GitHub. Check Internet access, DNS and the Pi clock, then retry.') from None
     return digest.hexdigest() if target else bytes(result)
 
 

@@ -53,7 +53,7 @@ class Fixture(unittest.TestCase):
     def test_check_uses_small_fixed_main_reference_and_validates_the_commit(self):
         with patch('software_update.download',return_value=json.dumps({'object':{'type':'commit','sha':B}}).encode()) as get:
             self.update._check()
-            self.assertTrue(get.call_args.args[0].endswith('/git/ref/heads/main'))
+            self.assertEqual(get.call_args.args[0],'https://api.github.com/repos/desquerteur/coscarOS/git/ref/heads/main')
         self.assertEqual(self.update.cache['latestRevision'],B)
         for data in ({'sha':B},{'object':{'type':'tag','sha':B}},{'object':{'type':'commit','sha':'../escape'}}):
             with patch('software_update.download',return_value=json.dumps(data).encode()):
@@ -224,12 +224,20 @@ class ArchiveAndNetworkTests(unittest.TestCase):
                     with self.assertRaises(ValueError): unpack(archive, target, B)
                     self.assertEqual(list(target.iterdir()), [])
 
+    def test_download_errors_explain_network_or_github_failure_without_claiming_a_build_failed(self):
+        import urllib.error
+        from software_update import download,API
+        for failure,expected in ((urllib.error.HTTPError(API,404,'missing',{},None),'not found'),(urllib.error.HTTPError(API,429,'limited',{},None),'rate limit'),(urllib.error.HTTPError(API,500,'error',{},None),'HTTP 500'),(urllib.error.URLError('private/path'),'Internet access')):
+            opener=Mock();opener.open.side_effect=failure
+            with patch('software_update.urllib.request.build_opener',return_value=opener):
+                with self.assertRaisesRegex(ConnectionError,expected):download(API)
+
     def test_new_repository_redirect_is_allowed_but_prefix_spoofing_is_not(self):
         import urllib.request
-        handler = HTTPSOnly(); request = urllib.request.Request('https://api.github.com/repos/EpicNori/coscarOS/git/ref/heads/main')
-        for url in ('https://api.github.com/repos/EpicNori/coscarOS/git/ref/heads/main', 'https://codeload.github.com/EpicNori/coscarOS/tar.gz/'+B):
+        handler = HTTPSOnly(); request = urllib.request.Request('https://api.github.com/repos/desquerteur/coscarOS/git/ref/heads/main')
+        for url in ('https://api.github.com/repos/desquerteur/coscarOS/git/ref/heads/main', 'https://codeload.github.com/desquerteur/coscarOS/tar.gz/'+B):
             self.assertEqual(handler.redirect_request(request, None, 302, '', {}, url).full_url, url)
-        for url in ('https://codeload.github.com/EpicNori/coscarOS-evil/tar.gz/'+B, 'https://api.github.com/repos/EpicNori/coscarOS-evil/git/ref/heads/main'):
+        for url in ('https://codeload.github.com/desquerteur/coscarOS-evil/tar.gz/'+B, 'https://api.github.com/repos/desquerteur/coscarOS-evil/git/ref/heads/main', 'https://api.github.com/repositories/1389318512/git/ref/heads/main', 'https://api.github.com/repos/EpicNori/coscarOS/git/ref/heads/main'):
             with self.assertRaises(ValueError): handler.redirect_request(request, None, 302, '', {}, url)
 
     def test_wired_route_is_allowed_during_wireless_projection_but_shared_wifi_is_not(self):

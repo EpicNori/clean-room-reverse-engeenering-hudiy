@@ -1,0 +1,195 @@
+.introduction-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  font-family: Roboto, sans-serif;
+  color: var(--text);
+  isolation: isolate;
+}
+.introduction-shield {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+.introduction-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.introduction-spotlight {
+  position: fixed;
+  border: 3px solid var(--primary-text);
+  border-radius: 18px;
+  box-shadow: 0 0 0 5px rgb(255 255 255 / 0.18);
+  pointer-events: none;
+  background: rgb(255 255 255 / 0.06);
+  transition:
+    top 0.18s ease,
+    left 0.18s ease,
+    width 0.18s ease,
+    height 0.18s ease;
+}
+.introduction-card {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: min(460px, calc(100% - 40px));
+  max-height: calc(100% - 40px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 24px;
+  background: var(--bg);
+  box-shadow: 0 14px 50px rgb(0 0 0 / 0.35);
+  border: 1px solid var(--selected);
+  box-sizing: border-box;
+  font-size: 16px;
+  line-height: 1.55;
+}
+.introduction-card.at-top {
+  top: 20px;
+  bottom: auto;
+}
+.introduction-eyebrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--primary-text);
+}
+.introduction-card progress {
+  width: 100%;
+  height: 5px;
+  accent-color: var(--primary-text);
+  margin: 14px 0 4px;
+  display: block;
+}
+.introduction-card h1 {
+  font-size: 27px;
+  line-height: 1.2;
+  margin: 16px 0 12px;
+  letter-spacing: -0.025em;
+}
+.introduction-card p {
+  margin: 0 0 18px;
+}
+.introduction-card .introduction-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 16px 0 0;
+  opacity: 0.8;
+}
+.introduction-section {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.introduction-section select {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--primary-text);
+  border-radius: 12px;
+  padding: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.introduction-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+.introduction-actions button {
+  flex: 1;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 14px;
+  color: var(--primary-text);
+  background: var(--selected);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.introduction-actions button.introduction-primary {
+  font-weight: 700;
+  border: 2px solid var(--primary-text);
+}
+.introduction-actions button.introduction-secondary {
+  background: transparent;
+  border: 1px solid var(--selected);
+}
+.introduction-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.introduction-card :focus-visible {
+  outline: 3px solid var(--primary-text);
+  outline-offset: 3px;
+}
+.introduction-error {
+  padding: 10px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  margin-top: 12px !important;
+  font-size: 14px;
+}
+.guide-taskbar-pause {
+  position: absolute;
+  inset: 0;
+  z-index: 1900;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font:
+    16px Roboto,
+    sans-serif;
+}
+@media (max-width: 540px) {
+  .introduction-card {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100% - 24px);
+    max-height: calc(100% - 24px);
+    padding: 18px;
+    border-radius: 20px;
+    font-size: 15px;
+  }
+  .introduction-card.at-top {
+    top: 12px;
+  }
+  .introduction-card h1 {
+    font-size: 24px;
+  }
+}
+@media (max-height: 440px) and (min-width: 700px) {
+  .introduction-card {
+    width: min(620px, calc(100% - 40px));
+    padding: 16px;
+    font-size: 14px;
+  }
+  .introduction-card h1 {
+    font-size: 22px;
+    margin: 8px 0;
+  }
+  .introduction-card p {
+    margin-bottom: 10px;
+  }
+  .introduction-section {
+    display: none;
+  }
+  .introduction-actions {
+    margin-top: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .introduction-spotlight {
+    transition: none;
+  }
+}

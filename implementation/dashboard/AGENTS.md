@@ -64,3 +64,17 @@ private backend storage. Extensions supports bundled layouts and validated JSON
 import/export as the foundation for later community downloads; do not fabricate
 an online catalog or execute downloaded widget code. Preserve popup master mute,
 real missing-data states, responsive scrolling and startup readiness.
+
+
+Provide a first-launch spotlight introduction covering navigation, customization,
+phone/projection, audio, diagnostics, recording, notifications and OTA. Save native
+progress privately across restarts, keep browser-preview progress separate, require
+explicit skip confirmation, and offer Replay introduction in System → Application.
+Tour navigation must not execute device actions or steal focus from a modal; prevent
+projection auto-opening while its temporary renewable guide lease is active.
+
+
+Bluetooth Connections must offer Use as audio device for paired audio receivers,
+using the existing durable Sound/radio-output preference and explicit connection
+when needed. Do not treat a phone's audio-source profile or serial ELM327 as an
+output receiver. Keep selected/actual route/error status inline when popups are off.

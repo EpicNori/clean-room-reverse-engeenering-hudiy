@@ -449,6 +449,7 @@ private:
         if (notice_) notice_->place(taskbar_->isHidden() ? 0 : taskbar_->height());
     }
     void showProjection(bool visible) {
+        if (visible && guideLease_.isValid() && guideLease_.elapsed() < 30000) return;
         if (visible && options_.value("blackStartup").toBool(true) && !startupGate_.ready()) {
             startupProjectionPending_ = true; return;
         }
@@ -609,7 +610,14 @@ private:
         while ((end = buffer_.indexOf('\n')) >= 0) {
             const auto command = QJsonDocument::fromJson(buffer_.left(end)).object(); buffer_.remove(0,end+1);
             const QString op = command.value("operation").toString();
-            if (op == "startup-ready") {
+            if (op == "guide-hold") {
+                if (command.value("active").toBool()) { guideLease_.start(); if (visible_) showProjection(false); }
+                else guideLease_.invalidate();
+            }
+            else if (guideLease_.isValid() && guideLease_.elapsed() < 30000 && (op == "route" || op == "resume" || op == "usb" || op == "wifi")) {
+                // The guide owns navigation temporarily; a crashed view releases it within 30 seconds.
+            }
+            else if (op == "startup-ready") {
                 if (command.value("token").toString() == startupToken_) {
                     const auto surface = command.value("surface").toString();
                     if (surface == "content" || surface == "taskbar") startupGate_.painted(surface == "content" ? 0 : 1);
@@ -753,6 +761,7 @@ private:
     QString inputError_; bool micRequested_=false, inputConfigured_=false;
     AVCodecContext* codec_ = nullptr; AVFrame* frame_ = nullptr; SwsContext* scaler_ = nullptr;
     QJsonObject options_, mediaState_, navigationState_;
+    QElapsedTimer guideLease_;
     QString route_ = "dashboard", error_, transportName_; int revision_ = 0, phase_ = 0, lastDisconnectPhase_ = 0, signal_ = -1, coverVersion_ = 0;
     QWidget* startupCover_ = nullptr; QLabel* startupError_ = nullptr;
     QPushButton *startupRetry_ = nullptr, *startupDesktop_ = nullptr;

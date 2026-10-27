@@ -1,6 +1,6 @@
 # Software updates over the air
 
-Open **Applications → coscarOS → Settings → System → Software updates**. The app checks the fixed public GitHub repository `EpicNori/coscarOS`, branch `main`. It never accepts a caller-supplied repository, branch, shell command or download URL.
+Open **Applications → coscarOS → Settings → System → Software updates**. The app checks the fixed public GitHub repository `desquerteur/coscarOS`, branch `main`. It never accepts a caller-supplied repository, branch, shell command or download URL.
 
 ![OTA settings with clearly labelled simulated update data](images/software-updates-preview.jpg)
 
@@ -76,3 +76,23 @@ Local automated checks cover strict settings/API boundaries, route/metering poli
 Native ARM64 compilation and all six CTests now pass on the existing reference Bookworm Pi. A real managed update, rollback, reinstallation and normal Pi reboot now pass on fresh Trixie; the exact scope and remaining hardware/interruption checks are in the acceptance report. A physical abrupt power cut was not performed. OTA requires a one-time deployment of this new code; an older published repository version without the protocol marker cannot be silently activated as an OTA release. See [backend rules](backend-rules.md) and [verification](VERIFICATION.md).
 
 Protocol endpoints follow GitHub's [Git references API](https://docs.github.com/en/rest/git/refs#get-a-reference) and [source archive documentation](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives). No repository credentials are required for the public project.
+
+
+## Repairing an updater installed before the GitHub owner changed
+
+Older installed builds still request `EpicNori/coscarOS`. GitHub redirects that
+owner to a repository-ID endpoint, which the updater deliberately refuses because
+it is outside its fixed source path. The resulting **Unexpected update download
+redirect** is a source migration failure, not a failed native build.
+
+This revision requests `desquerteur/coscarOS` directly for checks and downloads.
+The HTTPS/domain/path allowlist, checked commit, archive validation, parked
+activation and rollback protections remain in place. The installer also accepts
+an existing checkout with either exact historical origin before migrating it to
+the current canonical URL. An already-broken installed updater needs a one-time
+source repair/restart or the normal installer before it can fetch this repair by
+itself. Preserve user data and the previous managed release; no OS reflash is needed.
+
+Network/GitHub errors now distinguish missing source, rate limits and Internet/DNS
+failures instead of suggesting every failed check was a build failure. See
+[verification](OTA_VERIFICATION.md) for the current repair and device evidence.

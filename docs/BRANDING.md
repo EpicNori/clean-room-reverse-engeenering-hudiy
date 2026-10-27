@@ -1,7 +1,7 @@
 # coscarOS branding and upgrade compatibility
 
 coscarOS is the independent project's displayed name and GitHub repository:
-[EpicNori/coscarOS](https://github.com/EpicNori/coscarOS). Original Hudiy references describe historical observation/documentation; they are not our brand or an endorsement. Choosing a distinct name does not constitute trademark clearance.
+[desquerteur/coscarOS](https://github.com/desquerteur/coscarOS). Original Hudiy references describe historical observation/documentation; they are not our brand or an endorsement. Choosing a distinct name does not constitute trademark clearance.
 
 ## Existing installations
 
@@ -16,12 +16,12 @@ The old updater deliberately restricts repository redirects/archive roots. Its e
 ```sh
 cd ~/hudiy-recreation # use ~/coscarOS for a fresh installation
 git status --short # preserve local changes first
-git remote set-url origin https://github.com/EpicNori/coscarOS.git
+git remote set-url origin https://github.com/desquerteur/coscarOS.git
 git pull --ff-only
 bash install.sh
 ```
 
-The renamed updater uses only EpicNori/coscarOS on GitHub/codeload with the same archive, traversal, size and parked activation checks. Already prepared old releases remain rollback candidates. No hostname or radio network is silently changed. The startup helper permits an exact branding-only upgrade of verified managed session/theme files, retains their original restore backups, and refuses administrator changes or a changed launcher path.
+The renamed updater uses only desquerteur/coscarOS on GitHub/codeload with the same archive, traversal, size and parked activation checks. Already prepared old releases remain rollback candidates. No hostname or radio network is silently changed. The startup helper permits an exact branding-only upgrade of verified managed session/theme files, retains their original restore backups, and refuses administrator changes or a changed launcher path.
 
 ## Hardware acceptance still required
 

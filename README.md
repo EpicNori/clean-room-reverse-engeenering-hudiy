@@ -10,6 +10,8 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 
 ## Contents
 
+- [First launch and guided introduction](#first-launch-and-guided-introduction)
+
 - [Introduction](#introduction)
 - [coscarOS branding and upgrade compatibility](docs/BRANDING.md)
 - [Capability status and daily-use roadmap](#capability-status-and-daily-use-roadmap)
@@ -112,6 +114,19 @@ Fresh captures from the production frontend and its local Python service on **25
 **OBD Logs:** recording policy, capture settings, storage limits and saved sessions in one place.
 
 Capture details and earlier assets are recorded in [asset provenance](docs/ASSET_PROVENANCE.md). Hardware results are documented separately in the [Pi acceptance report](docs/README_TEST_RESULTS.md).
+
+## First launch and guided introduction
+
+New profiles receive a 19-section spotlight introduction to the actual dashboard,
+shortcuts, customization, phone/Android Auto setup, audio, OBD, logging and updates.
+Next/Back and a section picker let you go at your own pace. Skip requires a separate
+confirmation; outside taps never dismiss it. Progress resumes after an interruption.
+Replay it from **Settings → System → Application → Replay introduction**.
+
+The tour previews pages without pairing devices, placing calls, starting playback
+or recording, or installing updates. The browser workflow and progress storage are
+tested; native Pi deployment and Android Auto foreground/lease acceptance remain
+pending. See the [complete new user guide](docs/NEW_USER_GUIDE.md).
 
 ## Dashboard widgets and layout packs
 
@@ -301,6 +316,10 @@ coscarOS/
 │   │   │   ├── DashboardStudio.jsx  # Widget renderer, editor and layout packs
 │   │   │   ├── dashboardWidgets.mjs  # Schema, placement, presets and pack validation
 │   │   │   ├── useDashboardWidgets.js  # Revision-aware device/browser persistence
+│   │   │   ├── Introduction.jsx    # First-launch spotlight guide and deliberate skip
+│   │   │   ├── onboarding.mjs      # Guide sections and bounded progress model
+│   │   │   ├── useOnboarding.js    # Device/browser progress and replay lifecycle
+│   │   │   ├── introduction.css    # Themed accessible spotlight surfaces
 │   │   │   ├── dashboardStudio.css  # Classic/glass surfaces and responsive editor
 │   │   │   ├── audio.js
 │   │   │   ├── AudioInput.jsx  # Microphone selection, gain and mute
@@ -463,7 +482,7 @@ See the [full orientation and recovery guide](docs/INSTALL.md#optional-screen-or
 Then open a terminal as your ordinary desktop user:
 
 ```sh
-bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/EpicNori/coscarOS/main/install.sh | bash'
+bash -o pipefail -c 'curl -fsSL https://raw.githubusercontent.com/desquerteur/coscarOS/main/install.sh | bash'
 ```
 
 The guided installer shows its plan, installs OS dependencies, checks/downloads a private Node runtime, builds/tests our frontend and native receiver, configures Bluetooth/audio/device access, selects startup and prepares an inactive protected hotspot. Default setup enables desktop autologin; `--no-autologin` preserves login authentication. It does not reboot or switch Wi-Fi automatically. See [installation, options and recovery](docs/INSTALL.md). The 25 October app reinstall found and repaired confirmation/session startup bugs locally; the repaired installation now boots automatically and retains user data. The published one-liner also passed on that reference Pi. See [the exact installation test results](docs/INSTALL_VERIFICATION.md). A freshly flashed 64-bit Trixie desktop subsequently passed installation, first launch, saved settings, landscape persistence and automatic boot. Fresh Bookworm, powered-vehicle and audible hardware acceptance remain open. See [the real-Pi README test report](docs/README_TEST_RESULTS.md) for the later phone and OTA checks.

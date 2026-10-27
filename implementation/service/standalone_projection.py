@@ -31,6 +31,7 @@ class StandaloneProjection:
         self.wireless_default = False
         self.audio_options = None
         self.input_options = None
+        self.guide_until = 0
 
     def start(self):
         if self.enabled and not self.worker:
@@ -46,6 +47,7 @@ class StandaloneProjection:
                 with self.lock:
                     self.sock = connection
                     self.available = True
+                    if time.monotonic()<self.guide_until:self._send({'operation':'guide-hold','active':True})
                     self._send({'operation': 'options', 'options': self.options})
                     if self.audio_options is not None:
                         self._send({'operation': 'audio-dsp', 'settings': self.audio_options})
@@ -173,6 +175,12 @@ class StandaloneProjection:
                 raise ConnectionError('Android Auto is not connected')
             self._send(command)
             return {'accepted': True, 'message': 'Android Auto connection requested' if operation in {'usb', 'wifi', 'resume'} else ''}
+
+    def guide_hold(self, active):
+        if type(active) is not bool: raise ValueError('Guide hold must be boolean')
+        with self.lock:
+            self.guide_until = time.monotonic()+30 if active else 0
+            self._send({'operation':'guide-hold','active':active})
 
     def startup_ready(self, surface, token):
         if surface not in ('content', 'taskbar') or not isinstance(token, str) or not re.fullmatch(r'[a-f0-9]{32}', token):

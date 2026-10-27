@@ -302,6 +302,23 @@ class HTTPTests(unittest.TestCase):
             fake.set.assert_not_called()
             with self.request('/api/action',{'action':'display-brightness','brightness':50}) as r:self.assertEqual(r.status,200)
             fake.set.assert_called_once_with(50)
+    def test_onboarding_endpoint_is_bounded_origin_checked_and_sanitizes_failures(self):
+        from onboarding import OnboardingStore
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            store=OnboardingStore(True,Path(folder)/'guide.json')
+            with patch.object(server,'onboarding',store):
+                with self.request('/api/onboarding') as response:self.assertEqual(json.load(response)['outcome'],'pending')
+                with self.request('/api/onboarding',{'action':'begin'}) as response:self.assertTrue(json.load(response)['active'])
+                with self.request('/api/onboarding',{'action':'begin'}, {'Origin':'https://evil.example'}) as response:self.assertEqual(response.status,403)
+                with self.request('/api/onboarding',{'action':'begin','extra':'x'*1024}) as response:self.assertEqual(response.status,413)
+                with self.request('/api/onboarding',{'action':'finish','outcome':'skipped','confirmed':False}) as response:self.assertEqual(response.status,400)
+                with patch('onboarding.save_json',side_effect=OSError('/private/path')):
+                    with self.request('/api/onboarding',{'action':'progress','step':2}) as response:
+                        self.assertEqual(response.status,503);self.assertNotIn('/private',response.read().decode())
+                with self.request('/api/onboarding',{'action':'finish','outcome':'skipped','confirmed':True}) as response:self.assertEqual(json.load(response)['outcome'],'skipped')
+
     def test_application_quit_is_host_only_and_rejects_arbitrary_process_arguments(self):
         with self.request('/api/action',{'action':'application-quit'}) as r:self.assertEqual(r.status,501)
         fake=Mock(enabled=True)

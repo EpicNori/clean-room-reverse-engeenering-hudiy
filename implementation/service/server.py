@@ -15,6 +15,7 @@ from software_update import SoftwareUpdate
 from custom_obd import CustomOBDStore, RevisionConflict, DEFAULT_CONFIG, validate_config, calculate
 from phonebook import Phonebook
 from dashboard_widgets import DashboardStore, DashboardConflict
+from onboarding import OnboardingStore
 from layout import LayoutStore
 from updates import UpdateSettings
 from bluetooth_devices import BluetoothDevices
@@ -40,6 +41,7 @@ obd.custom_dashboard=custom_obd if projection.enabled else None
 phonebook=Phonebook(enabled=projection.enabled)
 layout=LayoutStore(enabled=projection.enabled)
 dashboard_widgets=DashboardStore(enabled=projection.enabled)
+onboarding=OnboardingStore(enabled=projection.enabled,hold=projection.guide_hold)
 updates=UpdateSettings(projection, phonebook)
 audio_dsp=AudioSettings(projection)
 audio_input=InputSettings(projection)
@@ -108,6 +110,7 @@ class Handler(BaseHTTPRequestHandler):
             except FileNotFoundError:return self.send(404,{'error':'Recording not found'})
             except ValueError as exc:return self.send(400,{'error':str(exc)})
             except (OSError,ConnectionError):return self.send(503,{'error':'Recording could not be read or another export is running'})
+        if path=='/api/onboarding':return self.send(200,onboarding.snapshot())
         if path=='/api/dashboard-widgets':return self.send(200,dashboard_widgets.snapshot())
         if path=='/api/obd-dashboard':return self.send(200,custom_obd.snapshot())
         if path=='/api/audio-settings':return self.send(200,audio_dsp.snapshot())
@@ -192,6 +195,14 @@ class Handler(BaseHTTPRequestHandler):
                     except ValueError as exc:result.update(sampleValue=None,sampleError=str(exc))
                 return self.send(200,result)
             except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+        if self.path=='/api/onboarding':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=1024:return self.send(413,{'error':'Guide body must be 1–1024 bytes'})
+                data=json.loads(self.rfile.read(length))
+                return self.send(200,onboarding.command(data))
+            except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+            except (OSError,ConnectionError):return self.send(503,{'error':'Guide progress could not be saved. Please retry.'})
         if self.path=='/api/dashboard-widgets':
             try:
                 length=int(self.headers.get('Content-Length','0'))

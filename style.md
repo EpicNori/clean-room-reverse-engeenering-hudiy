@@ -312,3 +312,29 @@ rewriting saved coordinates. All editor controls retain 48px touch targets, focu
 outlines and hidden scrollbar chrome. Extensions presents real bundled layouts
 and JSON import/export; future community download support must not be represented
 as an existing online catalog.
+
+
+## First-launch introduction — 27 October 2026
+
+Use the existing Roboto font and theme tokens for a modal spotlight guide. A
+stationary translucent black SVG scrim leaves the highlighted real control/view
+visible, with a themed 3px outline and 18px corners. The instruction card is an
+opaque themed surface, 24px radius, bounded 460px width, with step count, progress,
+plain-language instructions, section selector and 48px Back/Next/Skip controls.
+Reposition above a low target; keep the card scrollable on narrow/short displays.
+No external assets, new colors, dependencies or continuous animation. Spotlight
+movement is 180ms and disabled for reduced motion. Background pointer, shortcut
+and keyboard interaction is paused, with focus trapped in the dialog. Escape and
+Skip open a confirmation whose initial focus is Keep learning; outside taps never
+close the guide. Replay is a themed Application settings row. Tour screens are
+read-only previews; no pairing, calls, playback, recording or installations occur.
+
+
+## Bluetooth Connections audio shortcut — 27 October 2026
+
+For paired audio-output receivers, add Use as audio device alongside Connect and
+Automatic reconnect. Reuse themed layout-reset buttons, a 24px Material Symbols
+speaker icon and a 48px minimum touch target. The saved receiver reads Audio device
+selected; show actual routing/waiting/failure status inline, independent of popup
+preferences. Preserve wrapping on narrow screens, both themes and hidden scrollbar
+chrome. No new colors, fonts, assets, dependencies or backend rules are required.

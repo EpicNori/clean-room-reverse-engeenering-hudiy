@@ -3,7 +3,8 @@
 set -Eeuo pipefail
 trap 'printf "Installation stopped (line %s). No automatic reboot was requested.\n" "$LINENO" >&2' ERR
 
-repo_url='https://github.com/EpicNori/coscarOS.git'
+repo_url='https://github.com/desquerteur/coscarOS.git'
+previous_repo_url='https://github.com/EpicNori/coscarOS.git'
 legacy_repo_url='https://github.com/EpicNori/clean-room-reverse-engeenering-hudiy.git'
 install_root="${COSCAROS_INSTALL_DIR:-${HUDIY_INSTALL_DIR:-$HOME/coscarOS}}"
 if [[ -z ${COSCAROS_INSTALL_DIR:-} && -z ${HUDIY_INSTALL_DIR:-} && -d "$HOME/hudiy-recreation/.git" ]]; then
@@ -79,7 +80,7 @@ fi
 if [[ -e "$install_root" ]]; then
     [[ -d "$install_root/.git" && -O "$install_root" ]] || { printf 'Existing target is not your Git checkout.\n' >&2; exit 1; }
     existing_remote="$(git -C "$install_root" remote get-url origin)"
-    [[ "${existing_remote%.git}" == "${repo_url%.git}" || "${existing_remote%.git}" == "${legacy_repo_url%.git}" ]] || { printf 'Existing checkout uses a different remote.\n' >&2; exit 1; }
+    [[ "${existing_remote%.git}" == "${repo_url%.git}" || "${existing_remote%.git}" == "${legacy_repo_url%.git}" || "${existing_remote%.git}" == "${previous_repo_url%.git}" ]] || { printf 'Existing checkout uses a different remote.\n' >&2; exit 1; }
     [[ $(git -C "$install_root" branch --show-current) == main ]] || { printf 'Keep existing branches unchanged; install from main.\n' >&2; exit 1; }
     [[ -z $(git -C "$install_root" status --porcelain) ]] || { printf 'Checkout has local changes; preserve them before reinstalling.\n' >&2; exit 1; }
     git -C "$install_root" remote set-url origin "$repo_url"

@@ -22,6 +22,20 @@ class StandaloneTests(unittest.TestCase):
         bridge.enabled=True;bridge.available=True;bridge.sock=Mock()
         return bridge
 
+    def test_guide_hold_is_temporary_ipc_and_does_not_change_projection_preferences(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bridge=self.projection(directory)
+            before=dict(bridge.options)
+            with patch('standalone_projection.time.monotonic',return_value=100):
+                bridge.guide_hold(True)
+            self.assertEqual(bridge.guide_until,130)
+            self.assertEqual(json.loads(bridge.sock.sendall.call_args.args[0]),{'operation':'guide-hold','active':True})
+            bridge.guide_hold(False)
+            self.assertEqual(bridge.guide_until,0)
+            self.assertEqual(bridge.options,before);self.assertFalse(bridge.preferences.exists())
+            for value in (1,None,'true'):
+                with self.assertRaises(ValueError):bridge.guide_hold(value)
+
     def test_notification_is_bounded_plain_text_and_never_persisted(self):
         with tempfile.TemporaryDirectory() as directory:
             bridge=self.projection(directory)

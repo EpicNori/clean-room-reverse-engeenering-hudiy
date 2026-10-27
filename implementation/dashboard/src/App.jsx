@@ -1,3 +1,5 @@
+import {useOnboarding} from "./useOnboarding";
+import {Introduction} from "./Introduction";
 import {categoryLabel} from "./branding.mjs";
 import {startupIdentity, reportStartup} from "./startup.mjs";
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
@@ -217,12 +219,14 @@ export function App() {
     }),
     [phonebookData, setPhonebookData] = useState({ views: {}, error: '', syncing: false }),
     [obdPath, setObdPath] = useState("/dev/rfcomm0");
+  const guide = useOnboarding(Boolean(HOST_MODE), TASKBAR);
+  const guideActive = useRef(false); guideActive.current = guide.open;
   const dashboard = useDashboardWidgets(Boolean(HOST_MODE), !TASKBAR);
   const [dashboardTemplate, setDashboardTemplate] = useState(null);
   useEffect(() => { if (!['dashboard-editor','marketplace'].includes(screen)) setDashboardTemplate(null); }, [screen]);
   useEffect(() => {
     const identity = startupIdentity(location.search);
-    if (!identity || !service || !status.projection?.available || !status.layout || (!TASKBAR && !dashboard.ready)) return;
+    if (!identity || !service || !status.projection?.available || !status.layout || (!TASKBAR && (!dashboard.ready || !guide.ready))) return;
     return reportStartup(identity, {
       fonts: document.fonts.ready,
       paint: () => new Promise(resolve => requestAnimationFrame(resolve)),
@@ -235,7 +239,7 @@ export function App() {
         } finally {clearTimeout(timeout);}
       },
     });
-  }, [service, status.projection?.available, Boolean(status.layout), dashboard.ready]);
+  }, [service, status.projection?.available, Boolean(status.layout), dashboard.ready, guide.ready]);
   const audio = useRef(null),
     viewportRef = useRef(null),
     processor = useRef(null),
@@ -564,7 +568,7 @@ export function App() {
             try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(loaded)); } catch {}
           }
           if (data.updates && !updatesPending.current) setPrefs(p => ({ ...p, ...data.updates }));
-          if (CONTENT && data.projection?.revision > routeRevision.current) {
+          if (CONTENT && !guideActive.current && data.projection?.revision > routeRevision.current) {
             routeRevision.current = data.projection.revision;
             const next = SCREEN_IDS.has(data.projection.route) ? data.projection.route : 'dashboard';
             setScreen(next);
@@ -882,6 +886,9 @@ export function App() {
     ),
     application: (
       <>
+        <button className="setting-row link-row" onClick={() => guide.start()} disabled={!guide.ready || guide.busy}>Replay introduction<Icon name="school" /></button>
+        <p className="setting-note">A spotlight guide to the dashboard, devices, customization and diagnostics. Skip requires confirmation.</p>
+        {guide.error && !guide.open && <p className="setting-note" role="status">{guide.error}</p>}
         {toggle("hotspot", "Enable hotspot")}
         {toggle("showCursor", "Show cursor")}
       </>
@@ -1045,7 +1052,7 @@ export function App() {
           multiple
           onChange={loadFiles}
         />
-        <section className={`screen screen-${screen}`}>
+        <section inert={guide.open} data-tour={({dashboard:"dashboard","dashboard-editor":"studio",marketplace:"extensions","bluetooth-connections":"bluetooth","custom-obd":"obd","obd-logs":"logs","software-update":"updates"})[screen]} className={`screen screen-${screen}`}>
           {screen === "dashboard" && !dashboard.config.enabled && (
             <div className="dashboard-grid">
               <div className="dashboard-left" style={{ order: layout.columns.indexOf('clock-navigation') }}>
@@ -1205,7 +1212,7 @@ export function App() {
                   ),
                 )}
               </div>
-              <div className="menu-grid">
+              <div className="menu-grid" data-tour="menu">
                 {[...menus[screen === "apps" ? category : settingCategory]].sort((a, b) => layout.menus[screen === 'apps' ? category : settingCategory].indexOf(a[2]) - layout.menus[screen === 'apps' ? category : settingCategory].indexOf(b[2])).map(
                   ([label, icon, id]) => (
                     <Tile
@@ -1243,6 +1250,7 @@ export function App() {
           {settings[screen] && (
             <>
               <div
+                data-tour="settings"
                 className={`settings-scroll settings-${screen}`}
                 ref={scroll}
               >
@@ -1689,7 +1697,7 @@ export function App() {
           {screen === "marketplace" && <LayoutExtensions workspace={dashboard} onClose={back} onPreview={config => {setDashboardTemplate({config,revision:dashboard.revision});go('dashboard-editor');}} />}
         </section>
         <footer className="bottom-bar">
-          <div className="taskbar-items" aria-label="Taskbar shortcuts">
+          <div className="taskbar-items" data-tour="taskbar" inert={guide.open || (TASKBAR && guide.remoteActive)} aria-label="Taskbar shortcuts">
             {layout.taskbar.filter(id => id !== 'clock' || prefs.showClock).map((id, index, items) => {
               const meta = SHORTCUTS[id];
               const attrs = customizationAttributes('taskbar', id);
@@ -1715,7 +1723,9 @@ export function App() {
           editDashboard={() => {setCustomize(null);go('dashboard-editor');}}
           pin={id => { updateLayout(current => pinShortcut(current, id)); setCustomize(null); }}
           move={moveCustomized} remove={id => { if (!REQUIRED_SHORTCUTS.includes(id)) updateLayout(current => ({ ...current, taskbar: current.taskbar.filter(item => item !== id) })); setCustomize(null); }} />}
-        {notice && (
+        {TASKBAR && guide.remoteActive && <div className="guide-taskbar-pause" role="status">Introduction open · use Next or confirm Skip above</div>}
+        {!TASKBAR && guide.open && <Introduction guide={guide} native={CONTENT} onNavigate={step => {setScreen(step.route);setCategory(step.category || 'Hudiy');setSettingCategory(step.category || 'System');setCustomize(null);}} onDone={() => {setScreen('dashboard');setHistory([]);}} />}
+        {notice && !guide.open && (
           <div className="toast" role="status">
             {notice.message}
           </div>

@@ -1,9 +1,13 @@
+import {canUseBluetoothAudio, useBluetoothAudio} from './bluetoothAudio.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 
 const Icon = ({ name }) => <span className="material-symbols-rounded" aria-hidden="true">{name}</span>;
 
 export function BluetoothView({ mode, action }) {
   const [data, setData] = useState({available: false, devices: [], name: 'coscarOS', error: 'Loading Bluetooth devices…'});
+  const [audioRoute, setAudioRoute] = useState({available:false,address:'',routed:false});
+  const [audioMessage, setAudioMessage] = useState('');
+  const audioPending = useRef(false), audioGeneration = useRef(0);
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
   const list = useRef(null), cancel = useRef(null), confirm = useRef(null), opener = useRef(null);
@@ -25,7 +29,35 @@ export function BluetoothView({ mode, action }) {
     const interval = setInterval(poll, 2000);
     return () => { closed = true; clearInterval(interval); };
   }, []);
-  useEffect(() => { setSelected(null); if (list.current) list.current.scrollTop = 0; }, [mode]);
+  useEffect(() => {
+    if(mode!=='bluetooth-connections')return;
+    let closed=false,active=false;
+    const poll=async()=>{
+      if(active)return;active=true;
+      const generation=audioGeneration.current;
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),2000);
+      try {
+        const response=await fetch('/api/audio-route',{signal:controller.signal});
+        if(!response.ok)throw Error();
+        const result=await response.json();
+        if(!closed && !audioPending.current && generation===audioGeneration.current)setAudioRoute(result);
+      } catch {if(!closed && !audioPending.current && generation===audioGeneration.current)setAudioRoute(current=>({...current,available:false}));}
+      finally {active=false;clearTimeout(timer);}
+    };
+    poll();const timer=setInterval(poll,2000);
+    return()=>{closed=true;clearInterval(timer);};
+  },[mode]);
+  const chooseAudio=async device=>{
+    if(audioPending.current)return;
+    audioPending.current=true;audioGeneration.current++;setBusy(true);setAudioMessage('Selecting audio device…');
+    try {
+      const result=await useBluetoothAudio(device,action);
+      if(result.saved)setAudioRoute(current=>({...current,address:device.address,routed:false}));
+      setAudioMessage(result.message);
+    } catch {setAudioMessage('Audio device could not be selected. Please retry.');}
+    finally {audioPending.current=false;setBusy(false);}
+  };
+  useEffect(() => { setSelected(null); setAudioMessage(''); if (list.current) list.current.scrollTop = 0; }, [mode]);
   useEffect(() => {
     if (!selected) return;
     cancel.current?.focus();
@@ -47,6 +79,7 @@ export function BluetoothView({ mode, action }) {
     </>}
     <div className={`bluetooth-device-list ${mode === 'pair' ? 'bluetooth-discovery-list' : ''} ${connections?'bluetooth-connections-list':''}`} ref={list}>
       {connections && <p className="setting-note">Choose which paired devices reconnect automatically. Attempts are limited to once every 30 seconds per device.</p>}
+      {connections && audioMessage && <p className="setting-note bluetooth-audio-status" role="status">{audioMessage}</p>}
       {devices.map(device => <div className="bluetooth-device" key={device.address}>
         <Icon name="bluetooth" />
         <div className="bluetooth-device-name"><strong>{device.name}</strong><span>{device.address}</span>{connections && <span>{device.connected?'Connected':'Disconnected'}</span>}</div>
@@ -55,6 +88,13 @@ export function BluetoothView({ mode, action }) {
             if(device.connected){opener.current=event.currentTarget;setSelected(device);}
             else run('bluetooth-connect',{address:device.address});
           }}>{device.connected?'Disconnect':'Connect'}</button>
+          {canUseBluetoothAudio(device) && <>
+            <button className="layout-reset bluetooth-use-audio" disabled={busy || !data.available || !audioRoute.available || audioRoute.address===device.address}
+              aria-label={`${audioRoute.address===device.address?'Audio device selected':'Use as audio device'}: ${device.name}`}
+              onClick={()=>chooseAudio(device)}><Icon name="speaker" />{audioRoute.address===device.address?'Audio device selected':'Use as audio device'}</button>
+            {audioRoute.address===device.address && <span className="bluetooth-audio-route" role="status">{audioRoute.routed?'Audio output active':!device.connected?'Connect to use audio':audioRoute.error || 'Waiting for audio output'}</span>}
+            {!audioRoute.available && <span className="bluetooth-audio-route">Audio output service unavailable</span>}
+          </>}
           <label><input type="checkbox" aria-label={`Automatically reconnect ${device.name}`} checked={(data.effectiveAutoConnect || data.autoConnect || []).includes(device.address)} disabled={busy || !data.available}
             onChange={async event=>{const enabled=event.target.checked;const result=await run('bluetooth-autoconnect',{address:device.address,enabled});
               if(result)setData(current=>({...current,effectiveAutoConnect:enabled?[...new Set([...(current.effectiveAutoConnect || current.autoConnect || []),device.address])]:(current.effectiveAutoConnect || current.autoConnect || []).filter(a=>a!==device.address),autoConnect:enabled?[...new Set([...(current.autoConnect || []),device.address])]:(current.autoConnect || []).filter(a=>a!==device.address)}));}}/>Automatic reconnect</label>
