@@ -11,7 +11,7 @@ MENU_IDS = {
     'Android Auto': ['android-usb', 'android-wifi', 'android-resume', 'android-quit'],
     'Autobox': ['autobox-wifi', 'autobox-resume'],
     'Hudiy': ['active-apps', 'settings', 'quit', 'obd-charts', 'obd-blocks', 'combined', 'gauges', 'gauges-2', 'custom-obd', 'obd-logs', 'marketplace'],
-    'System': ['theme', 'appearance', 'application', 'notification-settings', 'overlays', 'about', 'music-settings', 'contacts-settings', 'software-update'],
+    'System': ['dashboard-editor', 'theme', 'appearance', 'application', 'notification-settings', 'overlays', 'about', 'music-settings', 'contacts-settings', 'software-update'],
     'Projections': ['android-settings', 'autobox-settings'],
     'Audio': ['sound', 'audio-input', 'equalizer', 'presets'],
     'Bluetooth': ['pair', 'remove', 'bluetooth-connections'],
@@ -52,7 +52,7 @@ def validate_layout(value):
     if isinstance(hudiy,list):groups['Hudiy']=hudiy+[id for id in ('custom-obd','obd-logs') if id not in hudiy]
     system = groups['System']
     if isinstance(system, list):
-        groups['System'] = system + [id for id in ('music-settings', 'contacts-settings', 'software-update') if id not in system]
+        groups['System'] = system + [id for id in ('music-settings', 'contacts-settings', 'software-update', 'dashboard-editor') if id not in system]
     return {'taskbar': taskbar,
             'columns': items(value['columns'], DEFAULT_LAYOUT['columns'], True),
             'leftCards': items(value['leftCards'], DEFAULT_LAYOUT['leftCards'], True),

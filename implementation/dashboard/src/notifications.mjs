@@ -1,4 +1,14 @@
 const SWITCHES = {output: 'outputNotice', input: 'inputNotice', track: 'nowPlayingNotice'};
+export function noticeEnabled(prefs, kind) {
+  if (prefs.notificationsEnabled === false) return false;
+  if (kind === 'toast') return prefs.toastNotice !== false;
+  return kind in SWITCHES && Boolean(prefs[SWITCHES[kind]]);
+}
+
+export function mutedNoticeKinds(prefs) {
+  return ['toast', ...Object.keys(SWITCHES)].filter(kind => !noticeEnabled(prefs, kind));
+}
+
 export function noticeSeconds(prefs, kind) {
   const value = prefs[kind === 'toast' ? 'toastDuration' : 'notificationDuration'];
   return Number.isInteger(value) && value >= 1 && value <= 15 ? value : kind === 'toast' ? 2 : 8;
@@ -10,7 +20,7 @@ export class NoticeCenter {
     Object.assign(this, {preferences, emit, schedule, cancel, current: null, timer: null});
   }
   show(kind, text) {
-    if (kind !== 'toast' && (!(kind in SWITCHES) || !this.preferences()[SWITCHES[kind]])) return false;
+    if (!noticeEnabled(this.preferences(), kind)) return false;
     if (kind === 'track' && this.current && this.current.kind !== 'track') return false;
     const message = Array.from(String(text || '').trim()).slice(0, 256).join('');
     if (!message) return false;
@@ -24,7 +34,7 @@ export class NoticeCenter {
     return true;
   }
   sync() {
-    if (this.current && this.current.kind in SWITCHES && !this.preferences()[SWITCHES[this.current.kind]]) {
+    if (this.current && !noticeEnabled(this.preferences(), this.current.kind)) {
       this.cancel(this.timer);
       const notice = this.current; this.current = null;
       this.emit({...notice, message: ''});

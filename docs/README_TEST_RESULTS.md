@@ -171,3 +171,24 @@ The following README groups cannot honestly be marked complete by this run:
 The [README checklist](../README.md#remaining-work) preserves these limits.
 [Installer acceptance](INSTALL_VERIFICATION.md), [OTA acceptance](OTA_VERIFICATION.md)
 and [black startup](BLACK_STARTUP.md) provide the separate historical evidence.
+
+
+## Notification mute follow-up — 27 October 2026
+
+Added persistent Enable popup notifications and General messages switches using
+existing shared web-profile preferences. Master Off suppresses toast/output/input/
+track popups, clears the active browser/native notice and keeps category choices.
+The 38 frontend tests passed on Windows and on the Pi; the production build and
+production dependency audit passed (zero known advisories at this check). Browser
+checks showed an active volume notice disappearing on mute, later volume changes
+remaining quiet and the master choice surviving reload.
+
+A frontend-only local hotfix was applied to the Pi's managed `0db7f7e` copy after
+checking original source hashes and backing up the original source/index. This is
+not a new published GitHub OTA release. The receiver was restarted once with no
+active call or OBD recording; its existing launcher selected the same managed
+release. The actual Pi displayed the new controls, and its master was switched Off
+while the existing disabled volume/input/track choices were retained. A private
+screen capture records that state. A full Pi reboot/power-cycle of this new choice
+has not been performed. No backend endpoint, native binary, API permission or
+network rule changed.

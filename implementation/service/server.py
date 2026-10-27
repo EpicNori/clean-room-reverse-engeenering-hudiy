@@ -14,6 +14,7 @@ from obd_logging import OBDRecorder
 from software_update import SoftwareUpdate
 from custom_obd import CustomOBDStore, RevisionConflict, DEFAULT_CONFIG, validate_config, calculate
 from phonebook import Phonebook
+from dashboard_widgets import DashboardStore, DashboardConflict
 from layout import LayoutStore
 from updates import UpdateSettings
 from bluetooth_devices import BluetoothDevices
@@ -38,6 +39,7 @@ custom_obd=CustomOBDStore(enabled=projection.enabled)
 obd.custom_dashboard=custom_obd if projection.enabled else None
 phonebook=Phonebook(enabled=projection.enabled)
 layout=LayoutStore(enabled=projection.enabled)
+dashboard_widgets=DashboardStore(enabled=projection.enabled)
 updates=UpdateSettings(projection, phonebook)
 audio_dsp=AudioSettings(projection)
 audio_input=InputSettings(projection)
@@ -106,6 +108,7 @@ class Handler(BaseHTTPRequestHandler):
             except FileNotFoundError:return self.send(404,{'error':'Recording not found'})
             except ValueError as exc:return self.send(400,{'error':str(exc)})
             except (OSError,ConnectionError):return self.send(503,{'error':'Recording could not be read or another export is running'})
+        if path=='/api/dashboard-widgets':return self.send(200,dashboard_widgets.snapshot())
         if path=='/api/obd-dashboard':return self.send(200,custom_obd.snapshot())
         if path=='/api/audio-settings':return self.send(200,audio_dsp.snapshot())
         if path=='/api/audio-input':return self.send(200,audio_input.snapshot())
@@ -189,6 +192,16 @@ class Handler(BaseHTTPRequestHandler):
                     except ValueError as exc:result.update(sampleValue=None,sampleError=str(exc))
                 return self.send(200,result)
             except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+        if self.path=='/api/dashboard-widgets':
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0<length<=16384:return self.send(413,{'error':'Dashboard body must be 1–16384 bytes'})
+                data=json.loads(self.rfile.read(length))
+                if isinstance(data,dict) and data=={'action':'export'}:return self.send(200,dashboard_widgets.export())
+                return self.send(200,dashboard_widgets.save(data))
+            except DashboardConflict as exc:return self.send(409,{'error':str(exc)})
+            except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
+            except Exception:return self.send(503,{'error':'Could not save or export the device dashboard'})
         if self.path=='/api/obd-dashboard':
             try:
                 length=int(self.headers.get('Content-Length','0'))

@@ -31,10 +31,12 @@ import { RadioOutput } from "./RadioOutput";
 import { LicenseNotices } from "./LicenseNotices";
 import { AudioInput } from "./AudioInput";
 import { resolveMedia, isRemotePlayer } from "./media.mjs";
-import { NoticeCenter, TrackObserver } from "./notifications.mjs";
+import { NoticeCenter, TrackObserver, mutedNoticeKinds } from "./notifications.mjs";
 import { LAYOUT_KEY, SHORTCUTS, SCREEN_IDS, REQUIRED_SHORTCUTS, readLayout, normalizeLayout, moveItem, pinShortcut, customizationAttributes } from './layout';
 import { useLongPress } from './useLongPress';
 import { CustomizeMenu } from './CustomizeMenu';
+import { useDashboardWidgets } from './useDashboardWidgets';
+import { DashboardView, DashboardStudio, LayoutExtensions } from './DashboardStudio';
 
 const HOST_MODE = new URLSearchParams(location.search).get("host");
 const TASKBAR = HOST_MODE === "taskbar";
@@ -215,9 +217,12 @@ export function App() {
     }),
     [phonebookData, setPhonebookData] = useState({ views: {}, error: '', syncing: false }),
     [obdPath, setObdPath] = useState("/dev/rfcomm0");
+  const dashboard = useDashboardWidgets(Boolean(HOST_MODE), !TASKBAR);
+  const [dashboardTemplate, setDashboardTemplate] = useState(null);
+  useEffect(() => { if (!['dashboard-editor','marketplace'].includes(screen)) setDashboardTemplate(null); }, [screen]);
   useEffect(() => {
     const identity = startupIdentity(location.search);
-    if (!identity || !service || !status.projection?.available || !status.layout) return;
+    if (!identity || !service || !status.projection?.available || !status.layout || (!TASKBAR && !dashboard.ready)) return;
     return reportStartup(identity, {
       fonts: document.fonts.ready,
       paint: () => new Promise(resolve => requestAnimationFrame(resolve)),
@@ -230,7 +235,7 @@ export function App() {
         } finally {clearTimeout(timeout);}
       },
     });
-  }, [service, status.projection?.available, Boolean(status.layout)]);
+  }, [service, status.projection?.available, Boolean(status.layout), dashboard.ready]);
   const audio = useRef(null),
     viewportRef = useRef(null),
     processor = useRef(null),
@@ -269,11 +274,11 @@ export function App() {
   useEffect(() => {
     noticeCenter.current.sync();
     if (latestNotice.current.native) {
-      for (const [kind, key] of [['output','outputNotice'],['input','inputNotice'],['track','nowPlayingNotice']]) {
-        if (!prefs[key]) nativeNotice({kind, message: '', duration: 1}).catch(() => {});
+      for (const kind of mutedNoticeKinds(prefs)) {
+        nativeNotice({kind, message: '', duration: 1}).catch(() => {});
       }
     }
-  }, [prefs.outputNotice, prefs.inputNotice, prefs.nowPlayingNotice, status.projection?.enabled]);
+  }, [prefs.notificationsEnabled, prefs.toastNotice, prefs.outputNotice, prefs.inputNotice, prefs.nowPlayingNotice, status.projection?.enabled]);
   useEffect(() => {
     if (latestNotice.current.native) nativeNotice({kind: 'theme'}).catch(() => {});
   }, [prefs.dark, prefs.accent, prefs.darkAccent, status.projection?.enabled]);
@@ -286,7 +291,7 @@ export function App() {
   layoutState.current = layout;
   layoutEnabled.current = Boolean(status.projection?.enabled);
   useDragScroll(viewportRef);
-  useLongPress(viewportRef, setCustomize);
+  useLongPress(viewportRef, item => { if (item.kind === 'widget') go('dashboard-editor'); else setCustomize(item); });
   useEffect(() => {
     const sync = event => { if (event.key === LAYOUT_KEY && !layoutEnabled.current) setLayout(readLayout()); };
     addEventListener('storage', sync);
@@ -883,6 +888,9 @@ export function App() {
     ),
     "notification-settings": (
       <>
+        {toggle("notificationsEnabled", "Enable popup notifications")}
+        <p className="setting-note">Turn off to silence all coscarOS popups, including volume, track and update notices. Your individual choices are kept.</p>
+        {toggle("toastNotice", "General messages")}
         {toggle("outputNotice", "Output volume level")}
         {toggle("inputNotice", "Input volume level")}
         {toggle("nowPlayingNotice", "Now playing")}
@@ -982,6 +990,8 @@ export function App() {
     () => themePalette(prefs.dark, selectedAccent),
     [prefs.dark, selectedAccent],
   );
+  const widgetData = {now,time,shownMedia,liveMedia,navigation,phone:status.phone,phonebook:phonebookData,obd:status.obd,projection:status.projection,
+    previous:()=>stepTrack(-1),next:()=>stepTrack(1),play};
   const unit = Math.max(
     0.55,
     Math.min(
@@ -1036,7 +1046,7 @@ export function App() {
           onChange={loadFiles}
         />
         <section className={`screen screen-${screen}`}>
-          {screen === "dashboard" && (
+          {screen === "dashboard" && !dashboard.config.enabled && (
             <div className="dashboard-grid">
               <div className="dashboard-left" style={{ order: layout.columns.indexOf('clock-navigation') }}>
                 <div className="card clock-card" role="group" aria-label="Clock card" tabIndex={0} style={{ order: layout.leftCards.indexOf('clock') }} {...customizationAttributes('card', 'clock', undefined, 'dashboard')}>
@@ -1160,6 +1170,9 @@ export function App() {
               </div>
             </div>
           )}
+          {screen === "dashboard" && !dashboard.config.enabled && <button className="dashboard-customize-entry" onClick={() => go('dashboard-editor')}><span className="material-symbols-rounded" aria-hidden="true">tune</span>Customize dashboard</button>}
+          {screen === "dashboard" && dashboard.config.enabled && <DashboardView workspace={dashboard} palette={palette} onGo={activateShortcut} data={widgetData} />}
+          {screen === "dashboard-editor" && <DashboardStudio workspace={dashboard} initialConfig={dashboardTemplate?.config || {...dashboard.config, enabled:true}} initialRevision={dashboardTemplate?.revision ?? dashboard.revision} onBrowse={(draft,revision) => {setDashboardTemplate({config:draft,revision});go('marketplace');}} palette={palette} onGo={activateShortcut} data={widgetData} onClose={() => {setDashboardTemplate(null); go('dashboard');}} />}
           {["apps", "settings"].includes(screen) && (
             <>
               <IconButton
@@ -1216,6 +1229,8 @@ export function App() {
               "combined",
               "gauges",
               "gauges-2",
+              "dashboard-editor",
+              "marketplace",
             ].includes(screen) && (
               <IconButton
                 className="back-button"
@@ -1671,7 +1686,7 @@ export function App() {
           {screen === "custom-obd" && <Suspense fallback={<div className="empty-message">Loading My OBD…</div>}><CustomOBD telemetry={status.obd} now={now} demo={prefs.demo} native={Boolean(HOST_MODE)} palette={palette} onSettings={()=>go("obd-settings")} onLogs={()=>go("obd-logs")}/></Suspense>}
           {screen === "obd-logs" && <Suspense fallback={<div className="empty-message">Loading OBD Logs…</div>}><OBDLogs telemetry={status.obd} demo={prefs.demo} onSettings={()=>go("obd-settings")} onDashboard={()=>go("custom-obd")}/></Suspense>}
           {screen === "software-update" && <Suspense fallback={<div className="empty-message">Loading software updates…</div>}><SoftwareUpdates/></Suspense>}
-          {screen === "marketplace" && <Marketplace tell={tell} />}
+          {screen === "marketplace" && <LayoutExtensions workspace={dashboard} onClose={back} onPreview={config => {setDashboardTemplate({config,revision:dashboard.revision});go('dashboard-editor');}} />}
         </section>
         <footer className="bottom-bar">
           <div className="taskbar-items" aria-label="Taskbar shortcuts">
@@ -1694,9 +1709,10 @@ export function App() {
             })}
           </div>
           {TASKBAR && customize && <CustomizeMenu item={customize} layout={layout} close={() => setCustomize(null)}
-            inline move={moveCustomized} remove={id => { if (!REQUIRED_SHORTCUTS.includes(id)) updateLayout(current => ({ ...current, taskbar: current.taskbar.filter(item => item !== id) })); setCustomize(null); }} />}
+            inline editDashboard={() => {setCustomize(null); go('dashboard-editor');}} move={moveCustomized} remove={id => { if (!REQUIRED_SHORTCUTS.includes(id)) updateLayout(current => ({ ...current, taskbar: current.taskbar.filter(item => item !== id) })); setCustomize(null); }} />}
         </footer>
         {!TASKBAR && customize && <CustomizeMenu item={customize} layout={layout} close={() => setCustomize(null)}
+          editDashboard={() => {setCustomize(null);go('dashboard-editor');}}
           pin={id => { updateLayout(current => pinShortcut(current, id)); setCustomize(null); }}
           move={moveCustomized} remove={id => { if (!REQUIRED_SHORTCUTS.includes(id)) updateLayout(current => ({ ...current, taskbar: current.taskbar.filter(item => item !== id) })); setCustomize(null); }} />}
         {notice && (
@@ -1705,77 +1721,6 @@ export function App() {
           </div>
         )}
       </main>
-    </div>
-  );
-}
-function Marketplace({ tell }) {
-  const [category, setCategory] = useState("All");
-  const [query, setQuery] = useState("");
-  return (
-    <div className="marketplace">
-      <header>
-        <small>✦ coscarOS SETTINGS</small>
-        <h1>coscarOS Extensions</h1>
-        <p>Community extensions for your coscarOS dashboard.</p>
-        <div className="market-actions">
-          <span>No catalog connected</span>
-          <button onClick={() => tell("No community catalog is configured.")}>
-            Refresh marketplace
-          </button>
-          <button
-            onClick={() =>
-              tell("Plugin submission requires a connected catalog.")
-            }
-          >
-            Submit plugin
-          </button>
-        </div>
-      </header>
-      <div className="market-banner">
-        <Icon name="apps" />
-        <div>
-          <strong>Opened in coscarOS</strong>
-          <p>Marketplace view within the normal settings</p>
-        </div>
-        <span>Community-made · unverified</span>
-      </div>
-      <div className="market-filters">
-        <input
-          aria-label="Search extensions"
-          placeholder="Search by name, type, author or description"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <div>
-          {["All", "Apps", "Widgets", "Overlays", "Dashboards"].map((value) => (
-            <button
-              key={value}
-              className={category === value ? "selected" : ""}
-              onClick={() => setCategory(value)}
-            >
-              {value}
-            </button>
-          ))}
-          <label>
-            Sort{" "}
-            <select aria-label="Sort extensions">
-              <option>Popularity</option>
-              <option>Name</option>
-              <option>Newest</option>
-            </select>
-          </label>
-        </div>
-      </div>
-      <div className="market-warning">
-        <strong>Community content is unverified.</strong>
-        <p>
-          No security, virus or functionality guarantee. Review permissions and
-          source before installing.
-        </p>
-      </div>
-      <h2>Community catalog</h2>
-      <p>Available extensions will be listed here.</p>
-      <div className="market-empty">No catalog connected.</div>
     </div>
   );
 }

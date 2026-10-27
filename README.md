@@ -4,14 +4,15 @@
 
 React touchscreen UI · Python hardware service · Qt fullscreen host · USB & wireless Android Auto
 
-[![Our recreated dashboard in its light theme, with synthetic demo media and navigation](docs/images/dashboard-light.jpg)](docs/images/dashboard-light.jpg)
+[![coscarOS touchscreen dashboard](docs/images/dashboard-current.jpg)](docs/images/dashboard-current.jpg)
 
-*Our application running in a local browser. The phone, track and route are synthetic screenshot data; this image is not a live vehicle test.*
+**[Install on your Pi](#easy-pi-installation)** · **[Explore the gallery](#screenshot-gallery)** · **[Hardware test results](docs/README_TEST_RESULTS.md)**
 
 ## Contents
 
 - [Introduction](#introduction)
 - [coscarOS branding and upgrade compatibility](docs/BRANDING.md)
+- [Capability status and daily-use roadmap](#capability-status-and-daily-use-roadmap)
 - [Screenshot gallery](#screenshot-gallery)
 - [What we rebuilt and corrected from Hudiy](#what-we-rebuilt-and-corrected-from-hudiy)
   - [Observing the original](#1-observed-the-original-application)
@@ -21,6 +22,7 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
   - [Bluetooth phone services](#5-integrated-bluetooth-phone-services)
   - [Required OBD vehicle data](#6-added-required-obd-vehicle-data-support)
   - [Audio support](#7-added-audio-support)
+- [Dashboard Studio, widgets and layout packs](#dashboard-widgets-and-layout-packs)
 - [Custom OBD dashboard](docs/CUSTOM_OBD.md)
 - [OBD diagnostic logging](docs/OBD_LOGGING.md)
 - [OTA software updates](docs/OTA_UPDATES.md)
@@ -33,6 +35,7 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 - [Run on the Raspberry Pi](#run-on-the-raspberry-pi)
 - [Settings and privacy](#settings-and-privacy)
 - [Tests and observed results](#tests-and-observed-results)
+  - [Performance and reliability](#performance-and-reliability)
 - [Real-Pi README acceptance report](docs/README_TEST_RESULTS.md)
 - [Remaining work checklist](#remaining-work)
 - [Legal documentation, Austrian/EU review and provenance](LEGAL.md)
@@ -41,48 +44,99 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 
 ## Introduction
 
-**coscarOS** is our independent product name. Earlier versions used “Hudiy recreation”; references to the original Hudiy below describe the historical observation target. See [branding and upgrade compatibility](docs/BRANDING.md).
+**coscarOS brings phone projection, a customizable vehicle dashboard and diagnostic recording into one Raspberry Pi touchscreen application.** Keep the taskbar visible beside Android Auto, build your own OBD layout, and choose how connections, recording and updates behave.
 
-The project started with the owner's original Hudiy installation: inspect its screens and interactions, document what they do, and implement a usable car application independently. The aim is to preserve that familiar dashboard while making touch navigation, customization and device integration practical on our Pi.
+- **USB and wireless Android Auto:** native video, touch input and background phone data, with separate automatic connection and automatic opening settings.
+- **Your own OBD cockpit:** arrange blocks, original arc/tick gauges, charts and messages; define read-only custom sensors and formulas.
+- **Diagnostic recording:** manual or automatic capture, configurable intervals and storage limits, and local CSV/JSONL exports.
+- **Touch-first controls:** long-press shortcuts, drag-and-drop layouts, keyboard-free contact filters, configurable themes and responsive screens.
+- **A dedicated Pi application:** fullscreen Qt host, black startup, saved preferences and a working return to the desktop.
+- **Updates in Settings:** GitHub source updates, isolated preparation, health checks and rollback, with manual or automatic-idle installation.
 
-A touchscreen car dashboard built from observations of a running Hudiy installation and its public documentation. The interface is React and CSS, the gauges are drawn in code, and a Python service connects it to supported Pi and phone services.
+The React interface, Python hardware service and native receiver run independently of proprietary Hudiy. The native receiver uses a pinned, separately licensed open-source Android Auto protocol library. Bluetooth phone services, ELM327 selection and protected car Wi-Fi are managed by our application.
 
-The default Pi launcher now starts **our own native application and Android Auto protocol engine**, with a separately licensed, pinned open-source protocol library. It does not launch or connect to the proprietary Hudiy runtime. Our React interface, taskbar, Python backend, Bluetooth pairing, ELM327 selection and wireless settings remain under our application's control.
+The project began by observing the owner's Hudiy 1.24 installation and rebuilding its behavior independently. coscarOS is our product name; the [comparison below](#what-we-rebuilt-and-corrected-from-hudiy) records that history. See [branding and upgrade compatibility](docs/BRANDING.md).
 
-The standalone engine has displayed real USB and wireless Android Auto video from the owner's phone with proprietary Hudiy stopped and its API port absent. Taskbar switching, Quit/Resume, taskbar hiding, live cover art, Day/Night and physical brightness have been checked on our engine. An actual Pi reboot loaded our app and preserved preferences. We corrected USB accessory identification and a post-reboot service-discovery failure when no microphone device existed. USB and wireless now deliver decoded video again. See [standalone verification](docs/STANDALONE.md). The previous Hudiy API bridge and compatibility launcher have now been removed; only our independent runtime is supported. See [dependency inventory](docs/HUDIY_DEPENDENCIES.md).
+Real USB/wireless projection, phonebook synchronization, persistence, installation and managed OTA have been exercised on a Raspberry Pi 5 running 64-bit Raspberry Pi OS Trixie. Vehicle compatibility, extended audible operation and the ignition/power lifecycle still need the hardware checks listed under [remaining work](#remaining-work). CarPlay/Autobox is not implemented. The [acceptance report](docs/README_TEST_RESULTS.md) records the exact scope.
 
-The reference installation was Hudiy **1.24 / native API 1.3**, on a Raspberry Pi running **Debian 12 Bookworm with labwc**, with a **1280×720** touchscreen. That was the original observation environment. The installer, native app startup, landscape persistence and saved settings have since passed a fresh 64-bit Trixie desktop test; USB/wireless phone projection, PBAP and managed OTA have also been exercised on that fresh image; powered-vehicle and audible hardware acceptance remain open. See [the current Pi report](docs/README_TEST_RESULTS.md) and [installation acceptance](docs/INSTALL_VERIFICATION.md). The interface adapts to other screen sizes rather than depending on those reference dimensions. This is an ongoing recreation, not a claim of complete or pixel-perfect compatibility.
+## Capability status and daily-use roadmap
+
+Our goal is a dependable Raspberry Pi infotainment system combining smartphone projection with a configurable vehicle cockpit. The next milestones focus on complete daily-use workflows and repeatable hardware results.
+
+| Capability | Current coscarOS status | Evidence or next milestone |
+| --- | --- | --- |
+| Raspberry Pi 5 | Tested on a 4 GiB Pi 5, 64-bit Trixie Desktop and a 1280×720 DSI display. | [Recorded device configuration](docs/README_TEST_RESULTS.md); name the exact panel model and complete physical touch acceptance. |
+| Android Auto | Real USB and wireless video/input verified, including wireless setup without a preceding USB connection. | [Phone tests](docs/README_TEST_RESULTS.md#phone-display-and-interface); extend reconnect and multi-phone coverage. |
+| Navigation and music | Projection and metadata integration exist; audio output uses the native worker and configurable routing. | Verify phone-local playback, spoken directions and output recovery together on actual speakers. |
+| Phone calls and microphone | Phonebook/call controls and native microphone selection, gain and mute are implemented. | Complete incoming/outgoing conversation and voice-request capture with a real microphone and speakers. |
+| OBD and diagnostics | Standard live readings, custom Mode 01/22 mappings, formulas, layouts and diagnostic recording are implemented. | [Custom sensors](docs/CUSTOM_OBD.md) and [recording scope](docs/OBD_LOGGING.md); powered-vehicle/adapter validation remains open. |
+| Custom cockpit | Blocks, charts, messages, original arc/tick gauges and drag/drop layouts; real-Pi layout/reboot persistence checked. | Complete physical finger, long-press and multitouch checks on the mounted display. |
+| Installation and updates | Fresh Trixie installation and real GitHub OTA activation, health checks, rollback and reinstallation verified. | Repeat on fresh Bookworm and test controlled network/power interruption recovery. |
+| Apple CarPlay | Not implemented; the Autobox menu is not a working CarPlay receiver. | Select the receiver/authentication hardware path, implement it and verify with an iPhone. |
+| Ignition and shutdown | Automatic application startup and black boot are implemented. | Add ignition-aware safe shutdown with suitable power hardware and test repeated power cycles. |
+| Screenshots | The current main gallery uses actual disconnected app states without generated readings. | [Capture provenance](docs/ASSET_PROVENANCE.md#current-readme-captures--25-october-2026); historical fixture captures remain documented separately. |
+
+Standard live readings currently include engine load, coolant temperature, RPM, speed, throttle and control-module voltage. Custom mappings and diagnostic capture extend this beyond the six dashboard readings, subject to the ECU and adapter's actual support; they do not unlock every manufacturer signal.
+
+**Software and hardware costs:** the source is open source; no coscarOS subscription or paid activation is required. The dashboard/backend are MIT-licensed; the native application, including its linked projection engine, is GPL-3.0-or-later. Hardware is separate: a compatible ELM327 is required for vehicle data, while the separate Bluetooth-to-radio audio receiver is optional. See [licensing](#license-and-public-references).
+
+### Next milestones
+
+- [ ] **P1 — Complete phone audio:** verify phone-local music, navigation speech, voice requests and an authorized incoming/outgoing call on real speakers and a microphone; record routing, echo, volume, mute and unplug/replug results.
+- [ ] **P1 — Validate vehicle diagnostics:** record the vehicle model/year/engine, ECU, adapter and protocol; compare standard/custom readings with a reference diagnostic tool, then verify fault messages, recording/export, reconnect and stale-data clearing. Keep unsupported signals explicitly unavailable.
+- [ ] **P1 — Prove connection reliability:** repeat at least ten wireless cold starts with USB absent, then USB already attached at boot, cable/range loss, Quit/Resume, late services and phone switching; publish success counts and time to first usable frame.
+- [ ] **P1 — Finish the power lifecycle:** choose an ignition-aware supply/shutdown controller, implement its integration and verify clean shutdown, delayed cut-off, restart and preservation of preferences/recordings across repeated cycles.
+- [ ] **P2 — Publish performance measurements:** record boot-to-dashboard, reconnect-to-video, frame pacing, input latency, CPU/memory and throttling on a named Pi/display/OS configuration. Run a two-hour projection/audio test with OBD recording; report drops, underruns and recovery. Profile first, optimize the measured bottleneck and repeat the same workload.
+- [ ] **P2 — Publish display compatibility:** verify the exact Raspberry Pi Touch Display 2 model/resolution, all required rotations, corner alignment, physical touch/long-press/multitouch, brightness and resume behavior; add the result to a hardware compatibility table.
+- [ ] **P2 — Add CarPlay:** choose and document a compatible receiver/authentication route and its required hardware, complete native integration, then test wired/wireless iPhone projection, audio, Siri, taskbar switching and reconnection. [LIVI's documented authentication paths](https://github.com/f-io/LIVI#mfi-authentication) provide a reference; coscarOS currently implements neither of those paths.
+- [ ] **P2 — Make releases reproducible:** add fresh-image installation and update/rollback runs to a release checklist, publish tested hardware/version combinations and known issues, and complete the existing distribution/license review before shipping an image or appliance.
+
+The [detailed remaining-work checklist](#remaining-work) tracks the individual acceptance cases. Update this table when a milestone has supporting evidence; implementation and hardware verification are separate steps.
 
 ## Screenshot gallery
 
-Every screenshot below was **retaken on 24 October 2026** from the current production build of our React application at 1280×720. This coscarOS refresh replaces all 11 gallery images, including application branding, demo cover art and the OTA screen. The light theme follows our documented reference observations; the dark amber theme demonstrates our global accent controls. Click any image to open it at full size.
+Fresh captures from the production frontend and its local Python service on **25 October 2026**. These show the application with no phone or vehicle connected. Click an image for the full-size capture.
 
-| 🌙 Dark dashboard | 🧭 Application menu |
+| 🌙 Dark dashboard | 🎨 Appearance controls |
 | --- | --- |
-| [![Dark amber dashboard with synthetic media, sample navigation and demo phone](docs/images/dashboard-dark.jpg)](docs/images/dashboard-dark.jpg) | [![coscarOS application menu and persistent taskbar](docs/images/applications.jpg)](docs/images/applications.jpg) |
-| Same clock, navigation, music and phone layout with a different palette. | Rebuilt category navigation, settings entry and OBD view selection. |
+| [![coscarOS dark dashboard](docs/images/dashboard-dark-current.jpg)](docs/images/dashboard-dark-current.jpg) | [![Dark mode, accent colors and contrast controls](docs/images/theme-settings-current.jpg)](docs/images/theme-settings-current.jpg) |
+| Dashboard cards and persistent taskbar in the dark theme. | Independent light/dark preferences and global accent colors. |
 
-| 🎨 Theme controls | 🚗 OBD gauges — DEMO |
+| 🧩 My OBD | ↔️ Layout editor |
 | --- | --- |
-| [![Dark theme settings with color choices and matching amber controls](docs/images/theme-settings.jpg)](docs/images/theme-settings.jpg) | [![Code-rendered engine temperature, speed and RPM gauges labeled DEMO](docs/images/obd-gauges-demo.jpg)](docs/images/obd-gauges-demo.jpg) |
-| Accent colors reach the controls, panels and taskbar. | The application's existing Demo mode supplies simulated values. |
+| [![My OBD with blocks, a gauge, chart and diagnostic messages](docs/images/my-obd-current.jpg)](docs/images/my-obd-current.jpg) | [![My OBD editor with drag handles and directional controls](docs/images/my-obd-editor-current.jpg)](docs/images/my-obd-editor-current.jpg) |
+| Choose the data and display types for your cockpit. | Reposition and configure tiles using touch or keyboard controls. |
 
-| 🧩 Personal OBD dashboard — SIMULATOR | 📝 Diagnostic recorder — SIMULATOR |
+[![Diagnostic recorder settings and saved sessions](docs/images/obd-logs-current.jpg)](docs/images/obd-logs-current.jpg)
+
+**OBD Logs:** recording policy, capture settings, storage limits and saved sessions in one place.
+
+Capture details and earlier assets are recorded in [asset provenance](docs/ASSET_PROVENANCE.md). Hardware results are documented separately in the [Pi acceptance report](docs/README_TEST_RESULTS.md).
+
+## Dashboard widgets and layout packs
+
+Build your cockpit in **Dashboard Studio**: add, arrange, rename and resize widgets
+in a live preview, then save the result. Choose clock, navigation, music, phone,
+connection status, shortcuts, diagnostics and vehicle readings with original
+gauges or charts. Drag grips, precise move/swap controls and an on-screen title
+keyboard keep customization usable through the GUI.
+
+The original dashboard remains the default. **Glass is optional**, with configurable
+backdrops, accent, opacity, blur, rounding, spacing and motion. Native layouts use
+private, revision-checked device storage; a desktop preview saves in that browser.
+
+| Optional glass dashboard | Dashboard Studio |
 | --- | --- |
-| [![Custom OBD blocks, gauges, chart and trouble-code layout with synthetic readings](docs/images/custom-obd-simulator.jpg)](docs/images/custom-obd-simulator.jpg) | [![Configurable diagnostic recording with synthetic ECU data](docs/images/obd-logging-simulator.jpg)](docs/images/obd-logging-simulator.jpg) |
-| Choose data, positions, sizes and display types. | Manual/automatic recording, configurable capture and local exports. |
+| [![Customizable glass dashboard with disconnected phone and vehicle state](docs/images/widgets-glass.jpg)](docs/images/widgets-glass.jpg) | [![Dashboard Studio appearance controls and live preview](docs/images/dashboard-studio.jpg)](docs/images/dashboard-studio.jpg) |
 
-| 📱 Android Auto connection settings — LOCAL PREVIEW | 📦 OTA updates — SIMULATOR |
-| --- | --- |
-| [![Separate automatic connection and automatic opening switches in the current Android Auto settings](docs/images/android-auto-connection.jpg)](docs/images/android-auto-connection.jpg) | [![Current GitHub OTA status and preferences with an explicit simulated-data notice](docs/images/software-updates-preview.jpg)](docs/images/software-updates-preview.jpg) |
-| Connection, opening and taskbar visibility are separate choices. USB and wireless device checks are recorded separately in the acceptance report. | Update controls shown with simulated status; no real installation occurred during capture. |
+**Extensions → Layouts** provides four bundled layouts plus JSON import/export.
+Preview a shared layout before saving it, or choose Original to restore the familiar
+interface. An online community download catalog is planned. Read the [widget and
+layout-pack guide](docs/DASHBOARD_WIDGETS.md) for controls, storage and verification.
 
-| 🎛️ Original tick gauges — DEMO | ↔️ My OBD using the full available area — SIMULATOR |
-| --- | --- |
-| [![Original tick-style coolant, speed and RPM gauges with a visible DEMO badge](docs/images/obd-gauges-ticks-demo.jpg)](docs/images/obd-gauges-ticks-demo.jpg) | [![Current My OBD layout with small outer gutters and tiles extending down to the taskbar](docs/images/my-obd-full-area.jpg)](docs/images/my-obd-full-area.jpg) |
-| Both original gauge styles are rendered in code and available for custom tiles. | Compact header, 8px outer gutters and the actual remaining screen height. |
-
-**Screenshot scope:** the refreshed gallery used an isolated read-only local preview of the current production build, synthetic media/phone/navigation fixtures and the existing local ELM/OTA simulators. No Pi proxy, phone connection, real software update or hardware action was used. Screens are unedited viewport captures saved in their native JPEG format. Demo artwork was drawn specifically for this gallery. No real contacts, device addresses, location, phone artwork or Wi-Fi credentials are included. A visible menu entry or demo value does not establish hardware support; [verification](#tests-and-observed-results) and the [remaining work](#remaining-work) describe the actual status.
+These new captures are from the local production build on 27 October 2026 with
+no phone/vehicle attached. This widget revision is ready for local review; native
+Pi acceptance and deployment remain open.
 
 ## What we rebuilt and corrected from Hudiy
 
@@ -142,7 +196,7 @@ Our own native executable links `prodigy-oaa-protocol`, pinned to a documented o
 
 - The video surface sits above our taskbar, with Dashboard/Applications switching back to our web interface while the session stays connected.
 - The taskbar setting changes the advertised video/touch viewport and reconnects the session; the application stays running.
-- **Settings → Projections → Android Auto → Connect Android Auto automatically** saves automatic versus manual USB/Wi-Fi connection. **Open Android Auto automatically** separately controls foreground opening; enable both for unattended opening. Turning connection off leaves an active session running. The native connection policy has passed its Pi build/tests and the documented wireless acceptance run; remaining phone permutations are in the [test checklist](#android-auto-automatic-connection-acceptance).
+- **Settings → Projections → Android Auto → Connect Android Auto automatically** saves automatic versus manual USB/Wi-Fi connection. **Open Android Auto automatically** separately controls foreground opening; enable both for unattended opening. Turning connection off leaves an active session running. The native connection policy has passed its Pi build/tests and the documented wireless acceptance run; remaining phone permutations are in the [test checklist](#direct-wireless-connection-and-automatic-connection).
 - Per-phone Bluetooth reconnect is separate. With the master switch and Car Wi-Fi on, one recognized paired phone is selected by default unless its Bluetooth switch was explicitly turned off; several paired phones require selection. Phone detection also uses hands-free services/device class, so contact sharing is optional for reconnection. These choices are saved privately alongside Connections preferences.
 - Music and navigation refresh defaults to **1 second**, configurable from **1–60 seconds** in Music settings. Saved custom intervals are preserved. Five-second connection checks and event-driven phone metadata feed the backend. Wireless handoff retries are limited to one every 30 seconds, wait during an active/starting session and never open the screen themselves; the existing music/contact refresh settings remain configurable.
 - Day/Night is sent through the Android Auto sensor channel. Physical brightness still writes the real panel backlight.
@@ -244,6 +298,10 @@ coscarOS/
 │   │   │   └── prepare-sites-build.mjs  # Optional static-hosting build packaging
 │   │   ├── src/  # Screens, components and browser-side behavior
 │   │   │   ├── App.jsx  # Dashboard, navigation, settings and taskbar
+│   │   │   ├── DashboardStudio.jsx  # Widget renderer, editor and layout packs
+│   │   │   ├── dashboardWidgets.mjs  # Schema, placement, presets and pack validation
+│   │   │   ├── useDashboardWidgets.js  # Revision-aware device/browser persistence
+│   │   │   ├── dashboardStudio.css  # Classic/glass surfaces and responsive editor
 │   │   │   ├── audio.js
 │   │   │   ├── AudioInput.jsx  # Microphone selection, gain and mute
 │   │   │   ├── audioPresets.mjs
@@ -336,6 +394,7 @@ coscarOS/
 │   │   ├── requirements.txt  # Python dependency requirements
 │   │   ├── runtime_support.py  # Private settings, routes and wireless handshake
 │   │   ├── server.py  # HTTP API and built-frontend serving
+│   │   ├── dashboard_widgets.py  # Validated widget storage and layout export
 │   │   ├── software_update.py  # Fixed GitHub source, preparation and parked activation
 │   │   ├── standalone_projection.py  # Owned native IPC and projection status
 │   │   ├── test_*.py  # Backend, API, transport and installer regressions
@@ -440,21 +499,28 @@ The first command prints the exact changes. Applying retains timestamped backups
 
 The official Hudiy host/API/configuration bridge has been removed from production source. `HUDIY_PROJECTION_HOST` no longer enables an alternative runtime. The normal launcher runs only our native application; desktop preview keeps Pi controls unavailable.
 
-My OBD also uses the original arc/tick gauges with animated drag/drop and a compact, full-area grid. [View the current layout](docs/images/my-obd-full-area.jpg).
+My OBD also uses the original arc/tick gauges with animated drag/drop and a compact, full-area grid. [View the current layout](docs/images/my-obd-current.jpg).
 
 
 ## Black startup
 
-The updated installer and native runtime implement a quiet black boot/car session and keep the dashboard covered until both web views are painted. **Settings → System → Appearance → Black screen during startup** selects the behavior for the next start. Quit/recovery can return to the saved desktop. This needs a one-time OS/session setup as well as a native rebuild; full physical cold-boot acceptance remains unchecked; see [the reinstall test](docs/INSTALL_VERIFICATION.md). See [setup, recovery and acceptance](docs/BLACK_STARTUP.md).
+The updated installer and native runtime implement a quiet black boot/car session and keep the dashboard covered until both web views are painted. **Settings → System → Appearance → Black screen during startup** selects the behavior for the next start. Quit/recovery can return to the saved desktop. The reference Pi passed automatic startup, and the owner observed no desktop or white-page flashes during reboot. A recorded full power-on sequence and failure/recovery permutations remain open; see [the Pi acceptance report](docs/README_TEST_RESULTS.md) and [reinstall test](docs/INSTALL_VERIFICATION.md). See [setup, recovery and acceptance](docs/BLACK_STARTUP.md).
 
 
 ## OTA software updates
 
 **Settings → System → Software updates** adds selectable notify/manual or automatic-idle updates from this project's GitHub `main`. Check frequency, notifications, background preparation during Android Auto, metered routes and retained versions are configurable. Builds/tests run in a separate managed copy; activation restarts the app and verifies startup with automatic rollback. Ethernet can supply Internet while wireless Android Auto uses Wi-Fi; an existing free Wi-Fi Internet route is supported too. Network profiles remain unchanged.
 
-Install this OTA-capable revision once before using the updater. OS/package or incompatible bootstrap changes still use the normal installer. See the [OTA guide](docs/OTA_UPDATES.md) for initial deployment, source trust, parked/idle conditions and recovery. Real Pi OTA acceptance is pending. Local verification for this revision passes 214 backend tests (four platform skips), 34 frontend/packaging tests and the production build; the dependency audit reports zero known vulnerabilities.
+Install this OTA-capable revision once before using the updater. OS/package or incompatible bootstrap changes still use the normal installer. See the [OTA guide](docs/OTA_UPDATES.md) for initial deployment, source trust, parked/idle conditions and recovery. Real Pi preparation, activation, health confirmation, rollback, reinstallation and managed startup have passed. The active-call interlock was also exercised. Automatic activation using fresh stationary vehicle readings and interruption recovery remain in the [OTA acceptance checklist](docs/OTA_VERIFICATION.md).
 
 ## Settings and privacy
+
+To silence dashboard popups, open **Settings → System → Notifications** and turn
+**Enable popup notifications** off. This includes volume, input, track, general
+messages and update notices. **General messages** can also be disabled separately;
+individual category choices are retained. These choices persist in the browser
+or the Pi application's shared web profile. Confirmation dialogs and page status
+are unaffected.
 
 In the independent Pi application, supported preferences are stored under `~/.local/share/hudiy-recreation/`, including layout, refresh intervals, projection options, brightness, Bluetooth reconnect selection and optional radio output. Saves are atomic/private on Linux; durable layout/settings saves flush before acknowledgement. The standalone browser preview uses local browser preferences for appearance/layout.
 
@@ -464,12 +530,21 @@ The backend binds to **127.0.0.1** and is designed for a local application, not 
 
 ## Tests and observed results
 
-The latest [real-Pi README acceptance report](docs/README_TEST_RESULTS.md) records **259 backend tests**, **35 frontend tests** and **six native CTests** passing in actual OTA preparation, plus real USB/wireless projection, managed activation/rollback/reinstallation, persistence and Quit checks. The initial follow-up timed out because the Pi was switched off. Its subsequent power-on passed managed-release selection, hotspot restoration and automatic wireless projection/opening, with matching saved-preference hashes. Temporary settings were restored, with music refresh set to the subsequently requested one second. The subsequent one-second-default/hidden-scrollbar release `0db7f7e` also passed real OTA activation, native health, wireless recovery and all seven preference hashes; its scrollbar removal and wheel/drag scrolling were checked on the actual Pi. The paragraphs below retain historical revision-specific results.
+The latest [Pi acceptance report](docs/README_TEST_RESULTS.md) records the following results on the independent runtime:
 
-**coscarOS rename (24 October 2026):** production build and all 35 frontend/packaging tests pass. The 219-test backend suite passes with four Linux-only checks skipped on Windows. New regressions cover shortcut persistence through the display-name change, exact managed startup migration/rollback, and fixed-repository OTA archives/redirects. The production dependency audit reports zero known vulnerabilities. All 11 public screenshots were retaken with synthetic fixtures. Native rebuild and hardware acceptance for this rename remain pending; the existing Pi app was left running because it reports an active diagnostic recording. See [upgrade instructions](docs/BRANDING.md).
+| Area | Observed result |
+| --- | --- |
+| Automated checks on the Pi | 259 backend tests, 35 frontend/packaging tests and six native CTests passed during OTA preparation. |
+| Phone projection | Real USB and wireless decoded video, input, taskbar switching and Quit/Resume; wireless startup without a preceding USB session. |
+| Installation and startup | Fresh 64-bit Trixie desktop installation, automatic launch, retained orientation and preferences; the owner observed no boot flashes. |
+| OTA and recovery | Real GitHub release preparation/activation, health confirmation, rollback and reinstallation; managed release selected after reboot. |
+| Saved settings | All seven saved-preference hashes matched through the checked update; taskbar and custom OBD layouts persisted. |
+| Touch interface | Remote pointer drag and wheel scrolling, theme propagation, hidden scrollbars and keyboard-free contact filtering checked. Physical finger/multitouch acceptance remains open. |
+| Vehicle and audio hardware | Powered-vehicle OBD and extended audible media/navigation/conversation tests remain open. |
 
+See [installation evidence](docs/INSTALL_VERIFICATION.md), [OTA evidence](docs/OTA_VERIFICATION.md), [standalone receiver evidence](docs/STANDALONE.md) and [earlier verification history](docs/VERIFICATION.md) for revisions, methods and limits.
 
-From the repository root:
+Run the automated checks from the repository root:
 
 ```sh
 python -m unittest discover -s implementation/service -p 'test_*.py'
@@ -480,20 +555,18 @@ node --test tests/*.test.mjs
 npm audit --omit=dev --audit-level=high
 ```
 
-Earlier checkpoints passed 79 backend/13 frontend and 96 backend/14 frontend checks. The standalone-only cleanup passed 92 backend checks. The installer adds 11 checks: all 103 installer-era backend checks passed on a clean Pi source snapshot. The audio-worker revision passes all 104 backend checks directly in the cleaned Pi deployment; Windows skips the three Linux/symlink checks. The unchanged frontend has **16 frontend/packaging tests**. The current native revision compiles on the reference Pi and passes both CTest checks: DSP signals and bounded audio queues. An explicit opt-in silent-sink stress probe covers delivery during GUI stalls. Tests for the removed licensed bridge were retired; their OBD/audio regressions now exercise our direct transports. The same DSP signal check passed with AddressSanitizer and UndefinedBehaviorSanitizer on the Pi. The production dependency audit was rerun on 10 October 2026 and reported zero known vulnerabilities. A passing test suite is not a guarantee that the application has no security bugs.
+### Performance and reliability
 
-Tests cover bounded sensor/protocol handling, source changes and artwork invalidation, connection recovery, preference validation and rollback, layout persistence, calls with mocks, phonebook session ownership, audio routing ownership, host/origin/injection rejection and touch-filter grouping. Automated tests do not place real calls, remove real pairings or verify vehicle hardware.
+The native audio worker keeps delivery outside the UI thread and uses bounded queues. A Pi stress check reproduced overflow in the earlier path; the worker delivered every submitted byte to a temporary silent sink with no dropped or queued bytes. This checks queue behavior during a UI stall; audible endurance remains a separate hardware test. Details are in the [acceptance report](docs/README_TEST_RESULTS.md).
 
-Historical checks of the licensed bridge included contact synchronization, an authorized outgoing call/hangup and Bluetooth Play/Pause. Our standalone checks include real wireless projection, taskbar navigation, Android Auto Quit/Resume, both taskbar layouts, Day/Night, live media/artwork, backlight writes and actual reboot startup with matching saved-preference hashes. The new per-phone reconnect switch was checked against its private saved file in both states. See [current standalone evidence](docs/STANDALONE.md); [docs/VERIFICATION.md](docs/VERIFICATION.md) retains the earlier history. Earlier browser checks covered sizes from 320×568 through 1920×720.
-
-The custom OBD/dashboard logging revision passes **140 backend tests (four Windows/platform skips)**, **28 frontend/packaging tests**, and the production frontend build. The full dependency audit reported zero known vulnerabilities on 24 October 2026. Recording, configuration persistence, automatic connection start, CSV export and responsive controls were verified with an isolated loopback ELM simulator. This revision has not been deployed or verified with a powered vehicle on the Pi. See [logging scope](docs/OBD_LOGGING.md) and [verification](docs/VERIFICATION.md).
+Startup time, projection latency, frame pacing and sustained CPU/memory use still need a reproducible Pi baseline. They are explicit [remaining tasks](#performance-acceptance), rather than claims of superiority over another project.
 
 ## Remaining work
 
 The [25 October real-Pi acceptance report](docs/README_TEST_RESULTS.md) maps the
 README checks to device evidence and remaining limits. Checked items below are
-scoped results, not a declaration that every integration is finished. Simulator
-values and gallery images do not count as live vehicle evidence.
+scoped results, not a declaration that every integration is finished. The gallery
+illustrates the interface; hardware acceptance is recorded below.
 
 ### Interface and saved configuration
 
@@ -555,17 +628,25 @@ See [the current hardware report](docs/README_TEST_RESULTS.md) and [direct wirel
 - [x] Reproduce GUI-stall overflow in the old audio path and verify the worker delivers every submitted byte with no dropped/queued bytes to a temporary silent sink.
 - [ ] Verify extended audible media/navigation/conversation output on actual hardware, including drift and output-device recovery.
 
+### Performance acceptance
+
+- [ ] Record cold power-on to a usable dashboard and phone reconnect-to-first-frame timings over repeated runs on the reference Pi.
+- [ ] Measure frame pacing, input response, CPU, memory and thermal throttling during projection with OBD recording and background update preparation.
+- [ ] Run an extended audible playback/navigation test with device loss/recovery; retain drop, underrun and latency measurements.
+- [ ] Profile the slowest measured path, apply a targeted improvement and repeat the same workload before publishing performance claims.
+
 ### Optional integrations and later extensions
 
 - [ ] Test the separate optional Bluetooth-to-radio receiver for audible music, navigation and calls.
 - [x] Connect persistent native projection equalizer/balance and verify signal processing, IPC acknowledgement and hydration; audible hardware validation remains open.
 - [ ] Verify Bluetooth cover art and audible AVRCP playback end to end. Spotify Connect playback on a different device is not a definitive phone-local metadata test.
 - [ ] Implement CarPlay/Autobox, supported FM tuner playback and phone notification integration if they remain in scope.
-- [ ] Replace the marketplace placeholder with a real catalog, or remove it from the release.
+- [x] Replace the Extensions placeholder with bundled dashboard layouts, preview and validated JSON import/export.
+- [ ] Connect a versioned community layout catalog/download path and complete native widget-editor acceptance.
 - [ ] Complete the distribution review before publishing a binary/appliance release.
 
 CarPlay/Autobox, FM tuner playback, phone notification integration and a real
-marketplace catalog are not implemented. The native status popup is implemented;
+online community extension catalog are not implemented. The native status popup is implemented;
 it is separate from importing phone notifications.
 
 ## Clean-room approach and legal basis

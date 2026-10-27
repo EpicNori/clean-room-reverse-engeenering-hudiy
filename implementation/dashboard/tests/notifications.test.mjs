@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {NoticeCenter, TrackObserver, noticeSeconds} from '../src/notifications.mjs';
+import {NoticeCenter, TrackObserver, noticeSeconds, mutedNoticeKinds} from '../src/notifications.mjs';
 
 function fixture() {
   const prefs = {outputNotice: true, inputNotice: true, nowPlayingNotice: true, notificationDuration: 8, toastDuration: 2};
@@ -84,4 +84,59 @@ test('long Unicode track names stay bounded without splitting surrogate pairs', 
   const {center,notices}=fixture(); center.show('track','🎵'.repeat(300));
   assert.equal(Array.from(notices[0].message).length,256);
   assert.equal(notices[0].message,'🎵'.repeat(256));
+});
+
+
+test('master mute suppresses every popup and clears an active general message without queuing', () => {
+  const {prefs, center, notices, timers} = fixture();
+  center.show('toast', 'Update available');
+  prefs.notificationsEnabled = false;
+  center.sync();
+  assert.equal(center.current, null);
+  assert.equal(notices.at(-1).message, '');
+  assert.equal(timers.size, 0);
+  const count = notices.length;
+  for (const kind of ['toast', 'output', 'input', 'track']) {
+    assert.equal(center.show(kind, 'Muted'), false);
+  }
+  assert.equal(notices.length, count);
+  assert.equal(timers.size, 0);
+  assert.deepEqual(mutedNoticeKinds(prefs), ['toast', 'output', 'input', 'track']);
+  assert.equal(prefs.outputNotice, true);
+  prefs.notificationsEnabled = true;
+  assert.equal(center.show('output', 'Volume 40'), true);
+  assert.equal(notices.at(-1).message, 'Volume 40');
+});
+
+test('general messages can be muted separately and native clearing includes toasts', () => {
+  const {prefs, center, notices} = fixture();
+  center.show('toast', 'Saved');
+  prefs.toastNotice = false;
+  center.sync();
+  assert.equal(notices.at(-1).message, '');
+  assert.equal(center.show('toast', 'Saved again'), false);
+  assert.deepEqual(mutedNoticeKinds(prefs), ['toast']);
+  assert.equal(center.show('output', 'Volume 60'), true);
+  prefs.nowPlayingNotice = false;
+  assert.deepEqual(mutedNoticeKinds(prefs), ['toast', 'track']);
+});
+
+test('master and general popup choices survive reload and ignore invalid stored types', async () => {
+  const {readPreferences} = await import('../src/catalog.js');
+  const previous = globalThis.localStorage;
+  let stored = '{}';
+  try {
+    globalThis.localStorage = {getItem: () => stored};
+    assert.equal(readPreferences().notificationsEnabled, true);
+    assert.equal(readPreferences().toastNotice, true);
+    stored = JSON.stringify({...readPreferences(), notificationsEnabled:false, toastNotice:false, outputNotice:false});
+    const loaded = readPreferences();
+    assert.equal(loaded.notificationsEnabled, false);
+    assert.equal(loaded.toastNotice, false);
+    assert.equal(loaded.outputNotice, false);
+    assert.deepEqual(mutedNoticeKinds(loaded), ['toast', 'output', 'input', 'track']);
+    stored = JSON.stringify({notificationsEnabled:'false',toastNotice:0});
+    assert.equal(readPreferences().notificationsEnabled, true);
+    assert.equal(readPreferences().toastNotice, true);
+  } finally { if (previous === undefined) delete globalThis.localStorage; else globalThis.localStorage = previous; }
 });

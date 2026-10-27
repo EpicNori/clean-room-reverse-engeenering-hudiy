@@ -17,7 +17,7 @@ export const SHORTCUTS = Object.fromEntries([
 ]);
 export const REQUIRED_SHORTCUTS = ['dashboard', 'apps', 'android-resume'];
 export const DEFAULT_TASKBAR = ['dashboard', 'apps', 'mute', 'volume-down', 'volume-up', 'android-resume', 'connection-status', 'clock'];
-export const SCREEN_IDS = new Set(['dashboard', 'apps', 'settings', 'obd-settings', 'playlist', 'stations',
+export const SCREEN_IDS = new Set(['dashboard', 'dashboard-editor', 'apps', 'settings', 'obd-settings', 'playlist', 'stations',
   ...Object.values(menus).flat().map(([, , id]) => id).filter(id => !['quit', 'android-usb', 'android-wifi', 'android-resume', 'android-quit', 'autobox-wifi', 'autobox-resume'].includes(id))]);
 
 function order(value, allowed, complete = true) {

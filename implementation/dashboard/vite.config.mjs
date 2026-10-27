@@ -5,6 +5,7 @@ export default defineConfig({
   build: {
     outDir: "dist/client",
     assetsInlineLimit: 0,
+    rollupOptions: { output: { manualChunks: { charts: ["chart.js/auto"] } } },
   },
   optimizeDeps: {
     include: ["react", "react-dom/client"],

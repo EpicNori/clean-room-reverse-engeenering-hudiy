@@ -53,6 +53,23 @@ class SensorTests(unittest.TestCase):
         finally:obd.disconnect();simulator.shutdown();simulator.server_close()
 
 class HTTPTests(unittest.TestCase):
+    def test_widget_api_reuses_host_origin_limits_and_exact_fields(self):
+        with patch.object(server,'dashboard_widgets') as store:
+            store.snapshot.return_value={'available':False}
+            with self.request('/api/dashboard-widgets') as response:self.assertFalse(json.load(response)['available'])
+            with self.request('/api/dashboard-widgets',{'action':'export'},headers={'Origin':'https://evil.example'}) as response:self.assertEqual(response.status,403)
+            store.export.assert_not_called()
+            store.save.side_effect=ValueError('Invalid layout')
+            with self.request('/api/dashboard-widgets',{'action':'shell','command':'arbitrary'}) as response:self.assertEqual(response.status,400)
+            with self.request('/api/dashboard-widgets',{'revision':'r','config':'x'*17000}) as response:self.assertEqual(response.status,413)
+            store.export.return_value={'saved':True,'fileName':'coscaros-dashboard-test.json'}
+            with self.request('/api/dashboard-widgets',{'action':'export'}) as response:self.assertTrue(json.load(response)['saved'])
+            store.export.assert_called_once_with()
+            store.save.side_effect=server.DashboardConflict('Reload before saving')
+            with self.request('/api/dashboard-widgets',{'revision':'stale','config':{}}) as response:self.assertEqual(response.status,409)
+            store.save.side_effect=OSError('private directory')
+            with self.request('/api/dashboard-widgets',{'revision':'r','config':{}}) as response:
+                self.assertEqual(response.status,503);self.assertNotIn('private',json.load(response)['error'])
     def test_microphone_api_has_exact_payload_and_origin_boundaries(self):
         with patch.object(server,'audio_input') as microphone:
             microphone.snapshot.return_value={'available':False,'devices':[]}

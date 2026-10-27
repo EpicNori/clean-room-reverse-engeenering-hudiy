@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { REQUIRED_SHORTCUTS, SHORTCUTS } from './layout';
 
-export function CustomizeMenu({ item, layout, close, pin, remove, move, inline = false }) {
+export function CustomizeMenu({ item, layout, close, pin, remove, move, editDashboard, inline = false }) {
   const root = useRef(null);
   const shortcut = item.shortcut || item.id;
   const label = item.kind === 'card' ? { clock: 'Clock', navigation: 'Navigation', music: 'Music', phone: 'Phone' }[item.id] : SHORTCUTS[item.id]?.label;
@@ -24,6 +24,7 @@ export function CustomizeMenu({ item, layout, close, pin, remove, move, inline =
   };
   const content = <div ref={root} className={inline ? 'taskbar-edit' : 'customize-menu'} role="dialog" aria-modal={!inline} aria-label={`Customize ${label}`} onKeyDown={key}>
     <strong>{label}</strong>
+    {editDashboard && (item.kind === 'card' || shortcut === 'dashboard') && <button onClick={editDashboard}><span className="material-symbols-rounded" aria-hidden="true">dashboard_customize</span>Dashboard Studio</button>}
     {item.kind !== 'taskbar' && <button onClick={() => pin(shortcut)} disabled={layout.taskbar.includes(shortcut)}>
       <span className="material-symbols-rounded" aria-hidden="true">add</span>
       {layout.taskbar.includes(shortcut) ? 'Already in taskbar' : 'Add to taskbar'}

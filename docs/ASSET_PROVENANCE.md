@@ -21,7 +21,24 @@ The [complete notice artifact](../implementation/dashboard/public/THIRD_PARTY_NO
 
 ## Public screenshots and gallery artwork
 
-`docs/images/*.jpg` are viewport captures of our rendered application, retaken on 24 October 2026. They are not photographs or screen captures of the original Hudiy software. The demo album illustration was created for this gallery and displays coscarOS; media, route and phone labels are synthetic fixtures. These captures do not contain a real phonebook, original album cover, real map location, Wi-Fi key or device address. The project's license covers its own contributions, subject to the independently applicable font/icon/dependency licenses and any unresolved rights in reproduced GUI expression.
+### Current README captures — 25 October 2026
+
+The six `*-current.jpg` files below are unedited 2048×983 viewport captures of our production frontend from source revision `4b39e1c42e2968e61466b75e2dc1059ec4b03860`, served by the real local Python service at loopback port 8766. The native Pi host was not attached. Demo mode remained off; no API fixtures, generated sensor readings, synthetic phone/media/navigation data or injected update status were used. Missing hardware is shown as disconnected/unavailable. Only this local browser's appearance was changed for the dark views; the owner's Pi was not modified.
+
+| Path under `docs/images/` | Captured state |
+| --- | --- |
+| `dashboard-current.jpg` | Light dashboard; no connected phone or destination. |
+| `dashboard-dark-current.jpg` | Dark dashboard with the existing blue accent. |
+| `theme-settings-current.jpg` | Actual local appearance controls. |
+| `my-obd-current.jpg` | Default custom OBD layout with unavailable readings. |
+| `my-obd-editor-current.jpg` | The same layout in edit mode. |
+| `obd-logs-current.jpg` | Idle recorder, no adapter and no saved recordings. |
+
+These are interface captures, not vehicle measurements or proof of hardware compatibility. They contain no real phonebook, album cover, map location, Wi-Fi key or device address. The project's license covers its own contributions, subject to the independently applicable font/icon/dependency licenses and any unresolved rights in reproduced GUI expression.
+
+### Earlier gallery assets
+
+The earlier JPEG captures without the `-current` filename suffix were made on 24 October 2026 from our rendered application with synthetic media/phone/navigation fixtures and local ELM/OTA simulators. The demo album illustration was created for that gallery. They remain historical assets and are no longer the main README gallery; their test method has not changed. They are not captures of the original Hudiy software or evidence of live vehicle measurements.
 
 The [style specification](../style.md) describes the reference observations and intentional changes. The visual layout and gauge inspiration are disclosed in the [README comparison](../README.md#what-we-rebuilt-and-corrected-from-hudiy). Creating screenshot pixels from our own code does not establish originality of the arrangement. Raw reference captures remain private; a raw capture is not licensed merely because it is kept private.
 
@@ -38,3 +55,15 @@ coscarOS is the chosen project name, not a cleared registered mark. Hudiy is nam
 ## Future contributions
 
 For every new visual/media asset, record the path, author/creator, original source, license and any changes; include the required license/NOTICE files. Do not add original product captures, phone media, logos or external artwork merely because they can be viewed publicly. Review source provenance and the license obligations for each new dependency. Update this inventory and the actual notice generator when the shipped browser assets change.
+
+
+## Dashboard widget captures — 27 October 2026
+
+`docs/images/widgets-glass.jpg`, `dashboard-studio.jpg` and
+`extensions-layouts.jpg` are unedited 1280×720 captures of the local production
+widget revision, based on `4b39e1c` plus the uncommitted dashboard work. Phone/OBD
+hardware was disconnected; no generated live values or phone/media fixtures were
+injected. The widget surfaces/backdrops and pack thumbnails are original CSS
+and code using the existing licensed font/icon packages. The before/after local
+captures are not native Pi hardware acceptance. No Hyprland/Celestia shell code,
+assets or compositor configuration is shipped by this feature.

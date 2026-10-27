@@ -256,3 +256,59 @@ touch panning, mouse-drag scrolling, wheel/trackpad input, keyboard scrolling an
 explicit scroll arrows. Do not use `overflow: hidden` to conceal scrollbars.
 This policy applies in both themes and to horizontal scrolling on compact screens.
 No colors, assets, typography, focus indicators or animation are changed.
+
+
+## Product README and current gallery — 25 October 2026
+
+Lead with the product, supported workflows and installation link. Keep paired
+image tables, descriptive alt text and full-size links. The current gallery uses
+six unedited 2048×983 JPEG captures of the production frontend with its real local
+Python service, demo mode off and no phone/vehicle attached. Show actual missing
+data rather than inventing values or media. Use the existing light pink and dark
+blue themes; preserve the production UI without retouching screenshots. Keep
+older fixture captures and their historical provenance intact. Link detailed
+revision/test methods from a concise current acceptance table. Preserve the full
+source tree, installation/orientation guide and remaining-work checkboxes. No
+application colors, layout, behavior or backend rules change in this revision.
+
+The capability table uses the existing Markdown table style, with current status
+and evidence/next milestone in separate columns. The daily-use roadmap uses P1/P2
+checkboxes and measurable completion criteria; no badges or comparative ratings.
+
+
+## Popup notification controls — 27 October 2026
+
+Settings → System → Notifications begins with an Enable popup notifications
+master switch and a concise supporting note. Add General messages before the
+existing volume/input/track switches. Reuse the existing themed toggle rows,
+setting-note typography, touch targets, scrolling and focus states. The master
+switch retains all category choices and immediately dismisses any popup; the
+individual general-message switch also dismisses a visible toast. Both browser
+and native overlays follow the same policy. No colors, fonts, images or motion
+are added. Confirmation dialogs and inline page status remain available.
+
+
+## Dashboard Studio and optional glass — 27 October 2026
+
+Preserve the original dashboard and theme by default. A 48px Customize dashboard
+button and System → Dashboard entry open a separate editor. Use an explicit
+Save/Cancel workflow, a compact toolbar, a widget library, a live six-column grid,
+and a selected-widget inspector. Native layouts save through a private versioned
+backend document; preview layouts are labelled as browser-local. Keep the taskbar
+visible and never store live phone/vehicle content in shared layout packs.
+
+Classic widgets inherit existing theme tokens, Roboto and Material Symbols.
+Optional glass uses static original CSS aurora/midnight/sunrise/graphite backdrops,
+light text, a theme/custom accent, translucent panels, subtle 1px edges and bounded
+0–24px backdrop blur. Offer opacity, rounding, gap and motion controls. No external
+wallpaper, copied shell assets or new font is required. Provide an opaque fallback
+for unsupported/reduced-transparency environments. Motion is short (180ms), stops
+for reduced-motion preferences and never animates the backdrop continuously.
+
+Drag only from dedicated grips; ordinary touch/mouse scrolling stays available.
+Show a clear target preview, reject overlaps, and provide move/resize controls and
+keyboard alternatives. Reflow to two/one columns on compact displays without
+rewriting saved coordinates. All editor controls retain 48px touch targets, focus
+outlines and hidden scrollbar chrome. Extensions presents real bundled layouts
+and JSON import/export; future community download support must not be represented
+as an existing online catalog.

@@ -51,6 +51,7 @@ export const menus = {
     ["Extensions", "storefront", "marketplace"],
   ],
   System: [
+    ["Dashboard", "dashboard_customize", "dashboard-editor"],
     ["Theme", "palette", "theme"],
     ["Appearance", "design_services", "appearance"],
     ["Application", "settings_applications", "application"],
@@ -87,6 +88,8 @@ export const defaults = {
   barHeight: 81,
   hotspot: false,
   showCursor: false,
+  notificationsEnabled: true,
+  toastNotice: true,
   outputNotice: true,
   inputNotice: true,
   nowPlayingNotice: true,

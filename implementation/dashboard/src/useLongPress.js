@@ -20,7 +20,7 @@ export function useLongPress(rootRef, open) {
       clear();
       fired = false;
       suppressUntil = 0;
-      if (event.button !== 0 || !event.isPrimary || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+      if (event.button !== 0 || !event.isPrimary || event.target.closest('input,textarea,select,[contenteditable="true"],[data-dashboard-drag-handle]')) return;
       const node = target(event);
       if (!node) return;
       pending = { node, id: event.pointerId, x: event.clientX, y: event.clientY };

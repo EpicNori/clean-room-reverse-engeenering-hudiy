@@ -46,3 +46,21 @@ Hide native scrollbar chrome in every application view and nested scrollable
 panel/dialog, in both themes and at all viewport sizes. Preserve touch, mouse-drag,
 wheel/trackpad, keyboard and explicit-arrow scrolling; never disable overflow just
 to remove a visible scrollbar. Keep this policy in the shared global stylesheet.
+
+
+Provide a persistent master switch for popup notifications and an independent
+General messages switch in System → Notifications. Master Off suppresses all
+coscarOS popup categories, including toast errors/update notices, and clears
+already-visible browser/native notices. Preserve individual category choices,
+shared-profile synchronization and ordinary confirmation dialogs/inline status.
+
+
+The owner requests a GUI dashboard widget system. Keep the original dashboard as
+its default and provide optional glass styling inspired by configurable Linux
+shells. Dashboard Studio must support add/remove/rename/resize, drag/swap plus
+keyboard/touch alternatives, live preview and explicit Save/Cancel. Keep taskbar
+preferences independent, and persist native layouts through revision-checked
+private backend storage. Extensions supports bundled layouts and validated JSON
+import/export as the foundation for later community downloads; do not fabricate
+an online catalog or execute downloaded widget code. Preserve popup master mute,
+real missing-data states, responsive scrolling and startup readiness.

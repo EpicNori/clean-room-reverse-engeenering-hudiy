@@ -82,9 +82,16 @@ Native process/BlueZ profile registration and fixed NetworkManager switching rep
 
 ## Application notifications — local update, 10 October 2026
 
+**Popup controls added 27 October 2026:** the UI's boolean `notificationsEnabled`
+master and `toastNotice` general-message preferences use the existing browser/native
+web-profile storage and cross-view synchronization. Master Off suppresses every
+popup; both switches clear applicable active browser/native notices through the
+existing empty-message commands. Existing category choices are kept. There are no
+new HTTP actions, IPC kinds, cloud rules, privileges or network permissions.
+
 - POST `/api/action` with `action: notification` accepts only kind `toast`, `output`, `input` or `track`, plain-text `message` of at most 256 Unicode characters, integer `duration` 1–15, and `background`/`foreground` hex RGB colors. Empty text clears only the matching kind. Kind `theme` accepts only the two colors and recolors the existing notice without restarting its timeout. Unknown keys, commands, paths, style expressions and invalid values are rejected.
 - Delivery uses the existing owner-only Unix socket to our native app. A disabled/unavailable/closing runtime refuses the command. The native widget independently validates text, duration and colors, forces plain-text rendering, and has one bounded transient label/timer. Notification text is not added to state diagnostics, persisted or logged. Existing loopback binding, Host/Origin checks and 4 KiB HTTP body limit remain in force; no firewall, privilege or cloud rule changes.
-- Output sliders and mute now use the existing fixed PipeWire volume action from either web view. Rapid changes retain one request and one latest pending value per view; success notices obey Output volume level while failures remain error toasts. Input notices report saved input settings; actual microphone gain/mute remains unfinished and must not be represented as physical acceptance.
+- Output sliders and mute now use the existing fixed PipeWire volume action from either web view. Rapid changes retain one request and one latest pending value per view; success notices obey Output volume level while failures use general-message toasts; both obey the popup master switch. Input notices report saved input settings; actual microphone gain/mute remains unfinished and must not be represented as physical acceptance.
 - Native overlay compilation, touch pass-through, cross-view behavior and visibility over Android Auto still need device verification. The Pi powered off before the update could be uploaded; the current evidence covers local UI/backend tests only.
 
 
@@ -233,3 +240,30 @@ The installer also includes `pulseaudio-utils` for `pactl` on PipeWire systems.
 Installer confirmation and hotspot terminal authorization open terminal devices
 with `O_NOCTTY`, preventing headless OTA test processes from accidentally acquiring
 a controlling terminal and dying from SIGHUP when the test PTY closes.
+
+
+## Dashboard widgets and layout packs — 27 October 2026
+
+- GET `/api/dashboard-widgets` returns availability, configuration and a revision
+  hash. POST accepts exactly `revision`/`config`, or exactly `action: export`.
+  The 16 KiB limit is local to this endpoint; other action body limits stay unchanged.
+- Widget configuration permits version 1, a boolean enabled flag, at most 16 unique
+  widget definitions, six-by-eight grid bounds and non-overlapping rectangles.
+  Sources/display types and backdrop/surface values are allowlisted. Titles are
+  bounded plain text; appearance accepts bounded integers, a boolean motion flag
+  and `theme` or a six-digit RGB accent. No HTML, arbitrary CSS, URL, script, command,
+  live reading, phone media or arbitrary device path is accepted.
+- Device storage requires the native app. `dashboard-widgets.json` uses existing
+  atomic/private/fsync persistence. A lock and content revision reject stale saves
+  with 409; failed writes never acknowledge a new in-memory configuration.
+- Export writes only the validated saved configuration in a fixed data-pack wrapper
+  to `~/Downloads/coscarOS-Layouts/`, using a generated filename and private file
+  permissions. The fixed 100-file ceiling refuses further exports without deleting
+  anything. The API returns only the generated basename; callers cannot choose paths.
+- Existing loopback Host/Origin and JSON protections remain. Storage failures return
+  sanitized 503 responses. There are no cloud/firewall/privilege changes. Native
+  startup waits for the widget configuration so a saved custom layout does not
+  intentionally flash the original dashboard first.
+- Imports run through the same frontend schema before preview and through the backend
+  validator at native save. Bundled packs are local; no community download endpoint
+  or executable extension loader exists yet. See [widget guide](DASHBOARD_WIDGETS.md).
