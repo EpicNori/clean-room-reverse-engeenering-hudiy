@@ -284,6 +284,15 @@ class Handler(BaseHTTPRequestHandler):
                 if set(data)!=expected:raise ValueError('Unexpected Bluetooth action arguments')
                 operation={'bluetooth-scan':'scan','bluetooth-scan-stop':'stop','bluetooth-remove':'remove'}[name]
                 return self.send(200,bluetooth.command(operation,data.get('address'),data.get('confirmed',False)))
+            if name=='bluetooth-power':
+                if set(data)!={'action','enabled'}:raise ValueError('Bluetooth power accepts only enabled')
+                if not bluetooth.enabled:return self.send(501,{'error':'Bluetooth controls require the Pi'})
+                if data['enabled'] is False and (projection.phone_snapshot().get('call',{}).get('state') in (1,2,3) or calls.snapshot().get('call',{}).get('state') in (1,2,3)):raise ConnectionError('End the phone call before turning Bluetooth off')
+                return self.send(200,bluetooth.power(data['enabled']))
+            if name=='bluetooth-rename':
+                if set(data)!={'action','address','name'}:raise ValueError('Renaming requires only a device address and name')
+                if not bluetooth.enabled:return self.send(501,{'error':'Bluetooth controls require the Pi'})
+                return self.send(200,bluetooth.rename(data['address'],data['name']))
             if name=='bluetooth-pair-menu':
                 if set(data)!={'action'}:raise ValueError('Pairing menu accepts no arguments')
                 if agent:return self.send(200,bluetooth.command('stop' if bluetooth.snapshot().get('scanActive') else 'scan'))

@@ -45,6 +45,15 @@ class LayoutTests(unittest.TestCase):
         old['menus']['Hudiy'].append('shell')
         with self.assertRaises(ValueError): validate_layout(old)
 
+    def test_legacy_pair_and_remove_shortcuts_open_the_unified_bluetooth_screen(self):
+        old = copy.deepcopy(DEFAULT_LAYOUT)
+        old['taskbar'][2:2] = ['pair', 'remove']
+        old['menus']['Bluetooth'] = ['remove', 'pair', 'bluetooth-connections', 'contacts-settings']
+        result = validate_layout(old)
+        self.assertEqual(result['taskbar'][:3], ['dashboard', 'apps', 'bluetooth-connections'])
+        self.assertEqual(result['taskbar'].count('bluetooth-connections'), 1)
+        self.assertEqual(result['menus']['Bluetooth'], ['bluetooth-connections', 'contacts-settings'])
+
     def test_save_flushes_data_before_reporting_success(self):
         with tempfile.TemporaryDirectory() as folder:
             with patch('runtime_support.os.fsync', wraps=os.fsync) as sync:

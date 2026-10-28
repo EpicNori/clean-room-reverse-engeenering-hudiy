@@ -4,7 +4,7 @@ import socket
 import struct
 import threading
 import time
-from bluetooth_devices import ADDRESS, DEVICE_PATH
+from bluetooth_devices import ADDRESS, DEVICE_PATH, FAILED_VISIBLE, friendly_error
 from runtime_support import field
 from pathlib import Path
 from independent_wireless import IndependentWireless
@@ -13,6 +13,7 @@ AA_UUID='4de17a00-52cb-11e6-bdf4-0800200c9a66'
 AGENT_PATH='/org/epicnori/hudiy_recreation/agent'
 PROFILE_PATH='/org/epicnori/hudiy_recreation/android_auto'
 AA_CHANNEL=22
+PAIR_CONNECT_TIMEOUT=30
 SERVICE_RECORD=f'''<?xml version="1.0" encoding="UTF-8" ?>
 <record><attribute id="0x0001"><sequence><uuid value="{AA_UUID}"/></sequence></attribute>
 <attribute id="0x0004"><sequence><sequence><uuid value="0x0100"/></sequence>
@@ -40,6 +41,7 @@ class BluezAgent:
         self.bus=None
         self.ready=False
         self.error=''
+        self.progress=None
         self.connection=None
         self.connection_thread=None
         self.restart_thread=None
@@ -52,7 +54,49 @@ class BluezAgent:
         self.wireless_status={'connected':False,'lastMessage':None,'credentialRequests':0,'error':'','stage':'idle'}
 
     def snapshot(self):
-        with self.lock:return {'pairingAvailable':self.ready,'pairingBusy':self.pairing_busy,'pairing':copy.deepcopy(self.pending),'pairingError':self.error,'wirelessHandshake':dict(self.wireless_status)}
+        with self.lock:
+            # Finished pair+connect results stay visible briefly, like failed connections.
+            if self.progress and self.progress['state'] in ('connected','failed') and time.monotonic()-self.progress['at']>=FAILED_VISIBLE:
+                self.progress=None
+            progress={k:v for k,v in self.progress.items() if k!='at'} if self.progress else None
+            return {'pairingAvailable':self.ready,'pairingBusy':self.pairing_busy,'pairing':copy.deepcopy(self.pending),'pairingError':self.error,
+                    'pairingProgress':progress,'wirelessHandshake':dict(self.wireless_status)}
+
+    def _progress(self,state,message=''):
+        with self.lock:
+            if self.progress:self.progress.update(state=state,message=message,at=time.monotonic())
+
+    def _pair_and_connect(self,device,properties):
+        """Pair, trust and connect one device, so pairing ends with a usable connection."""
+        stage='pair'
+        try:
+            try:device.Pair(timeout=45)
+            except Exception as error:
+                if getattr(error,'get_dbus_name',lambda:'')()!='org.bluez.Error.AlreadyExists':raise
+            properties.Set('org.bluez.Device1','Trusted',True,timeout=3)
+            stage='connect'
+            self._progress('connecting')
+            try:device.Connect(timeout=PAIR_CONNECT_TIMEOUT)
+            except Exception as error:
+                name=getattr(error,'get_dbus_name',lambda:'')()
+                if name=='org.bluez.Error.InProgress':
+                    # The phone often connects by itself right after pairing.
+                    if not self._wait_connected(20):raise
+                elif name!='org.bluez.Error.AlreadyConnected':raise
+            self._progress('connected')
+        except Exception as error:
+            message=friendly_error(error,stage) or 'Pairing did not complete. Try again.'
+            with self.lock:
+                if stage=='pair':self.error='Pairing failed or was cancelled; try again'
+            self._progress('failed',message if stage=='pair' else 'Paired, but '+message[0].lower()+message[1:])
+
+    def _wait_connected(self,seconds):
+        with self.lock:address=self.progress and self.progress.get('address')
+        deadline=time.monotonic()+seconds
+        while time.monotonic()<deadline and not self.stop.is_set():
+            if any(d['address']==address and d.get('connected') for d in self.bluetooth.snapshot()['devices']):return True
+            self.stop.wait(1)
+        return False
 
     def prompt(self,path,kind,code=''):
         if not DEVICE_PATH.fullmatch(str(path)):raise ValueError('Invalid pairing device')
@@ -88,12 +132,17 @@ class BluezAgent:
         devices=self.bluetooth.snapshot()['devices']
         device=next((d for d in devices if d['address']==address and not d['paired']),None)
         if not device:raise ValueError('Choose a discovered unpaired device')
+        if self.bluetooth.snapshot().get('powered') is False:raise ConnectionError('Turn on Bluetooth first')
         with self.lock:
             if self.pending or self.pairing_busy:raise ConnectionError('Finish the pending pairing first')
             self.pairing_busy=True;self.error=''
+            self.progress={'address':address,'name':device['name'],'state':'pairing','message':'','at':time.monotonic()}
         def request():
             bus=None
             try:
+                # Discovery slows pairing and disturbs wireless Android Auto; stop it first.
+                try:self.bluetooth.command('stop')
+                except Exception:pass
                 import dbus
                 bus=dbus.SystemBus(private=True)
                 manager=dbus.Interface(bus.get_object('org.bluez','/'),'org.freedesktop.DBus.ObjectManager')
@@ -102,18 +151,19 @@ class BluezAgent:
                     str(interfaces.get('org.bluez.Device1',{}).get('Address','')).upper()==address]
                 if len(paths)!=1:raise ConnectionError('Bluetooth device disappeared')
                 path=paths[0]
-                dbus.Interface(bus.get_object('org.bluez',path),'org.bluez.Device1').Pair(timeout=45)
-                dbus.Interface(bus.get_object('org.bluez',path),'org.freedesktop.DBus.Properties').Set('org.bluez.Device1','Trusted',True,timeout=3)
-            except Exception:
+                self._pair_and_connect(dbus.Interface(bus.get_object('org.bluez',path),'org.bluez.Device1'),
+                    dbus.Interface(bus.get_object('org.bluez',path),'org.freedesktop.DBus.Properties'))
+            except Exception as error:
                 with self.lock:self.error='Pairing failed or was cancelled; try again'
+                self._progress('failed',friendly_error(error,'pair') or 'Pairing did not complete. Try again.')
             finally:
                 with self.lock:self.pairing_busy=False
                 if bus:bus.close()
         try:threading.Thread(target=request,daemon=True).start()
         except RuntimeError:
-            with self.lock:self.pairing_busy=False
+            with self.lock:self.pairing_busy=False;self.progress=None
             raise ConnectionError('Pairing worker could not start') from None
-        return {'accepted':True,'message':'Confirm the Bluetooth pairing code'}
+        return {'accepted':True,'message':f"Pairing with {device['name']}…"}
 
     def start(self):
         if self.bluetooth.enabled and not self.worker:

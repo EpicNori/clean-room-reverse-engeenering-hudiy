@@ -52,13 +52,47 @@ def player_media(players):
             'playing': props.get('Status') in ('playing', 'forward-seek', 'reverse-seek')}
 
 
+CONNECT_TIMEOUT = 30  # BlueZ connections commonly need 5-20 s.
+DISCONNECT_TIMEOUT = 10
+FAILED_VISIBLE = 30
+MAX_OPERATIONS = 4
+
+
+def friendly_error(error, operation='connect'):
+    """Short English text for common BlueZ/D-Bus failures; never exposes raw D-Bus details."""
+    name = str(getattr(error, 'get_dbus_name', lambda: '')() or '')
+    text = f'{name} {error}'.lower()
+    verb = {'pair': "Couldn't pair", 'disconnect': "Couldn't disconnect", 'power': "Couldn't switch Bluetooth",
+            'rename': "Couldn't rename the device"}.get(operation, "Couldn't connect")
+    if 'alreadyconnected' in text or 'already connected' in text: return ''
+    if 'inprogress' in text or 'in progress' in text: return 'The device is still busy with a previous request. Please wait.'
+    if 'notready' in text or 'not ready' in text: return 'Bluetooth is not ready yet. Try again in a moment.'
+    if 'blocked' in text or 'rfkill' in text: return 'Bluetooth is blocked by the system.'
+    if 'authentication' in text or 'rejected' in text or 'cancel' in text:
+        return ('Pairing was cancelled or the codes did not match.' if operation == 'pair'
+                else "Couldn't connect. Remove the device and pair it again.")
+    if 'alreadyexists' in text: return 'The device is already paired.'
+    if 'doesnotexist' in text or 'unknownobject' in text or 'disappeared' in text:
+        return 'The device is no longer available. Search again.'
+    if any(item in text for item in ('page-timeout', 'page timeout', 'host-down', 'host is down', 'ehostdown', 'refused')):
+        return f'{verb}. Make sure the device is on and in range.'
+    if 'noreply' in text or 'no reply' in text or 'timeout' in text or 'timed out' in text:
+        return f"{verb}. The device didn't answer. Make sure it is on and in range."
+    if 'profile-unavailable' in text or 'not available' in text or 'notavailable' in text or 'notsupported' in text or 'not supported' in text:
+        return f'{verb}. The device offers no supported connection.'
+    if operation in ('connect', 'pair'): return f'{verb}. Make sure the device is on and in range.'
+    return f'{verb}. Please try again.'
+
+
 def read_devices(objects):
     adapters = [(str(path), props['org.bluez.Adapter1']) for path, props in objects.items()
                 if 'org.bluez.Adapter1' in props and ADAPTER_PATH.fullmatch(str(path))]
     powered = [item for item in adapters if item[1].get('Powered')]
-    if len(powered) != 1:
+    if not adapters: raise ConnectionError('No Bluetooth adapter found')
+    # A single adapter that is switched off is reported, not treated as missing.
+    if len(powered) > 1 or (not powered and len(adapters) != 1):
         raise ConnectionError('Enable one Bluetooth adapter in the system')
-    adapter, info = powered[0]
+    adapter, info = (powered or adapters)[0]
     devices = []
     for path, interfaces in objects.items():
         props = interfaces.get('org.bluez.Device1')
@@ -75,7 +109,7 @@ def read_devices(objects):
         if len(devices) >= 128: break
     devices.sort(key=lambda item: item['address'])
     return adapter, {'name': str(info.get('Alias', info.get('Name', 'coscarOS')))[:128],
-                     'discovering': bool(info.get('Discovering'))}, devices
+                     'powered': bool(info.get('Powered')), 'discovering': bool(info.get('Discovering'))}, devices
 
 
 class BluetoothDevices:
@@ -96,12 +130,23 @@ class BluetoothDevices:
         self.phone_connection_ready = lambda: True
         self.last_attempt = {}
         self.scan_until = 0
-        self.data = {'available': False, 'name': 'coscarOS', 'discovering': False,
+        # Per-device connect/disconnect progress; failed entries expire after FAILED_VISIBLE.
+        self.operations = {}
+        self.start_worker = lambda target: threading.Thread(target=target, daemon=True).start()
+        self.data = {'available': False, 'name': 'coscarOS', 'powered': False, 'discovering': False,
                      'scanActive': False, 'devices': [], 'error': 'Bluetooth is available on the Pi'}
 
     def snapshot(self):
         effective=self._automatic_addresses()
-        with self.lock: return {**copy.deepcopy(self.data),'autoConnect':sorted(self.automatic), 'manualPhones':sorted(self.manual_phones), 'effectiveAutoConnect':sorted(effective)}
+        with self.lock:
+            now=time.monotonic()
+            self.operations={a:o for a,o in self.operations.items() if o['state']!='failed' or now-o['at']<FAILED_VISIBLE}
+            operations={a:{'state':o['state'],'message':o['message']} for a,o in self.operations.items()}
+            return {**copy.deepcopy(self.data),'autoConnect':sorted(self.automatic), 'manualPhones':sorted(self.manual_phones),
+                    'effectiveAutoConnect':sorted(effective),'operations':operations}
+
+    def _busy(self, address):
+        return self.operations.get(address,{}).get('state') in ('connecting','disconnecting')
 
     def connection(self, operation, address, enabled=None, confirmed=False):
         if operation not in ('connect','disconnect','automatic'): raise ValueError('Unknown connection action')
@@ -110,10 +155,17 @@ class BluetoothDevices:
         if operation=='disconnect' and confirmed is not True: raise ValueError('Confirm device disconnection')
         if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
         if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        job=None
         try:
             self._refresh()
             with self.lock: selected=next((d for d in self.devices if d['paired'] and d['address']==address),None)
             if not selected: raise ValueError('Choose a currently paired device')
+            if operation!='automatic':
+                if not self.data.get('powered'): raise ConnectionError('Turn on Bluetooth first')
+                with self.lock:
+                    if self._busy(address): raise ConnectionError('This device is still busy. Please wait.')
+                    if sum(self._busy(a) for a in self.operations)>=MAX_OPERATIONS:
+                        raise ConnectionError('Too many Bluetooth requests; wait a moment')
             if operation in ('automatic','disconnect'):
                 with self.lock:
                     updated=set(self.automatic)
@@ -129,13 +181,75 @@ class BluetoothDevices:
                     self.automatic=updated
                     self.manual_phones=manual
                     self.last_attempt.pop(address,None)
-            if operation!='automatic':
-                device=self.dbus.Interface(self.bus.get_object('org.bluez',selected['_path']),'org.bluez.Device1')
-                self.last_attempt[address]=time.monotonic()
-                if operation=='connect': device.Connect(timeout=3)
-                elif selected['connected']: device.Disconnect(timeout=3)
+            if operation=='automatic':
+                self._refresh()
+                return {'accepted':True,'message':'Automatic reconnect saved'}
+            if operation=='disconnect' and not selected['connected']:
+                return {'accepted':True,'state':'disconnected','message':'Device disconnected'}
+            self.last_attempt[address]=time.monotonic()
+            state='connecting' if operation=='connect' else 'disconnecting'
+            with self.lock: self.operations[address]={'state':state,'message':'','at':time.monotonic()}
+            job=(address,selected['_path'],operation)
+        finally: self.operation_lock.release()
+        # Connect often takes 5-20 s: run it without blocking the request, refresh loop or other actions.
+        try: self.start_worker(lambda: self._device_request(*job))
+        except RuntimeError:
+            with self.lock: self.operations.pop(address,None)
+            raise ConnectionError('Bluetooth request could not start') from None
+        return {'accepted':True,'state':state,
+                'message':f"{'Connecting to' if operation=='connect' else 'Disconnecting'} {selected['name']}…"}
+
+    def _device_request(self, address, path, operation):
+        message=''
+        try:
+            device=self.dbus.Interface(self.bus.get_object('org.bluez',path),'org.bluez.Device1')
+            if operation=='connect': device.Connect(timeout=CONNECT_TIMEOUT)
+            else: device.Disconnect(timeout=DISCONNECT_TIMEOUT)
+        except Exception as error:
+            message=friendly_error(error,operation)
+        # Refresh before clearing the busy state so the row never flashes the old status.
+        if self.operation_lock.acquire(timeout=5):
+            try: self._refresh()
+            except Exception: pass
+            finally: self.operation_lock.release()
+        with self.lock:
+            if message: self.operations[address]={'state':'failed','message':message,'at':time.monotonic()}
+            else: self.operations.pop(address,None)
+
+    def power(self, enabled):
+        if type(enabled) is not bool: raise ValueError('Bluetooth power must be on or off')
+        if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
+        if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        try:
             self._refresh()
-            return {'accepted':True,'message':'Automatic reconnect saved' if operation=='automatic' else 'Bluetooth connection requested'}
+            if not enabled:
+                try: self._stop_scan()
+                except Exception: pass
+            properties=self.dbus.Interface(self.bus.get_object('org.bluez',self.adapter),'org.freedesktop.DBus.Properties')
+            try: properties.Set('org.bluez.Adapter1','Powered',enabled,timeout=5)
+            except Exception as error: raise ConnectionError(friendly_error(error,'power')) from None
+            if not enabled:
+                with self.lock: self.operations={a:o for a,o in self.operations.items() if o['state']!='failed'}
+            self._refresh()
+            return {'accepted':True,'powered':enabled,'message':'Bluetooth is on' if enabled else 'Bluetooth is off'}
+        finally: self.operation_lock.release()
+
+    def rename(self, address, name):
+        if not isinstance(address,str) or not ADDRESS.fullmatch(address): raise ValueError('Choose a paired device address')
+        if not isinstance(name,str): raise ValueError('Device name must be text')
+        name=name.strip()
+        if not 1<=len(name)<=64 or not name.isprintable(): raise ValueError('Use 1-64 printable characters for the name')
+        if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
+        if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        try:
+            self._refresh()
+            with self.lock: selected=next((d for d in self.devices if d['paired'] and d['address']==address),None)
+            if not selected: raise ValueError('Choose a currently paired device')
+            properties=self.dbus.Interface(self.bus.get_object('org.bluez',selected['_path']),'org.freedesktop.DBus.Properties')
+            try: properties.Set('org.bluez.Device1','Alias',name,timeout=3)
+            except Exception as error: raise ConnectionError(friendly_error(error,'rename')) from None
+            self._refresh()
+            return {'accepted':True,'name':name,'message':'Device renamed'}
         finally: self.operation_lock.release()
 
     def _load_connections(self):
@@ -175,6 +289,7 @@ class BluetoothDevices:
         if not self.operation_lock.acquire(blocking=False):return 'waiting-for-bluetooth'
         try:
             self._refresh()
+            if not self.data.get('powered'):raise ConnectionError('Bluetooth is turned off')
             addresses=self._automatic_addresses()
             with self.lock:
                 phones=[d for d in self.devices if d['paired'] and d.get('phone')]
@@ -205,7 +320,8 @@ class BluetoothDevices:
         addresses=self._automatic_addresses()
         phone_ready=self.phone_connection_ready()
         with self.lock:
-            selected=next((d for d in self.devices if d['paired'] and not d['connected'] and d['address'] in addresses and (not d.get('phone') or phone_ready) and now-self.last_attempt.get(d['address'],float('-inf'))>=30),None)
+            if not self.data.get('powered'):return
+            selected=next((d for d in self.devices if d['paired'] and not d['connected'] and d['address'] in addresses and not self._busy(d['address']) and (not d.get('phone') or phone_ready) and now-self.last_attempt.get(d['address'],float('-inf'))>=30),None)
         if selected:
             self.last_attempt[selected['address']]=now
             try:self.dbus.Interface(self.bus.get_object('org.bluez',selected['_path']),'org.bluez.Device1').Connect(timeout=3)
@@ -219,6 +335,7 @@ class BluetoothDevices:
         adapter, info, devices = read_devices(objects)
         with self.lock:
             self.adapter, self.devices = adapter, devices
+            if not info['powered']: self.scan_until = 0
             self.media = player_media(addressed_players(objects, devices))
             self.data = {'available': True, **info, 'scanActive': bool(self.scan_until), 'error': '',
                          'devices': [{k: v for k, v in item.items() if not k.startswith('_')} for item in devices]}
@@ -237,6 +354,7 @@ class BluetoothDevices:
             self._refresh()
             adapter = self._adapter()
             if operation == 'scan':
+                if not self.data.get('powered'): raise ConnectionError('Turn on Bluetooth to search for devices')
                 if not self.scan_until: adapter.StartDiscovery(timeout=3)
                 self.scan_until = time.monotonic() + 30
                 result = {'accepted': True, 'message': 'Scanning for Bluetooth devices'}

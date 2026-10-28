@@ -939,7 +939,7 @@ export function App() {
         {slider("balance", "Balance", { min: -100, max: 100 })}
       </>
     ),
-    "audio-input": <AudioInput action={action} pair={()=>go("pair")}/>,
+    "audio-input": <AudioInput action={action} pair={()=>go("bluetooth-connections")}/>,
     "obd-settings": <OBDSettings onLogs={()=>go("obd-logs")} action={action} status={status} demo={prefs.demo} demoControl={toggle("demo", "Demo telemetry")}/>,
   };
   const selectedAccent = prefs.dark ? prefs.darkAccent : prefs.accent;
@@ -1512,7 +1512,8 @@ export function App() {
               <p>Version 0.1 · Raspberry Pi touchscreen</p>
             </div>
           )}
-          {["pair", "remove", "bluetooth-connections"].includes(screen) && <BluetoothView mode={screen} action={action} />}
+          {/* Legacy Pair/Remove routes open the same unified Bluetooth screen. */}
+          {["pair", "remove", "bluetooth-connections"].includes(screen) && <BluetoothView action={action} />}
           {[
             "obd-charts",
             "obd-blocks",

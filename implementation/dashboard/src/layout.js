@@ -17,7 +17,9 @@ export const SHORTCUTS = Object.fromEntries([
 ]);
 export const REQUIRED_SHORTCUTS = ['dashboard', 'apps', 'android-resume'];
 export const DEFAULT_TASKBAR = ['dashboard', 'apps', 'mute', 'volume-down', 'volume-up', 'android-resume', 'connection-status', 'clock'];
-export const SCREEN_IDS = new Set(['dashboard', 'dashboard-editor', 'apps', 'settings', 'obd-settings', 'playlist', 'stations',
+// Pair/Remove/Connections became one Bluetooth screen; saved shortcuts and routes keep opening it.
+export const LEGACY_SCREENS = { pair: 'bluetooth-connections', remove: 'bluetooth-connections' };
+export const SCREEN_IDS = new Set(['dashboard', 'dashboard-editor', 'apps', 'settings', 'obd-settings', 'playlist', 'stations', ...Object.keys(LEGACY_SCREENS),
   ...Object.values(menus).flat().map(([, , id]) => id).filter(id => !['quit', 'android-usb', 'android-wifi', 'android-resume', 'android-quit'].includes(id))]);
 
 function order(value, allowed, complete = true) {
@@ -26,7 +28,8 @@ function order(value, allowed, complete = true) {
 }
 export function normalizeLayout(value) {
   const raw = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  const taskbar = order(Array.isArray(raw.taskbar) ? raw.taskbar : DEFAULT_TASKBAR, Object.keys(SHORTCUTS), false);
+  const saved = Array.isArray(raw.taskbar) ? raw.taskbar.map(id => typeof id === 'string' && Object.hasOwn(LEGACY_SCREENS, id) ? LEGACY_SCREENS[id] : id) : DEFAULT_TASKBAR;
+  const taskbar = order(saved, Object.keys(SHORTCUTS), false);
   return {
     taskbar: [...new Set([...taskbar, ...REQUIRED_SHORTCUTS])],
     columns: order(raw.columns, ['clock-navigation', 'music', 'phone']),

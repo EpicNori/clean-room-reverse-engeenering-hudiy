@@ -2296,3 +2296,43 @@ a {
 .bluetooth-use-audio .material-symbols-rounded { font-size:24px; }
 .bluetooth-audio-route { max-width:320px; font-size:16px; line-height:1.4; overflow-wrap:anywhere; color:var(--primary); }
 .bluetooth-audio-status { overflow-wrap:anywhere; }
+
+/* Unified Android-style Bluetooth screen: one list for paired and nearby devices. */
+.bluetooth-view, .bluetooth-dialog { --bluetooth-error: #b3261e; }
+.dark .bluetooth-view, .dark .bluetooth-dialog { --bluetooth-error: #f2b8b5; }
+.bluetooth-view { position: absolute; inset: 22px calc(129 * var(--x)) 18px max(85px, calc(85 * var(--x))); display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.bluetooth-view header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0; }
+.bluetooth-view h1 { margin: 0; font-size: max(24px, calc(40 * var(--unit))); font-weight: 400; }
+.bluetooth-view .bluetooth-device-list { position: static; flex: 1; min-height: 0; }
+.bluetooth-view .bluetooth-scroll-buttons { right: calc(-109 * var(--x)); }
+.bluetooth-power, .bluetooth-switch-row { display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 4px 8px; border-radius: 18px; color: var(--text); font-size: max(18px, calc(28 * var(--unit))); }
+.customize-menu .bluetooth-switch-row { justify-content: space-between; width: 100%; padding: 8px 0; background: transparent; color: var(--text); text-align: left; }
+.bluetooth-view .switch, .bluetooth-dialog .switch { display: inline-block; flex-shrink: 0; min-width: 56px; min-height: 34px; }
+.bluetooth-power:disabled, .bluetooth-switch-row:disabled { opacity: .5; }
+.bluetooth-power:focus-visible, .bluetooth-switch-row:focus-visible, .bluetooth-row-main:focus-visible, .bluetooth-rename input:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.bluetooth-status { margin: 0; min-height: 1.4em; flex-shrink: 0; color: var(--text); font-size: max(16px, calc(24 * var(--unit))); }
+.bluetooth-status.error, .bluetooth-row-status.error, .bluetooth-device-name > .bluetooth-row-status.error { color: var(--bluetooth-error); }
+.bluetooth-section-title { margin: 16px 0 4px; color: var(--primary); font-size: max(16px, calc(26 * var(--unit))); font-weight: 500; }
+.bluetooth-available-title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.bluetooth-available-title h2 { margin: 0; font: inherit; }
+.bluetooth-searching { display: flex; align-items: center; gap: 10px; min-height: 48px; color: var(--muted); font-size: max(16px, calc(24 * var(--unit))); }
+.bluetooth-row { gap: 8px; }
+.bluetooth-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: calc(40 * var(--unit)); min-height: max(72px, calc(148 * var(--unit))); padding: 0 8px 0 0; border-radius: 16px; color: var(--text); text-align: left; }
+.bluetooth-row-main:disabled { cursor: default; }
+.bluetooth-row-main > .material-symbols-rounded { flex: 0 0 calc(68 * var(--unit)); min-width: 36px; text-align: center; font-size: max(32px, calc(80 * var(--unit))); }
+.bluetooth-device-name > .bluetooth-row-status, .bluetooth-dialog .bluetooth-row-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: max(16px, calc(32 * var(--unit))); line-height: 1.4; }
+.bluetooth-row-status.connected { color: var(--primary); }
+.bluetooth-row-status em { font-style: normal; color: var(--primary); }
+.bluetooth-spinner { display: inline-block; flex-shrink: 0; width: .9em; height: .9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: bluetooth-spin 1s linear infinite; }
+@keyframes bluetooth-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .bluetooth-spinner { animation: none; border-right-color: currentColor; opacity: .6; } }
+.bluetooth-rename { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 18px; }
+.bluetooth-rename input { min-height: 52px; padding: 10px 14px; border: 2px solid var(--track); border-radius: 14px; background: var(--bg); color: var(--text); font-size: 20px; }
+.bluetooth-pair-code b { color: var(--text); font-size: 1.4em; letter-spacing: .08em; }
+@media (max-width: 640px), (max-aspect-ratio: 1/1) {
+  .bluetooth-view { inset: 78px 52px 14px 16px; }
+  .bluetooth-view .bluetooth-scroll-buttons { right: -52px; }
+  .bluetooth-row-main { gap: 10px; min-height: 72px; }
+  .bluetooth-row-main > .material-symbols-rounded { flex-basis: 36px; font-size: 36px; }
+  .bluetooth-device-name > .bluetooth-row-status { font-size: 16px; }
+}

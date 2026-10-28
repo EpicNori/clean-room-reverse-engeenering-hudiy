@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeLayout, moveItem, pinShortcut, DEFAULT_TASKBAR, REQUIRED_SHORTCUTS } from '../src/layout.js';
+import { normalizeLayout, moveItem, pinShortcut, DEFAULT_TASKBAR, REQUIRED_SHORTCUTS, SCREEN_IDS } from '../src/layout.js';
 
 test('stored layout rejects unknown commands and duplicates while retaining navigation', () => {
   const result = normalizeLayout({ taskbar: ['contacts', 'contacts', 'shell', '../phone'], columns: ['phone', 'music', 'music'], menus: { Phone: ['dialpad', 'script'] } });
@@ -32,4 +32,12 @@ test('repositioning respects edges and survives persistence normalization', () =
   assert.deepEqual(persisted.taskbar, taskbar);
   assert.deepEqual(persisted.columns, ['clock-navigation', 'phone', 'music']);
   assert.deepEqual(persisted.leftCards, ['navigation', 'clock']);
+});
+
+test('saved Pair/Remove shortcuts become the single Bluetooth screen', () => {
+  const result = normalizeLayout({ taskbar: ['pair', 'remove', 'bluetooth-connections', 'dashboard'] });
+  assert.deepEqual(result.taskbar.filter(id => id === 'bluetooth-connections'), ['bluetooth-connections']);
+  assert.ok(!result.taskbar.includes('pair') && !result.taskbar.includes('remove'));
+  assert.deepEqual(result.menus.Bluetooth, ['bluetooth-connections', 'contacts-settings']);
+  for (const id of ['pair', 'remove', 'bluetooth-connections']) assert.ok(SCREEN_IDS.has(id));
 });

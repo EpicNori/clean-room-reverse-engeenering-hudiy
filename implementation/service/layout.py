@@ -14,12 +14,14 @@ MENU_IDS = {
     'System': ['dashboard-editor', 'theme', 'appearance', 'notification-settings', 'application', 'software-update', 'about'],
     'Projections': ['android-settings'],
     'Audio': ['sound', 'audio-input', 'equalizer', 'presets', 'music-settings'],
-    'Bluetooth': ['pair', 'remove', 'bluetooth-connections', 'contacts-settings'],
+    'Bluetooth': ['bluetooth-connections', 'contacts-settings'],
 }
 # Earlier catalogs offered these placeholders; saved layouts drop them instead of failing validation.
 RETIRED_GROUPS = {'Autobox'}
 RETIRED_IDS = {'notifications', 'active-apps', 'overlays', 'autobox-wifi', 'autobox-resume', 'autobox-music', 'autobox-settings'}
 ADDED_GROUPS = {'Vehicle'}
+# Pair/Remove/Connections became one Bluetooth screen; saved shortcuts keep opening it.
+LEGACY_IDS = {'pair': 'bluetooth-connections', 'remove': 'bluetooth-connections'}
 REQUIRED = {'dashboard', 'apps', 'android-resume'}
 DEFAULT_LAYOUT = {
     'taskbar': ['dashboard', 'apps', 'mute', 'volume-down', 'volume-up', 'android-resume', 'connection-status', 'clock'],
@@ -40,7 +42,10 @@ def validate_layout(value):
             raise ValueError('Layout contains invalid or duplicate items')
         return list(data)
     taskbar = value['taskbar']
-    if isinstance(taskbar, list): taskbar = [id for id in taskbar if not (isinstance(id, str) and id in RETIRED_IDS)]
+    if isinstance(taskbar, list):
+        taskbar = [LEGACY_IDS.get(id, id) if isinstance(id, str) else id for id in taskbar
+                   if not (isinstance(id, str) and id in RETIRED_IDS)]
+        taskbar = [id for index, id in enumerate(taskbar) if not isinstance(id, str) or id not in LEGACY_IDS.values() or taskbar.index(id) == index]
     taskbar = items(taskbar, SHORTCUTS)
     if not REQUIRED.issubset(taskbar):
         raise ValueError('Keep Dashboard, Applications and Android Auto shortcuts')
@@ -50,7 +55,7 @@ def validate_layout(value):
         raise ValueError('Invalid application categories')
     # Upgrade a previous catalog without discarding its personal taskbar/order: known
     # tiles keep their relative order, moved tiles join their new group, new tiles append.
-    known = SHORTCUTS | RETIRED_IDS
+    known = SHORTCUTS | RETIRED_IDS | set(LEGACY_IDS)
     for group in groups.values():
         items(group, known)
     previous = [id for group in groups.values() for id in group]

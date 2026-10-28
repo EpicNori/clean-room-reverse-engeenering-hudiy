@@ -67,9 +67,7 @@ export const menus = {
     ["Music refresh", "library_music", "music-settings"],
   ],
   Bluetooth: [
-    ["Pair", "add", "pair"],
-    ["Remove", "remove", "remove"],
-    ["Connections", "bluetooth_connected", "bluetooth-connections"],
+    ["Bluetooth", "bluetooth", "bluetooth-connections"],
     ["Contact sync", "contacts", "contacts-settings"],
   ],
 };

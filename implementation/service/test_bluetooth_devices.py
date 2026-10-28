@@ -4,7 +4,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
-from bluetooth_devices import BluetoothDevices, read_devices
+from bluetooth_devices import BluetoothDevices, CONNECT_TIMEOUT, DISCONNECT_TIMEOUT, friendly_error, read_devices
 from live_media import with_bluetooth_media
 
 ADAPTER='/org/bluez/hci0'
@@ -32,7 +32,7 @@ class BluetoothTests(unittest.TestCase):
                 with self.assertRaises(ValueError):service.connection('connect',address)
             device.Connect.assert_not_called()
             service.connection('connect',ADDRESS)
-            device.Connect.assert_called_once_with(timeout=3)
+            device.Connect.assert_called_once_with(timeout=CONNECT_TIMEOUT)
             service.connection('automatic',ADDRESS,True)
             self.assertEqual(service.snapshot()['autoConnect'],[ADDRESS])
             restored=BluetoothDevices(preferences=service.preferences)
@@ -42,7 +42,7 @@ class BluetoothTests(unittest.TestCase):
             with self.assertRaises(ValueError):service.connection('disconnect',ADDRESS)
             device.Disconnect.assert_not_called()
             service.connection('disconnect',ADDRESS,confirmed=True)
-            device.Disconnect.assert_called_once_with(timeout=3)
+            device.Disconnect.assert_called_once_with(timeout=DISCONNECT_TIMEOUT)
             self.assertEqual(service.automatic,set())
             objects[DEVICE]['org.bluez.Device1']['Paired']=False
             with self.assertRaises(ValueError):service.connection('connect',ADDRESS)
@@ -119,6 +119,7 @@ class BluetoothTests(unittest.TestCase):
         service.dbus=SimpleNamespace(Interface=lambda *_:adapter, ObjectPath=lambda path:path)
         service.manager=Mock()
         service.manager.GetManagedObjects.side_effect=lambda **_:objects
+        service.start_worker=lambda target:target()
         service._refresh()
         return service,adapter,objects
 
@@ -156,3 +157,95 @@ class BluetoothTests(unittest.TestCase):
 
     def test_disabled_service_cannot_change_bluetooth(self):
         with self.assertRaises(ConnectionError): BluetoothDevices(False).command('scan')
+
+
+class BluezError(Exception):
+    def __init__(self,name,text=''):
+        super().__init__(text);self.name=name
+    def get_dbus_name(self):return self.name
+
+
+class BluetoothScreenTests(unittest.TestCase):
+    service=BluetoothTests.service
+
+    def test_single_powered_off_adapter_is_reported_instead_of_failing(self):
+        service,device,objects=self.service()
+        objects[ADAPTER]['org.bluez.Adapter1']['Powered']=False
+        objects[DEVICE]['org.bluez.Device1']['Connected']=False
+        service._refresh()
+        data=service.snapshot()
+        self.assertTrue(data['available']);self.assertFalse(data['powered'])
+        self.assertEqual(data['devices'][0]['address'],ADDRESS)
+        with self.assertRaises(ConnectionError):service.connection('connect',ADDRESS)
+        with self.assertRaises(ConnectionError):service.command('scan')
+        service.automatic={ADDRESS};service._reconnect()
+        device.Connect.assert_not_called();device.StartDiscovery.assert_not_called()
+        objects['/org/bluez/hci1']={'org.bluez.Adapter1':{'Powered':False}}
+        with self.assertRaises(ConnectionError):read_devices(objects)
+        with self.assertRaises(ConnectionError):read_devices({})
+
+    def test_power_toggle_stops_scan_and_sets_only_the_adapter_property(self):
+        service,adapter,objects=self.service()
+        adapter.Set.side_effect=lambda interface,key,value,**_:objects[ADAPTER][interface].__setitem__(key,value)
+        for invalid in ('false',0,None,[]):
+            with self.assertRaises(ValueError):service.power(invalid)
+        service.command('scan')
+        result=service.power(False)
+        self.assertEqual((result['accepted'],result['powered']),(True,False))
+        adapter.StopDiscovery.assert_called_once_with(timeout=3)
+        adapter.Set.assert_called_once_with('org.bluez.Adapter1','Powered',False,timeout=5)
+        self.assertFalse(service.snapshot()['powered']);self.assertFalse(service.snapshot()['scanActive'])
+        service.power(True)
+        self.assertTrue(service.snapshot()['powered'])
+        adapter.Set.side_effect=BluezError('org.bluez.Error.Blocked')
+        with self.assertRaisesRegex(ConnectionError,'blocked'):service.power(False)
+
+    def test_rename_is_bounded_printable_and_paired_only(self):
+        service,device,objects=self.service()
+        device.Set.side_effect=lambda interface,key,value,**_:objects[DEVICE][interface].__setitem__(key,value)
+        for name in ('','   ','x'*65,'bad\nname','tab\tname',None,7):
+            with self.assertRaises(ValueError):service.rename(ADDRESS,name)
+        with self.assertRaises(ValueError):service.rename('../hci0','Car')
+        device.Set.assert_not_called()
+        self.assertEqual(service.rename(ADDRESS,'  My phone ')['name'],'My phone')
+        device.Set.assert_called_once_with('org.bluez.Device1','Alias','My phone',timeout=3)
+        self.assertEqual(service.snapshot()['devices'][0]['name'],'My phone')
+        objects[DEVICE]['org.bluez.Device1']['Paired']=False
+        with self.assertRaises(ValueError):service.rename(ADDRESS,'Other')
+
+    def test_connect_runs_in_a_worker_and_reports_state_and_friendly_errors(self):
+        service,device,objects=self.service()
+        objects[DEVICE]['org.bluez.Device1']['Connected']=False
+        jobs=[];service.start_worker=jobs.append
+        result=service.connection('connect',ADDRESS)
+        self.assertEqual(result['state'],'connecting')
+        self.assertEqual(service.snapshot()['operations'],{ADDRESS:{'state':'connecting','message':''}})
+        device.Connect.assert_not_called()
+        # The long request holds no lock: other actions keep working, duplicates are refused.
+        self.assertTrue(service.command('scan')['accepted'])
+        with self.assertRaises(ConnectionError):service.connection('connect',ADDRESS)
+        device.Connect.side_effect=BluezError('org.bluez.Error.Failed','br-connection-page-timeout')
+        jobs.pop()()
+        self.assertEqual(service.snapshot()['operations'][ADDRESS],
+            {'state':'failed','message':"Couldn't connect. Make sure the device is on and in range."})
+        service.operations[ADDRESS]['at']-=31
+        self.assertEqual(service.snapshot()['operations'],{})
+        device.Connect.side_effect=lambda **_:objects[DEVICE]['org.bluez.Device1'].__setitem__('Connected',True)
+        service.connection('connect',ADDRESS);jobs.pop()()
+        data=service.snapshot()
+        self.assertEqual(data['operations'],{});self.assertTrue(data['devices'][0]['connected'])
+        service.connection('disconnect',ADDRESS,confirmed=True)
+        self.assertEqual(service.snapshot()['operations'][ADDRESS]['state'],'disconnecting')
+
+    def test_common_bluez_errors_have_short_english_messages(self):
+        cases={('org.bluez.Error.Failed','Host is down'):"Couldn't connect. Make sure the device is on and in range.",
+               ('org.bluez.Error.AuthenticationFailed',''):"Couldn't connect. Remove the device and pair it again.",
+               ('org.bluez.Error.InProgress',''):'The device is still busy with a previous request. Please wait.',
+               ('org.bluez.Error.NotReady',''):'Bluetooth is not ready yet. Try again in a moment.',
+               ('org.freedesktop.DBus.Error.NoReply','Did not receive a reply'):"Couldn't connect. The device didn't answer. Make sure it is on and in range.",
+               ('org.bluez.Error.AlreadyConnected',''):''}
+        for (name,text),expected in cases.items():
+            self.assertEqual(friendly_error(BluezError(name,text)),expected)
+        self.assertEqual(friendly_error(BluezError('org.bluez.Error.AuthenticationRejected'),'pair'),
+                         'Pairing was cancelled or the codes did not match.')
+        self.assertNotIn('org.bluez',friendly_error(BluezError('org.bluez.Error.Failed','weird'),'disconnect'))
