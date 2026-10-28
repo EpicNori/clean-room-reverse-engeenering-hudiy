@@ -11,15 +11,17 @@
 -->
 <style>
   :root {
-    --bg: #0b0a07;
-    --surface: #13110b;
-    --surface-2: #1c1912;
-    --fg: #f7f2e2;
-    --fg-66: rgba(247, 242, 226, .66);
-    --fg-40: rgba(247, 242, 226, .40);
-    --line: rgba(247, 242, 226, .13);
-    --gold: #ffc928;
-    --gold-hi: #ffe48a;
+    /* coscarOS dark theme (implementation/dashboard/src/styles.css), default mauve accent */
+    --bg: #181116;
+    --surface: #281e25;
+    --active: #5c3a51;
+    --fg: #f1e5ed;
+    --muted: #d4c3cd;
+    --fg-40: rgba(212, 195, 205, .62);
+    --line: #55434e;
+    --accent: #eeb5dc;
+    --accent-hi: #f9d7ed;
+    --accent-deep: #844c73;
     --sans: "InterTight", "Segoe UI", Arial, sans-serif;
     --serif: "InstrumentSerif", Georgia, serif;
     --mono: "GeistMono", Consolas, monospace;
@@ -31,8 +33,8 @@
 
   #bg { position: absolute; inset: 0;
         background:
-          radial-gradient(1200px 800px at 70% 45%, rgba(255, 201, 40, .07), transparent 70%),
-          radial-gradient(900px 700px at 10% 90%, rgba(255, 228, 138, .035), transparent 70%),
+          radial-gradient(1200px 800px at 70% 45%, rgba(132, 76, 115, .20), transparent 70%),
+          radial-gradient(900px 700px at 10% 90%, rgba(238, 181, 220, .05), transparent 70%),
           var(--bg); }
   canvas#fx { position: absolute; inset: 0; width: 1920px; height: 1080px; }
 
@@ -42,39 +44,39 @@
   .line { display: block; white-space: nowrap; }
   .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .16em; margin-bottom: -.16em; }
   .wi { display: inline-block; will-change: transform; }
-  .gold { color: var(--gold); }
+  .accent { color: var(--accent); }
   .serif { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: -.01em; }
   .w.serif-w { padding-right: .1em; margin-right: -.1em; }
 
-  .kicker { font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .kicker { font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
   .head { margin-top: 26px; font-weight: 640; font-size: 104px; line-height: 1.0; letter-spacing: -.045em; }
   .head .serif { font-size: 1.12em; line-height: .9; }
-  .sub { margin-top: 30px; font-size: 30px; font-weight: 400; line-height: 1.3; color: var(--fg-66); letter-spacing: -.01em; }
+  .sub { margin-top: 30px; font-size: 30px; font-weight: 400; line-height: 1.3; color: var(--muted); letter-spacing: -.01em; }
 
   /* Screenshot chapters */
   .text { position: absolute; left: 120px; top: 0; bottom: 0; width: 760px; display: flex; flex-direction: column; justify-content: center; padding-bottom: 20px; }
   .glow { position: absolute; left: 870px; top: 140px; width: 940px; height: 800px; border-radius: 50%;
-          background: radial-gradient(closest-side, rgba(255, 201, 40, .22), rgba(255, 201, 40, .07) 55%, transparent 100%); }
+          background: radial-gradient(closest-side, rgba(132, 76, 115, .55), rgba(92, 58, 81, .22) 55%, transparent 100%); }
   .cards { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2400px; perspective-origin: 1330px 540px; }
   .card { position: absolute; width: 940px; padding: 0 12px 12px; border-radius: 18px;
-          background: linear-gradient(180deg, rgba(28, 25, 18, .92), rgba(19, 17, 11, .92));
+          background: linear-gradient(180deg, rgba(40, 30, 37, .94), rgba(30, 22, 28, .94));
           border: 1px solid var(--line);
-          box-shadow: 0 50px 120px rgba(0, 0, 0, .6), 0 12px 32px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(247, 242, 226, .08);
+          box-shadow: 0 50px 120px rgba(8, 4, 7, .65), 0 12px 32px rgba(8, 4, 7, .5), inset 0 1px 0 rgba(241, 229, 237, .08);
           will-change: transform, opacity; }
   .bar { height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
-  .bar i { width: 11px; height: 11px; border-radius: 50%; background: rgba(247, 242, 226, .22); }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: rgba(241, 229, 237, .22); }
   .bar span { margin-left: auto; font-family: var(--mono); font-size: 15px; letter-spacing: .08em; color: var(--fg-40); text-transform: uppercase; }
   .scr { position: relative; border-radius: 10px; overflow: hidden; background: #000; }
   .scr img { display: block; width: 916px; }
-  .wipe { position: absolute; width: 3px; margin-left: -1.5px; background: var(--gold-hi);
-          box-shadow: 0 0 18px 4px rgba(255, 201, 40, .7); }
+  .wipe { position: absolute; width: 3px; margin-left: -1.5px; background: var(--accent-hi);
+          box-shadow: 0 0 18px 4px rgba(238, 181, 220, .7); }
   .card.back { filter: brightness(.6) saturate(.9); }
 
   /* Typographic chapters */
   .typo .text { width: 1680px; }
   .big { font-weight: 640; font-size: 210px; line-height: .98; letter-spacing: -.05em; margin-top: 18px; }
   .serif-line { font-family: var(--serif); font-style: italic; font-size: 120px; line-height: 1.05; color: var(--fg); margin-top: 6px; letter-spacing: -.01em; }
-  .mono-sub { margin-top: 40px; font-family: var(--mono); font-size: 24px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-66); }
+  .mono-sub { margin-top: 40px; font-family: var(--mono); font-size: 24px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 
   /* Title and end */
   .center { position: absolute; left: 0; right: 0; text-align: center; }
@@ -82,26 +84,26 @@
   #t-sub { top: 664px; font-size: 44px; font-weight: 400; letter-spacing: -.02em; line-height: 1.2; color: var(--fg); }
   #t-sub .serif { font-size: 1.14em; }
   #e-meta { top: 664px; font-size: 44px; font-weight: 500; letter-spacing: -.02em; }
-  #e-url { top: 752px; font-family: var(--mono); font-size: 28px; letter-spacing: .04em; color: var(--gold-hi); }
+  #e-url { top: 752px; font-family: var(--mono); font-size: 28px; letter-spacing: .04em; color: var(--accent-hi); }
 
   /* Frame chrome */
   #chrome { position: absolute; inset: 0; pointer-events: none; }
   #brand { position: absolute; left: 72px; top: 50px; font-weight: 640; font-size: 26px; letter-spacing: -.03em; display: flex; align-items: center; gap: 12px; }
-  #brand b { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 12px rgba(255, 201, 40, .8); }
-  #tc { position: absolute; right: 72px; top: 54px; font-family: var(--mono); font-size: 20px; letter-spacing: .08em; color: var(--fg-66); }
+  #brand b { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px rgba(238, 181, 220, .8); }
+  #tc { position: absolute; right: 72px; top: 54px; font-family: var(--mono); font-size: 20px; letter-spacing: .08em; color: var(--muted); }
   #chapter { position: absolute; left: 72px; bottom: 66px; font-family: var(--mono); font-size: 17px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-40); }
   #stack { position: absolute; right: 72px; bottom: 66px; font-family: var(--mono); font-size: 17px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-40); }
   #segs { position: absolute; left: 72px; right: 72px; bottom: 44px; height: 3px; display: flex; gap: 8px; }
   #segs div { flex: 1; position: relative; background: var(--line); border-radius: 2px; overflow: hidden; }
-  #segs div span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); }
+  #segs div span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
 
-  #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55) 100%); }
+  #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(10, 6, 9, .6) 100%); }
   #grain { position: absolute; inset: 0; opacity: .045; background-repeat: repeat; } /* static grain keeps the file small */
 
   /* README poster variant */
   #play { position: absolute; left: 0; right: 0; top: 800px; display: none; align-items: center; justify-content: center; gap: 30px; }
-  #play .btn { width: 124px; height: 124px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center;
-               box-shadow: 0 0 0 10px rgba(255, 201, 40, .16), 0 0 60px rgba(255, 201, 40, .45), 0 20px 40px rgba(0, 0, 0, .5); }
+  #play .btn { width: 124px; height: 124px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center;
+               box-shadow: 0 0 0 10px rgba(238, 181, 220, .16), 0 0 60px rgba(132, 76, 115, .7), 0 20px 40px rgba(8, 4, 7, .5); }
   #play .btn svg { width: 50px; height: 50px; margin-left: 8px; fill: var(--bg); }
   #play .lbl { font-family: var(--mono); font-size: 26px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg); }
 </style>
@@ -125,7 +127,7 @@
 
 <script>
 /* ---------- Content: only features documented in README.md ----------
-   Headline markup: *word* = gold keyword, _word_ = Instrument Serif italic (combinable: _*word*_). */
+   Headline markup: *word* = accent keyword, _word_ = Instrument Serif italic (combinable: _*word*_). */
 const CHAPTERS = [
   { type: "title", dur: 4.6, label: "Intro" },
   { type: "shot", dur: 4.1, label: "Dashboard", kicker: "What you get:",
@@ -185,7 +187,7 @@ function words(text) {
   return text.split(" ").map(tok => {
     let cls = "", w = tok, serif = false, m;
     if ((m = w.match(/^_(.*)_([.,:]?)$/))) { serif = true; w = m[1] + m[2]; cls += " serif"; }
-    if ((m = w.match(/^\*(.*)\*([.,:]?)$/))) { w = m[1] + m[2]; cls += " gold"; }
+    if ((m = w.match(/^\*(.*)\*([.,:]?)$/))) { w = m[1] + m[2]; cls += " accent"; }
     return `<span class="w${serif ? " serif-w" : ""}"><span class="wi${cls}">${w.replace(/&/g, "&amp;")}</span></span>`;
   }).join(" ");
 }
@@ -250,7 +252,7 @@ function layoutCards() {
   }
 }
 
-/* ---------- gold particles: swarm that forms the wordmark, dust behind mockups ---------- */
+/* ---------- mauve particles: swarm that forms the wordmark, dust behind mockups ---------- */
 const cv = document.getElementById("fx");
 const ctx = cv.getContext("2d");
 const N = 1500;
@@ -260,8 +262,8 @@ const WM = { base: 590, shift: 0 };
 function makeSprite() {
   const s = document.createElement("canvas"); s.width = s.height = 32;
   const g = s.getContext("2d"), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
-  gr.addColorStop(0, "rgba(255,240,190,1)"); gr.addColorStop(.25, "rgba(255,214,90,.75)");
-  gr.addColorStop(.6, "rgba(255,201,40,.18)"); gr.addColorStop(1, "rgba(255,201,40,0)");
+  gr.addColorStop(0, "rgba(249,215,237,1)"); gr.addColorStop(.25, "rgba(238,181,220,.78)");
+  gr.addColorStop(.6, "rgba(132,76,115,.3)"); gr.addColorStop(1, "rgba(132,76,115,0)");
   g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return s;
 }
 function makeWordmark() {
@@ -270,8 +272,8 @@ function makeWordmark() {
   g.font = '640 290px "InterTight"'; g.letterSpacing = "-13px"; g.textBaseline = "alphabetic";
   const a = "coscar", b = "OS", wa = g.measureText(a).width, wb = g.measureText(b).width;
   const x0 = 960 - (wa + wb + 8) / 2;
-  g.fillStyle = "#f7f2e2"; g.fillText(a, x0, WM.base);
-  g.fillStyle = "#ffc928"; g.fillText(b, x0 + wa + 8, WM.base);
+  g.fillStyle = "#f1e5ed"; g.fillText(a, x0, WM.base);
+  g.fillStyle = "#eeb5dc"; g.fillText(b, x0 + wa + 8, WM.base);
   return c;
 }
 function initParticles() {
@@ -397,7 +399,7 @@ window.seek = function (t) {
   CHAPTERS.forEach((ch, i) => {
     const v = i < k ? 1 : i > k ? 0 : clamp((t - ch.start) / ch.dur);
     ch.seg.style.width = (v * 100).toFixed(2) + "%";
-    ch.seg.style.background = i < k ? "rgba(247,242,226,.40)" : "var(--gold)";
+    ch.seg.style.background = i < k ? "rgba(212,195,205,.55)" : "var(--accent)";
   });
 };
 
