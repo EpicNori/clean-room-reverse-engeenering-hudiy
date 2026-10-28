@@ -8,6 +8,12 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 
 **[Install on your Pi](#easy-pi-installation)** · **[Explore the gallery](#screenshot-gallery)** · **[Hardware test results](docs/README_TEST_RESULTS.md)**
 
+### ▶ Watch the intro · 0:42
+
+[![Watch the coscarOS intro video](docs/images/coscaros-intro-poster-play.jpg)](docs/videos/coscaros-intro.mp4)
+
+A 42-second tour built in code from real app captures (no sound). Open the [demo page](docs/demo/index.html) for the full player, features and gallery; [video source](docs/videos/source/README.md).
+
 ## Contents
 
 - [First launch and guided introduction](#first-launch-and-guided-introduction)

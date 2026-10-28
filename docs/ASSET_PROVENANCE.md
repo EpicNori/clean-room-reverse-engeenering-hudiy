@@ -87,3 +87,17 @@ SSH tunnel. Its API data is real: `e4cca11` installed/current after manual rollb
 and reinstallation, no pending restart, native startup verified. The browser's
 existing profile supplies its dark yellow appearance. It is a Pi-backed browser
 capture, not proof of a physical screen, audible output or live vehicle data.
+
+
+### Intro video and demo page — 28 October 2026
+
+`docs/videos/coscaros-intro.mp4` (0:42, 1920×1080, no audio) and the posters
+`docs/images/coscaros-intro-poster.jpg` / `coscaros-intro-poster-play.jpg` are
+rendered from our own HTML/CSS animation in `docs/videos/source/` with
+Playwright and ffmpeg. The only screen content is the existing unedited captures
+listed above (`docs/images/*-current.jpg`, `widgets-glass.jpg`,
+`dashboard-studio.jpg`, `android-auto-connection.jpg`,
+`ota-verified-current.jpg`). Text, particles, glass cards and grain are our own
+code. Fonts: Inter Tight, Instrument Serif and Geist Mono (SIL Open Font License
+1.1), also loaded from Google Fonts by `docs/demo/index.html`. No external
+footage, music, logos or stock assets are used.

@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>coscarOS intro video scene</title>
+<!--
+  Deterministic 1920x1080 scene for the coscarOS intro video.
+  render.cjs injects the fonts (Inter Tight, Instrument Serif, Geist Mono; all OFL,
+  from @fontsource packages), calls window.init() and then window.seek(t) per frame.
+  Every screen shown is an actual application capture from docs/images.
+-->
+<style>
+  :root {
+    --bg: #0b0a07;
+    --surface: #13110b;
+    --surface-2: #1c1912;
+    --fg: #f7f2e2;
+    --fg-66: rgba(247, 242, 226, .66);
+    --fg-40: rgba(247, 242, 226, .40);
+    --line: rgba(247, 242, 226, .13);
+    --gold: #ffc928;
+    --gold-hi: #ffe48a;
+    --sans: "InterTight", "Segoe UI", Arial, sans-serif;
+    --serif: "InstrumentSerif", Georgia, serif;
+    --mono: "GeistMono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+  body { font-family: var(--sans); color: var(--fg); -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+
+  #bg { position: absolute; inset: 0;
+        background:
+          radial-gradient(1200px 800px at 70% 45%, rgba(255, 201, 40, .07), transparent 70%),
+          radial-gradient(900px 700px at 10% 90%, rgba(255, 228, 138, .035), transparent 70%),
+          var(--bg); }
+  canvas#fx { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+
+  .chap { position: absolute; inset: 0; visibility: hidden; }
+
+  /* Masked word reveal */
+  .line { display: block; white-space: nowrap; }
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .16em; margin-bottom: -.16em; }
+  .wi { display: inline-block; will-change: transform; }
+  .gold { color: var(--gold); }
+  .serif { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: -.01em; }
+  .w.serif-w { padding-right: .1em; margin-right: -.1em; }
+
+  .kicker { font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .head { margin-top: 26px; font-weight: 640; font-size: 104px; line-height: 1.0; letter-spacing: -.045em; }
+  .head .serif { font-size: 1.12em; line-height: .9; }
+  .sub { margin-top: 30px; font-size: 30px; font-weight: 400; line-height: 1.3; color: var(--fg-66); letter-spacing: -.01em; }
+
+  /* Screenshot chapters */
+  .text { position: absolute; left: 120px; top: 0; bottom: 0; width: 760px; display: flex; flex-direction: column; justify-content: center; padding-bottom: 20px; }
+  .glow { position: absolute; left: 870px; top: 140px; width: 940px; height: 800px; border-radius: 50%;
+          background: radial-gradient(closest-side, rgba(255, 201, 40, .22), rgba(255, 201, 40, .07) 55%, transparent 100%); }
+  .cards { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2400px; perspective-origin: 1330px 540px; }
+  .card { position: absolute; width: 940px; padding: 0 12px 12px; border-radius: 18px;
+          background: linear-gradient(180deg, rgba(28, 25, 18, .92), rgba(19, 17, 11, .92));
+          border: 1px solid var(--line);
+          box-shadow: 0 50px 120px rgba(0, 0, 0, .6), 0 12px 32px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(247, 242, 226, .08);
+          will-change: transform, opacity; }
+  .bar { height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: rgba(247, 242, 226, .22); }
+  .bar span { margin-left: auto; font-family: var(--mono); font-size: 15px; letter-spacing: .08em; color: var(--fg-40); text-transform: uppercase; }
+  .scr { position: relative; border-radius: 10px; overflow: hidden; background: #000; }
+  .scr img { display: block; width: 916px; }
+  .wipe { position: absolute; width: 3px; margin-left: -1.5px; background: var(--gold-hi);
+          box-shadow: 0 0 18px 4px rgba(255, 201, 40, .7); }
+  .card.back { filter: brightness(.6) saturate(.9); }
+
+  /* Typographic chapters */
+  .typo .text { width: 1680px; }
+  .big { font-weight: 640; font-size: 210px; line-height: .98; letter-spacing: -.05em; margin-top: 18px; }
+  .serif-line { font-family: var(--serif); font-style: italic; font-size: 120px; line-height: 1.05; color: var(--fg); margin-top: 6px; letter-spacing: -.01em; }
+  .mono-sub { margin-top: 40px; font-family: var(--mono); font-size: 24px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-66); }
+
+  /* Title and end */
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  #t-kicker, #e-kicker { top: 318px; }
+  #t-sub { top: 664px; font-size: 44px; font-weight: 400; letter-spacing: -.02em; line-height: 1.2; color: var(--fg); }
+  #t-sub .serif { font-size: 1.14em; }
+  #e-meta { top: 664px; font-size: 44px; font-weight: 500; letter-spacing: -.02em; }
+  #e-url { top: 752px; font-family: var(--mono); font-size: 28px; letter-spacing: .04em; color: var(--gold-hi); }
+
+  /* Frame chrome */
+  #chrome { position: absolute; inset: 0; pointer-events: none; }
+  #brand { position: absolute; left: 72px; top: 50px; font-weight: 640; font-size: 26px; letter-spacing: -.03em; display: flex; align-items: center; gap: 12px; }
+  #brand b { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 12px rgba(255, 201, 40, .8); }
+  #tc { position: absolute; right: 72px; top: 54px; font-family: var(--mono); font-size: 20px; letter-spacing: .08em; color: var(--fg-66); }
+  #chapter { position: absolute; left: 72px; bottom: 66px; font-family: var(--mono); font-size: 17px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-40); }
+  #stack { position: absolute; right: 72px; bottom: 66px; font-family: var(--mono); font-size: 17px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-40); }
+  #segs { position: absolute; left: 72px; right: 72px; bottom: 44px; height: 3px; display: flex; gap: 8px; }
+  #segs div { flex: 1; position: relative; background: var(--line); border-radius: 2px; overflow: hidden; }
+  #segs div span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); }
+
+  #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55) 100%); }
+  #grain { position: absolute; inset: 0; opacity: .045; background-repeat: repeat; } /* static grain keeps the file small */
+
+  /* README poster variant */
+  #play { position: absolute; left: 0; right: 0; top: 800px; display: none; align-items: center; justify-content: center; gap: 30px; }
+  #play .btn { width: 124px; height: 124px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center;
+               box-shadow: 0 0 0 10px rgba(255, 201, 40, .16), 0 0 60px rgba(255, 201, 40, .45), 0 20px 40px rgba(0, 0, 0, .5); }
+  #play .btn svg { width: 50px; height: 50px; margin-left: 8px; fill: var(--bg); }
+  #play .lbl { font-family: var(--mono); font-size: 26px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <canvas id="fx" width="1920" height="1080"></canvas>
+  <div id="chapters"></div>
+  <div id="vignette"></div>
+  <div id="chrome">
+    <div id="brand"><b></b>coscarOS</div>
+    <div id="tc">00:00:00</div>
+    <div id="chapter"></div>
+    <div id="stack">React · Python · Qt · Raspberry Pi 5</div>
+    <div id="segs"></div>
+  </div>
+  <div id="play"><div class="btn"><svg viewBox="0 0 24 24"><path d="M6 3.5v17a1 1 0 0 0 1.52.85l13.6-8.5a1 1 0 0 0 0-1.7L7.52 2.65A1 1 0 0 0 6 3.5z"/></svg></div><div class="lbl" id="play-lbl"></div></div>
+  <div id="grain"></div>
+</div>
+
+<script>
+/* ---------- Content: only features documented in README.md ----------
+   Headline markup: *word* = gold keyword, _word_ = Instrument Serif italic (combinable: _*word*_). */
+const CHAPTERS = [
+  { type: "title", dur: 4.6, label: "Intro" },
+  { type: "shot", dur: 4.1, label: "Dashboard", kicker: "What you get:",
+    head: ["Your *dashboard,*", "light or dark."], sub: ["Clock, navigation, music and phone,", "with accent colors."],
+    front: { img: "dashboard-dark-current.jpg", tag: "Dashboard · dark" }, back: { img: "dashboard-current.jpg" } },
+  { type: "typo", dur: 2.9, label: "Phone projection", kicker: "Phone projection",
+    big: "USB + *wireless*", serif: "Android Auto.", mono: "Native video · touch input · background phone data" },
+  { type: "shot", dur: 4.1, label: "Android Auto", kicker: "Android Auto:",
+    head: ["Connects on", "your *terms.*"], sub: ["Automatic connection and automatic", "opening, set separately."],
+    front: { img: "android-auto-connection.jpg", tag: "Settings · Android Auto" } },
+  { type: "shot", dur: 4.1, label: "My OBD", kicker: "Vehicle data:",
+    head: ["Your own", "*OBD* cockpit."], sub: "Blocks, gauges and charts. Drag and drop.",
+    front: { img: "my-obd-current.jpg", tag: "My OBD" }, back: { img: "my-obd-editor-current.jpg" } },
+  { type: "shot", dur: 4.1, label: "OBD Logs", kicker: "Diagnostics:",
+    head: ["Diagnostic", "*recording.*"], sub: "Manual or automatic, with local CSV/JSONL export.",
+    front: { img: "obd-logs-current.jpg", tag: "OBD Logs" } },
+  { type: "shot", dur: 4.1, label: "Dashboard Studio", kicker: "Dashboard Studio:",
+    head: ["Make it", "_*yours.*_"], sub: "Widgets, live preview and optional glass layouts.",
+    front: { img: "dashboard-studio.jpg", tag: "Dashboard Studio" }, back: { img: "widgets-glass.jpg" } },
+  { type: "typo", dur: 2.9, label: "First launch", kicker: "First launch",
+    big: "*19* sections", serif: "of guided introduction.", mono: "Replay it any time from Settings" },
+  { type: "shot", dur: 4.1, label: "Updates", kicker: "Updates:",
+    head: ["Updates with", "*rollback.*"], sub: "From GitHub, in Settings, with health checks.",
+    front: { img: "ota-verified-current.jpg", tag: "coscarOS · GitHub OTA" } },
+  { type: "typo", dur: 2.9, label: "Open source", kicker: "Cost",
+    big: "*0 €* subscription", serif: "Open source, no paid activation.", mono: "MIT · GPL-3.0-or-later" },
+  { type: "end", dur: 4.4, label: "Get it" },
+];
+let acc = 0;
+for (const c of CHAPTERS) { c.start = acc; acc += c.dur; c.end = acc; }
+const DURATION = window.DURATION = +acc.toFixed(3);
+
+/* ---------- helpers ---------- */
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+function bezier(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const sx = t => ((ax * t + bx) * t + cx) * t, sy = t => ((ay * t + by) * t + cy) * t;
+  const dx = t => (3 * ax * t + 2 * bx) * t + cx;
+  return x => {
+    x = clamp(x); if (x === 0 || x === 1) return x;
+    let t = x;
+    for (let i = 0; i < 8; i++) { const e = sx(t) - x, d = dx(t); if (Math.abs(e) < 1e-6 || Math.abs(d) < 1e-6) break; t -= e / d; }
+    let lo = 0, hi = 1; t = clamp(t);
+    if (Math.abs(sx(t) - x) > 1e-4) { for (let i = 0; i < 30; i++) { t = (lo + hi) / 2; if (sx(t) < x) lo = t; else hi = t; } }
+    return sy(t);
+  };
+}
+const easeOut = bezier(.22, 1, .36, 1);      // reveal easing
+const easeIn = bezier(.64, 0, .78, 0);       // exit easing
+const easeInOut = bezier(.65, 0, .35, 1);
+const smooth = v => { v = clamp(v); return v * v * (3 - 2 * v); };
+const mix = (a, b, w) => a + (b - a) * w;
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function words(text) {
+  return text.split(" ").map(tok => {
+    let cls = "", w = tok, serif = false, m;
+    if ((m = w.match(/^_(.*)_([.,:]?)$/))) { serif = true; w = m[1] + m[2]; cls += " serif"; }
+    if ((m = w.match(/^\*(.*)\*([.,:]?)$/))) { w = m[1] + m[2]; cls += " gold"; }
+    return `<span class="w${serif ? " serif-w" : ""}"><span class="wi${cls}">${w.replace(/&/g, "&amp;")}</span></span>`;
+  }).join(" ");
+}
+
+/* ---------- build DOM ---------- */
+const host = document.getElementById("chapters");
+const segs = document.getElementById("segs");
+CHAPTERS.forEach(c => {
+  const el = document.createElement("section");
+  el.className = "chap " + c.type;
+  if (c.type === "shot") {
+    el.innerHTML = `
+      <div class="glow"></div>
+      <div class="cards">
+        ${c.back ? `<div class="card back"><div class="bar"><i></i><i></i><i></i></div><div class="scr"><img src="../../images/${c.back.img}" alt=""></div></div>` : ""}
+        <div class="card front"><div class="bar"><i></i><i></i><i></i><span>${c.front.tag}</span></div><div class="scr"><img src="../../images/${c.front.img}" alt=""></div><div class="wipe"></div></div>
+      </div>
+      <div class="text">
+        <div class="kicker"><span class="line">${words(c.kicker)}</span></div>
+        <div class="head">${c.head.map(l => `<span class="line">${words(l)}</span>`).join("")}</div>
+        <div class="sub">${[].concat(c.sub).map(l => `<span class="line">${words(l)}</span>`).join("")}</div>
+      </div>`;
+  } else if (c.type === "typo") {
+    el.innerHTML = `
+      <div class="text">
+        <div class="kicker"><span class="line">${words(c.kicker)}</span></div>
+        <div class="big"><span class="line">${words(c.big)}</span></div>
+        <div class="serif-line"><span class="line">${words(c.serif)}</span></div>
+        <div class="mono-sub"><span class="line">${words(c.mono)}</span></div>
+      </div>`;
+  } else if (c.type === "title") {
+    el.innerHTML = `
+      <div class="center kicker shiftable" id="t-kicker"><span class="line">${words("Introducing")}</span></div>
+      <div class="center shiftable" id="t-sub"><span class="line">${words("Raspberry Pi car software with a")}</span><span class="line">${words("configurable _touchscreen_ _dashboard_.")}</span></div>`;
+  } else {
+    el.innerHTML = `
+      <div class="center kicker" id="e-kicker"><span class="line">${words("Get it on GitHub")}</span></div>
+      <div class="center" id="e-meta"><span class="line">${words("Open source · Raspberry Pi *5*")}</span></div>
+      <div class="center" id="e-url"><span class="line">${words("github.com/desquerteur/coscarOS")}</span></div>`;
+  }
+  host.appendChild(el);
+  c.el = el;
+  c.wis = [...el.querySelectorAll(".wi")];
+  c.wis.forEach((w, i) => { w.dataset.box = (w.closest(".kicker,.head,.sub,.big,.serif-line,.mono-sub,#t-sub,#e-meta,#e-url") || el).className + " " + (w.closest("[id]") || {}).id; });
+  if (c.front) Object.assign(c.front, { card: el.querySelector(".card.front"), scr: el.querySelector(".card.front .scr"), wipe: el.querySelector(".wipe") });
+  if (c.back) c.back.card = el.querySelector(".card.back");
+  c.glow = el.querySelector(".glow");
+  const s = document.createElement("div"); s.innerHTML = "<span></span>"; segs.appendChild(s); c.seg = s.firstChild;
+});
+
+/* Card geometry: front card centred at (1330, 548) */
+function layoutCards() {
+  for (const c of CHAPTERS) {
+    if (c.type !== "shot") continue;
+    for (const k of ["front", "back"]) {
+      const o = c[k]; if (!o) continue;
+      const img = o.card.querySelector("img");
+      o.h = 42 + 916 * img.naturalHeight / img.naturalWidth + 12;
+      o.card.style.left = (1330 - 470) + "px";
+      o.card.style.top = (548 - o.h / 2) + "px";
+    }
+  }
+}
+
+/* ---------- gold particles: swarm that forms the wordmark, dust behind mockups ---------- */
+const cv = document.getElementById("fx");
+const ctx = cv.getContext("2d");
+const N = 1500;
+let P = [], wordmark = null, sprite = null;
+const WM = { base: 590, shift: 0 };
+
+function makeSprite() {
+  const s = document.createElement("canvas"); s.width = s.height = 32;
+  const g = s.getContext("2d"), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gr.addColorStop(0, "rgba(255,240,190,1)"); gr.addColorStop(.25, "rgba(255,214,90,.75)");
+  gr.addColorStop(.6, "rgba(255,201,40,.18)"); gr.addColorStop(1, "rgba(255,201,40,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return s;
+}
+function makeWordmark() {
+  const c = document.createElement("canvas"); c.width = 1920; c.height = 1080;
+  const g = c.getContext("2d");
+  g.font = '640 290px "InterTight"'; g.letterSpacing = "-13px"; g.textBaseline = "alphabetic";
+  const a = "coscar", b = "OS", wa = g.measureText(a).width, wb = g.measureText(b).width;
+  const x0 = 960 - (wa + wb + 8) / 2;
+  g.fillStyle = "#f7f2e2"; g.fillText(a, x0, WM.base);
+  g.fillStyle = "#ffc928"; g.fillText(b, x0 + wa + 8, WM.base);
+  return c;
+}
+function initParticles() {
+  const r = rng(7);
+  const data = wordmark.getContext("2d").getImageData(0, 0, 1920, 1080).data;
+  const pts = [];
+  for (let y = 0; y < 1080; y += 4) for (let x = 0; x < 1920; x += 4) if (data[(y * 1920 + x) * 4 + 3] > 140) pts.push([x, y]);
+  for (let i = pts.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pts[i], pts[j]] = [pts[j], pts[i]]; }
+  P = [];
+  for (let i = 0; i < N; i++) {
+    const tp = pts[i % pts.length], g1 = r(), g2 = r();
+    P.push({
+      tx: tp[0] + (r() - .5) * 3, ty: tp[1] + (r() - .5) * 3,
+      sx: -120 + r() * 2160, sy: -120 + r() * 1320,
+      f1: .2 + r() * .5, f2: .2 + r() * .5, p1: r() * 6.28, p2: r() * 6.28,
+      ang: r() * 6.283, rad: Math.sqrt(-2 * Math.log(1 - g1 * .98)) * .45 + g2 * .05, w: (.04 + r() * .1) * (r() < .5 ? -1 : 1),
+      d: r(), a: .35 + r() * .65, sz: 3 + r() * 7,
+    });
+  }
+  return pts.length;
+}
+function scatter(p, t) { return [p.sx + 46 * Math.sin(t * p.f1 + p.p1), p.sy + 34 * Math.cos(t * p.f2 + p.p2)]; }
+function cloud(p, t, cx, cy, rx, ry) {
+  const a = p.ang + t * p.w;
+  return [cx + Math.cos(a) * p.rad * rx + 10 * Math.sin(t * p.f1 + p.p1), cy + Math.sin(a) * p.rad * ry + 10 * Math.cos(t * p.f2 + p.p2)];
+}
+function textPos(p, t) { return [p.tx + 1.4 * Math.sin(t * 2.3 + p.p1), p.ty + WM.shift + 1.4 * Math.cos(t * 2.1 + p.p2)]; }
+function cfg(k, p, t) {            // particle configuration of chapter k: [x, y, alpha]
+  const c = CHAPTERS[k];
+  if (c.type === "title" || c.type === "end") { const q = textPos(p, t); return [q[0], q[1], .9]; }
+  if (c.type === "shot") { const q = cloud(p, t, 1330, 560, 820, 560); return [q[0], q[1], .42]; }
+  const q = cloud(p, t, 1180, 560, 1500, 900); return [q[0], q[1], .28];
+}
+
+function drawFx(t, k) {
+  ctx.clearRect(0, 0, 1920, 1080);
+  const c = CHAPTERS[k], lt = t - c.start;
+  const isMark = c.type === "title" || c.type === "end";
+  let markA = 0, partDim = 1;
+  if (isMark) {                    // crisp wordmark appears once the swarm has formed
+    markA = smooth((lt - 2.0) / 1.0);
+    if (c.type === "title") markA *= 1 - smooth((lt - (c.dur - .55)) / .45);
+    partDim = 1 - .62 * smooth((lt - 2.0) / 1.0);
+  }
+  ctx.globalCompositeOperation = "lighter";
+  for (const p of P) {
+    let x, y, a;
+    if (k === 0) {
+      const s = scatter(p, t), q = textPos(p, t);
+      const w = easeInOut((lt - .15 - p.d * .9) / 1.7);
+      x = mix(s[0], q[0], w); y = mix(s[1], q[1], w); a = mix(.35, .9, w);
+    } else {
+      const A = cfg(k - 1, p, t), B = cfg(k, p, t);
+      const w = easeInOut((lt - p.d * (isMark ? .7 : .5)) / (isMark ? 1.9 : 1.3));
+      x = mix(A[0], B[0], w); y = mix(A[1], B[1], w); a = mix(A[2], B[2], w);
+    }
+    if (isMark) a *= partDim;
+    const twinkle = .75 + .25 * Math.sin(t * (1.5 + p.f1 * 3) + p.p2);
+    const al = clamp(a * p.a * twinkle);
+    if (al < .01) continue;
+    ctx.globalAlpha = al;
+    const s = p.sz * (isMark ? .8 : 1);
+    ctx.drawImage(sprite, x - s / 2, y - s / 2, s, s);
+  }
+  ctx.globalCompositeOperation = "source-over";
+  if (markA > 0) { ctx.globalAlpha = markA; ctx.drawImage(wordmark, 0, WM.shift); }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- per-frame chapter animation ---------- */
+function revealWords(c, lt, delay) {
+  const exitStart = c.dur - .55;
+  c.wis.forEach((el, i) => {
+    const vin = easeOut((lt - delay(i, el.dataset.box)) / .9);
+    const vout = c.type === "end" ? 0 : easeIn((lt - exitStart - i * .012) / .45);
+    el.style.transform = `translateY(${((1 - vin) * 110 - vout * 110).toFixed(2)}%)`;
+  });
+}
+function animShot(c, lt, t) {
+  const kN = c.wis.filter(w => w.dataset.box.includes("kicker")).length;
+  const hN = c.wis.filter(w => w.dataset.box.includes("head")).length;
+  revealWords(c, lt, i => i < kN ? .1 + i * .04 : i < kN + hN ? .22 + (i - kN) * .07 : .62 + (i - kN - hN) * .02);
+  const exitV = easeIn((lt - (c.dur - .55)) / .5);
+  const f = c.front, wipeV = easeOut((lt - .25) / 1.0);   // card wipes in left to right
+  f.scr.style.clipPath = `inset(0 ${((1 - wipeV) * 100).toFixed(3)}% 0 0)`;
+  f.wipe.style.left = `${(12 + wipeV * 916).toFixed(1)}px`;
+  f.wipe.style.top = "42px"; f.wipe.style.height = `${(f.h - 54).toFixed(1)}px`;
+  f.wipe.style.opacity = (wipeV > .001 ? 1 - smooth((wipeV - .9) / .1) : 0).toFixed(3);
+  const inV = easeOut((lt - .1) / 1.1);
+  const fl = Math.sin(t * 1.1) * 7;                          // float
+  const drift = (lt / c.dur) * -26;                          // parallax drift
+  f.card.style.opacity = (smooth((lt - .05) / .35) * (1 - exitV)).toFixed(4);
+  f.card.style.transform = `translate3d(${(drift + (1 - inV) * 90 - exitV * 60).toFixed(2)}px, ${fl.toFixed(2)}px, 0) rotateY(${(-11 - (1 - inV) * 8 + lt * .5).toFixed(3)}deg) rotateX(${(4 + Math.sin(t * .7) * .6).toFixed(3)}deg) rotateZ(-.8deg)`;
+  if (c.back) {
+    const b = c.back, bv = easeOut((lt - .45) / 1.2);
+    b.card.style.opacity = (bv * .85 * (1 - exitV)).toFixed(4);
+    b.card.style.transform = `translate3d(${(150 + drift * 2.2 + (1 - bv) * 140 - exitV * 40).toFixed(2)}px, ${(-150 - fl * .6).toFixed(2)}px, -320px) rotateY(-13deg) rotateX(4deg) rotateZ(-.8deg)`;
+  }
+  c.glow.style.opacity = (smooth(lt / .8) * (1 - exitV) * (.85 + .15 * Math.sin(t * 1.3))).toFixed(4);
+}
+function animTypo(c, lt) {
+  revealWords(c, lt, (i, box) => box.includes("kicker") ? .05 + i * .04 : box.includes("big") ? .16 + i * .08 : box.includes("serif-line") ? .45 + i * .05 : .8 + i * .01);
+}
+function animTitle(c, lt) { revealWords(c, lt, (i, box) => box.includes("t-kicker") ? .3 + i * .05 : 2.5 + i * .045); }
+function animEnd(c, lt) { revealWords(c, lt, (i, box) => box.includes("e-kicker") ? .4 + i * .05 : box.includes("e-meta") ? 2.3 + i * .06 : 2.8); }
+
+const pad = n => String(n).padStart(2, "0");
+let grainEl, chapterEl, tcEl;
+
+window.seek = function (t) {
+  t = clamp(t, 0, DURATION - 1e-6);
+  let k = CHAPTERS.findIndex(c => t < c.end); if (k < 0) k = CHAPTERS.length - 1;
+  CHAPTERS.forEach((c, i) => { c.el.style.visibility = i === k ? "visible" : "hidden"; });
+  const c = CHAPTERS[k], lt = t - c.start;
+  if (c.type === "shot") animShot(c, lt, t);
+  else if (c.type === "typo") animTypo(c, lt);
+  else if (c.type === "title") animTitle(c, lt);
+  else animEnd(c, lt);
+  drawFx(t, k);
+  const s = Math.floor(t);                                   // frame chrome
+  tcEl.textContent = `00:${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  chapterEl.textContent = `${pad(k + 1)} / ${pad(CHAPTERS.length)} · ${c.label}`;
+  CHAPTERS.forEach((ch, i) => {
+    const v = i < k ? 1 : i > k ? 0 : clamp((t - ch.start) / ch.dur);
+    ch.seg.style.width = (v * 100).toFixed(2) + "%";
+    ch.seg.style.background = i < k ? "rgba(247,242,226,.40)" : "var(--gold)";
+  });
+};
+
+window.posterPlay = function (label) {
+  WM.shift = -150;
+  document.querySelectorAll(".shiftable").forEach(e => e.style.transform = "translateY(-150px)");
+  document.getElementById("play").style.display = "flex";
+  document.getElementById("play-lbl").textContent = label;
+};
+
+window.init = async function () {
+  await document.fonts.load('640 100px "InterTight"');
+  await document.fonts.load('italic 400 100px "InstrumentSerif"');
+  await document.fonts.load('500 20px "GeistMono"');
+  await document.fonts.ready;
+  await Promise.all([...document.images].map(i => i.decode()));
+  grainEl = document.getElementById("grain"); chapterEl = document.getElementById("chapter"); tcEl = document.getElementById("tc");
+  const n = document.createElement("canvas"); n.width = n.height = 256;
+  const ng = n.getContext("2d"), id = ng.createImageData(256, 256), r = rng(3);
+  for (let i = 0; i < id.data.length; i += 4) { const v = r() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+  ng.putImageData(id, 0, 0);
+  grainEl.style.backgroundImage = `url(${n.toDataURL()})`;
+  layoutCards();
+  sprite = makeSprite();
+  wordmark = makeWordmark();
+  const targets = initParticles();
+  window.seek(0);
+  const fontsOk = ['640 16px "InterTight"', 'italic 16px "InstrumentSerif"', '16px "GeistMono"'].every(f => document.fonts.check(f));
+  return { duration: DURATION, chapters: CHAPTERS.length, targets, fontsOk };
+};
+</script>
+</body>
+</html>
