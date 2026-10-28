@@ -76,6 +76,17 @@ class WirelessRestoreTests(unittest.TestCase):
                 with patch('independent_wireless.subprocess.run') as run:
                     settings.restore_enabled();run.assert_not_called()
 
+    def test_saved_mode_is_reported_even_if_the_runtime_reload_notification_fails(self):
+        with tempfile.TemporaryDirectory() as folder:
+            settings=self.settings(folder)
+            settings.projection.reload_wireless.side_effect=ConnectionError('Independent car runtime is unavailable or closing')
+            with patch('independent_wireless.subprocess.run',return_value=Mock(returncode=0)),patch('sys.stderr'):
+                result=settings.save(False,True)
+            self.assertTrue(result['saved'])
+            self.assertFalse(settings.snapshot()['enabled'])
+            self.assertFalse(json.loads(settings.path.read_text())['enabled'])
+            settings.projection.reload_wireless.assert_called_once_with()
+
     def test_preview_does_not_start_worker_and_close_signals_stop(self):
         with tempfile.TemporaryDirectory() as folder,patch('independent_wireless.threading.Thread') as thread:
             settings=self.settings(folder,host=False);settings.start();thread.assert_not_called()

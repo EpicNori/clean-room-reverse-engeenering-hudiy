@@ -2,8 +2,10 @@ import json
 import importlib.util
 from pathlib import Path
 import struct
+import sys
 import tempfile
 import threading
+from types import ModuleType,SimpleNamespace
 import unittest
 from unittest.mock import Mock,patch
 from standalone_projection import StandaloneProjection
@@ -197,6 +199,63 @@ class StandaloneTests(unittest.TestCase):
         agent.confirm(pending['id'],True,'1234');thread.join(timeout=1)
         self.assertEqual(results,['1234'])
         with self.assertRaises(ValueError):agent.confirm(pending['id'],True,'1234')
+
+    def test_pairing_prompt_reads_a_phone_that_the_device_list_does_not_know_yet(self):
+        bluetooth=Mock();bluetooth.snapshot.return_value={'devices':[]}
+        agent=BluezAgent(bluetooth,Mock(),Mock())
+        path='/org/bluez/hci0/dev_'+ADDRESS.replace(':','_')
+        properties=Mock();properties.GetAll.return_value={'Address':ADDRESS.lower(),'Alias':'Pixel'}
+        agent.bus=Mock();agent.dbus=SimpleNamespace(Interface=lambda *_:properties)
+        results=[]
+        thread=threading.Thread(target=lambda:results.append(agent.prompt(path,'confirm','123456')))
+        thread.start()
+        with agent.condition:agent.condition.wait_for(lambda:agent.pending is not None,timeout=1)
+        pending=agent.snapshot()['pairing']
+        self.assertEqual((pending['name'],pending['code']),('Pixel','123456'))
+        properties.GetAll.assert_called_once_with('org.bluez.Device1',timeout=2)
+        agent.confirm(pending['id'],True);thread.join(timeout=1)
+        self.assertEqual(results,[True])
+        # Another device's properties, a malformed address or a failed read are still rejected.
+        for props in ({'Address':'AA:BB:CC:DD:EE:03','Alias':'Other'},{'Address':'not-an-address'},{}):
+            properties.GetAll.return_value=props
+            with self.assertRaises(ValueError):agent.prompt(path,'confirm','123456')
+        properties.GetAll.side_effect=TimeoutError()
+        with self.assertRaises(ValueError):agent.prompt(path,'confirm')
+        properties.GetAll.reset_mock()
+        with self.assertRaises(ValueError):agent.prompt('/org/bluez/hci0/dev_../../x','confirm')
+        properties.GetAll.assert_not_called()
+        self.assertIsNone(agent.snapshot()['pairing'])
+
+    def test_agent_leaves_its_loop_to_register_again_after_bluetoothd_restarts(self):
+        bus=Mock();bus.get_name_owner.return_value=':1.5'
+        managers=Mock();context=Mock();context.pending.return_value=False
+        dbus=ModuleType('dbus')
+        dbus.SystemBus=lambda **_:bus;dbus.Interface=lambda *_:managers
+        dbus.Dictionary=lambda value,signature:value;dbus.UInt16=int
+        dbus.exceptions=SimpleNamespace(DBusException=Exception)
+        service=ModuleType('dbus.service');dbus.service=service
+        service.Object=type('Object',(),{'__init__':lambda self,*_:None})
+        service.method=lambda *_,**__:(lambda function:function)
+        glib=ModuleType('dbus.mainloop.glib');glib.DBusGMainLoop=lambda:None
+        repository=ModuleType('gi.repository')
+        repository.GLib=SimpleNamespace(MainContext=SimpleNamespace(default=lambda:context))
+        modules={'dbus':dbus,'dbus.service':service,'dbus.mainloop':ModuleType('dbus.mainloop'),'dbus.mainloop.glib':glib,
+                 'gi':ModuleType('gi'),'gi.repository':repository}
+        agent=BluezAgent(Mock(),Mock(),Mock())
+        ready=[]
+        def wait(_):
+            owner_changed=bus.add_signal_receiver.call_args.args[0]
+            ready.append(agent.ready)
+            # First an unchanged owner, then bluetoothd drops its bus name.
+            owner_changed('org.bluez',':1.5',':1.5' if len(ready)==1 else '')
+        agent.stop=SimpleNamespace(is_set=lambda:len(ready)>=5,wait=wait)
+        with patch.dict(sys.modules,modules):agent._run_once()
+        self.assertEqual(ready,[True,True])
+        self.assertEqual(bus.add_signal_receiver.call_args.kwargs['signal_name'],'NameOwnerChanged')
+        self.assertEqual(bus.add_signal_receiver.call_args.kwargs['arg0'],'org.bluez')
+        self.assertFalse(agent.ready);self.assertIsNone(agent.bus);bus.close.assert_called_once()
+        managers.UnregisterProfile.assert_called_once();managers.UnregisterAgent.assert_called_once()
+        managers.RegisterAgent.assert_called_once()
 
     def test_wifi_frames_use_length_prefix_and_do_not_accept_unbounded_payloads(self):
         self.assertEqual(wifi_frame(1,b'abc'),struct.pack('>HH',3,1)+b'abc')

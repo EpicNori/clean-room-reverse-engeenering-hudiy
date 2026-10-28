@@ -3,13 +3,28 @@ from pathlib import Path
 import stat
 import sys
 import tempfile
+import threading
 import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from phonebook import Phonebook, parse_vcards, MAX_BYTES
+from phonebook import Phonebook, parse_vcards, MAX_BYTES, MAX_FAILURES, UNAVAILABLE
 from usb_recovery import USBRecovery
+
+
+class FastStop(threading.Event):
+    def wait(self, timeout=None):
+        return self.is_set()
+
+
+class LostError(Exception):
+    def __init__(self, name):
+        super().__init__(name)
+        self.name = name
+
+    def get_dbus_name(self):
+        return self.name
 
 
 class PhoneTests(unittest.TestCase):
@@ -76,6 +91,61 @@ class PhoneTests(unittest.TestCase):
         self.assertEqual(book.snapshot()['views']['contacts']['entries'], [])
         with self.assertRaises(ValueError): book.refresh('../../file')
         with self.assertRaises(ConnectionError): book.refresh('contacts')
+
+    def worker(self, session_bus, objects):
+        book = Phonebook()
+        book.enabled = True
+        book.stop, book.wake = FastStop(), FastStop()
+        systems, sessions = [], []
+        manager, client = Mock(), Mock()
+        manager.GetManagedObjects.side_effect = objects
+        def system_bus(**kwargs):
+            systems.append(Mock())
+            return systems[-1]
+        def make_session(**kwargs):
+            sessions.append(None)
+            sessions[-1] = session_bus(len(sessions))
+            return sessions[-1]
+        glib = SimpleNamespace(DBusGMainLoop=Mock())
+        repository = SimpleNamespace(GLib=SimpleNamespace(MainContext=SimpleNamespace(default=Mock())))
+        dbus = SimpleNamespace(SystemBus=system_bus, SessionBus=make_session, mainloop=SimpleNamespace(glib=glib),
+            Interface=lambda obj, interface: client if interface == 'org.bluez.obex.Client1' else manager)
+        modules = {'dbus': dbus, 'dbus.mainloop': dbus.mainloop, 'dbus.mainloop.glib': glib,
+                   'gi': SimpleNamespace(repository=repository), 'gi.repository': repository}
+        return book, modules, systems, sessions, manager
+
+    def test_worker_retries_startup_and_rebuilds_after_obexd_or_bluez_restart(self):
+        errors = []
+        def session_bus(attempt):
+            if attempt == 1:
+                raise LostError('org.freedesktop.DBus.Error.ServiceUnknown')
+            return Mock()
+        def objects(**kwargs):
+            errors.append(book.snapshot()['error'])
+            if len(systems) == 2:
+                raise LostError('org.freedesktop.DBus.Error.NameHasNoOwner')
+            book.stop.set()
+            return {}
+        book, modules, systems, sessions, _ = self.worker(session_bus, objects)
+        with patch.dict(sys.modules, modules):
+            book._run()
+        self.assertEqual((len(systems), len(sessions)), (3, 3))
+        self.assertEqual(errors, [UNAVAILABLE, UNAVAILABLE])
+        # The system bus opened before a failed session-bus connect is closed too.
+        self.assertEqual([bus.close.call_count for bus in systems], [1, 1, 1])
+        self.assertEqual([bus.close.call_count for bus in sessions[1:]], [1, 1])
+        self.assertIsNone(book.client)
+        self.assertEqual(book.snapshot()['error'], 'Phonebook service stopped')
+
+    def test_repeated_phonebook_failures_leave_loop_for_rebuild(self):
+        failures = [RuntimeError('stale proxy')] * MAX_FAILURES + [AssertionError('loop did not restart')]
+        book, modules, systems, sessions, manager = self.worker(lambda attempt: Mock(), failures)
+        with patch.dict(sys.modules, modules):
+            book._run_once()
+        self.assertEqual(manager.GetManagedObjects.call_count, MAX_FAILURES)
+        self.assertEqual(book.snapshot()['error'], UNAVAILABLE)
+        systems[0].close.assert_called_once_with()
+        sessions[0].close.assert_called_once_with()
 
 
 

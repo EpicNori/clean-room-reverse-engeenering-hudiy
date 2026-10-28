@@ -26,8 +26,8 @@ class IndependentAudioRoute(AudioRouteBase):
                     phones=[d for d in self.bluetooth.snapshot()['devices'] if d['paired'] and d['connected'] and not d.get('audioReceiver') and not d.get('serialPort')]
                     phone_prefix='bluez_input.'+phones[0]['address'].replace(':','_')+'.' if len(phones)==1 else None
                     owned=[stream for stream in inputs if
-                        str(stream.get('properties',{}).get('application.process.id',''))==str(pid) or
-                        phone_prefix and str(stream.get('properties',{}).get('node.name','')).startswith(phone_prefix)]
+                        str((stream.get('properties') or {}).get('application.process.id',''))==str(pid) or
+                        phone_prefix and str((stream.get('properties') or {}).get('node.name','')).startswith(phone_prefix)]
                     valid=lambda value:type(value) is int and 0<=value<2**32-1
                     if not valid(sink.get('index')) or not all(valid(stream.get('index')) for stream in owned):raise ValueError('Invalid local audio identifiers')
                     default=self._command('get-default-sink').decode().strip()

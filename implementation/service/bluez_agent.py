@@ -38,7 +38,7 @@ class BluezAgent:
         self.generation=0
         self.stop=threading.Event()
         self.worker=None
-        self.bus=None
+        self.bus=self.dbus=None
         self.ready=False
         self.error=''
         self.progress=None
@@ -98,12 +98,24 @@ class BluezAgent:
             self.stop.wait(1)
         return False
 
+    def _read_device(self,path):
+        """A phone may start pairing before the 1 s refresh lists it; read that one device directly."""
+        bus=self.bus
+        if not bus or not self.dbus:return None
+        try:props=self.dbus.Interface(bus.get_object('org.bluez',path),'org.freedesktop.DBus.Properties').GetAll('org.bluez.Device1',timeout=2)
+        except Exception:return None
+        address=str(props.get('Address','')).upper()
+        if not ADDRESS.fullmatch(address) or not str(path).endswith('/dev_'+address.replace(':','_')):return None
+        return {'address':address,'name':str(props.get('Alias',props.get('Name',address)))[:128]}
+
     def prompt(self,path,kind,code=''):
         if not DEVICE_PATH.fullmatch(str(path)):raise ValueError('Invalid pairing device')
+        devices=self.bluetooth.snapshot()['devices']
+        device=next((d for d in devices if str(path).endswith('/dev_'+d['address'].replace(':','_'))),None)
+        # Read outside the condition so a slow D-Bus answer never blocks confirm() or snapshot().
+        device=device or self._read_device(str(path))
         with self.condition:
             if self.pending:raise ConnectionError('Another pairing request is pending')
-            devices=self.bluetooth.snapshot()['devices']
-            device=next((d for d in devices if str(path).endswith('/dev_'+d['address'].replace(':','_'))),None)
             if not device:raise ValueError('Pairing device is not in the discovered list')
             self.generation+=1
             self.pending={'id':self.generation,'kind':kind,'code':code,'name':device['name']}
@@ -229,7 +241,13 @@ class BluezAgent:
                     owner.connection_thread.start()
                 @dbus.service.method('org.bluez.Profile1',in_signature='o',out_signature='')
                 def RequestDisconnection(self,device):owner._close_connection()
+            self.dbus=dbus
             self.bus=dbus.SystemBus(private=True,mainloop=DBusGMainLoop())
+            # A bluetoothd restart silently drops agent and profile; leave the loop so _run registers them again.
+            lost=threading.Event();bluez_owner=None
+            self.bus.add_signal_receiver(lambda name,old,new:new!=bluez_owner and lost.set(),signal_name='NameOwnerChanged',
+                dbus_interface='org.freedesktop.DBus',bus_name='org.freedesktop.DBus',path='/org/freedesktop/DBus',arg0='org.bluez')
+            bluez_owner=str(self.bus.get_name_owner('org.bluez'))
             agent=Agent(self.bus,AGENT_PATH);profile=Profile(self.bus,PROFILE_PATH)
             agent_manager=dbus.Interface(self.bus.get_object('org.bluez','/org/bluez'),'org.bluez.AgentManager1')
             agent_manager.RegisterAgent(AGENT_PATH,'DisplayYesNo',timeout=3);registered_agent=True
@@ -241,7 +259,7 @@ class BluezAgent:
                 'ServiceRecord':SERVICE_RECORD},signature='sv'),timeout=3);registered_profile=True
             self.ready=True
             context=GLib.MainContext.default()
-            while not self.stop.is_set():
+            while not self.stop.is_set() and not lost.is_set():
                 for _ in range(20):
                     if not context.pending():break
                     context.iteration(False)

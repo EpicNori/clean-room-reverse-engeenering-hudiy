@@ -12,6 +12,16 @@ import time
 MAX_BYTES = 2 * 1024 * 1024
 VIEWS = {'contacts': ('pb', 1000), 'favorites': ('fav', 100), 'call-log': ('cch', 100)}
 PHONEBOOK_UUID = '0000112f-0000-1000-8000-00805f9b34fb'
+# Errors meaning BlueZ/obexd left the bus or our connection died; proxies must be rebuilt.
+LOST = ('org.freedesktop.DBus.Error.ServiceUnknown', 'org.freedesktop.DBus.Error.NameHasNoOwner',
+        'org.freedesktop.DBus.Error.Disconnected')
+MAX_FAILURES = 6
+UNAVAILABLE = 'Bluetooth phonebook service unavailable; install python3-dbus and bluez-obexd'
+
+
+def service_lost(error):
+    name = getattr(error, 'get_dbus_name', None)
+    return callable(name) and name() in LOST
 
 
 def parse_vcards(payload, limit=1000):
@@ -71,6 +81,7 @@ class Phonebook:
         self.session = None
         self.client = None
         self.refresh_interval = 60
+        self.retry_interval = 3
 
     def snapshot(self):
         with self.lock:
@@ -124,6 +135,14 @@ class Phonebook:
         return True
 
     def _run(self):
+        # BlueZ/obexd may start after us or restart; rebuild buses and proxies each round.
+        while not self.stop.is_set():
+            self._run_once()
+            self.stop.wait(self.retry_interval)
+
+    def _run_once(self):
+        system = session_bus = None
+        error = 'Phonebook service stopped'
         try:
             import dbus
             from dbus.mainloop.glib import DBusGMainLoop
@@ -133,58 +152,71 @@ class Phonebook:
             self.context = GLib.MainContext.default()
             manager = dbus.Interface(system.get_object('org.bluez', '/'), 'org.freedesktop.DBus.ObjectManager')
             self.client = dbus.Interface(session_bus.get_object('org.bluez.obex', '/org/bluez/obex'), 'org.bluez.obex.Client1')
+            self._poll(manager, session_bus, dbus)
         except Exception:
-            self._forget('Bluetooth phonebook service unavailable; install python3-dbus and bluez-obexd')
-            return
-        last_sync = None
-        try:
-            while not self.stop.is_set():
-                try:
-                    objects = manager.GetManagedObjects(timeout=3)
-                    phones = [props['org.bluez.Device1'] for props in objects.values()
-                              if 'org.bluez.Device1' in props and
-                              props['org.bluez.Device1'].get('Paired') and
-                              props['org.bluez.Device1'].get('Connected') and
-                              PHONEBOOK_UUID in props['org.bluez.Device1'].get('UUIDs', [])]
-                    if len(phones) != 1:
-                        self._forget('Connect one paired phone by Bluetooth and allow contact sharing')
-                    else:
-                        device = phones[0]
-                        address = str(device['Address'])
-                        if self._ensure_session(session_bus, dbus, address):
-                            last_sync = None
-                        with self.lock:
-                            self.data.update(available=True, connected=True, name=str(device.get('Alias', 'Phone'))[:128], error='')
-                            views = set(self.pending)
-                            self.pending.clear()
-                        if last_sync is None or time.monotonic() - last_sync >= self.refresh_interval:
-                            views.update(VIEWS)
-                        for view in sorted(views):
-                            if self.stop.is_set():
-                                break
-                            with self.lock:
-                                self.data['syncing'] = True
-                            try:
-                                entries = self._pull(session_bus, dbus, view)
-                                now = time.time()
-                                with self.lock:
-                                    self.data['views'][view] = {'entries': entries, 'error': '', 'updatedAt': now}
-                                    self.data['updatedAt'] = now
-                            except Exception:
-                                with self.lock:
-                                    self.data['views'][view] = {'entries': [], 'error': 'Phone did not provide this phonebook; check contact sharing permission', 'updatedAt': None}
-                        if views:
-                            last_sync = time.monotonic()
-                        with self.lock:
-                            self.data['syncing'] = False
-                except Exception:
-                    self._forget('Phonebook connection unavailable; unlock the phone and allow contact sharing')
-                self.wake.wait(5)
-                self.wake.clear()
+            error = UNAVAILABLE
         finally:
-            self._forget('Phonebook service stopped')
-            system.close()
-            session_bus.close()
+            # Remove our own PBAP session while the old client proxy still works.
+            self._forget(error)
+            self.client = None
+            for bus in (system, session_bus):
+                if bus:
+                    try:
+                        bus.close()
+                    except Exception:
+                        pass
+
+    def _poll(self, manager, session_bus, dbus):
+        last_sync = None
+        failures = 0
+        while not self.stop.is_set():
+            try:
+                objects = manager.GetManagedObjects(timeout=3)
+                phones = [props['org.bluez.Device1'] for props in objects.values()
+                          if 'org.bluez.Device1' in props and
+                          props['org.bluez.Device1'].get('Paired') and
+                          props['org.bluez.Device1'].get('Connected') and
+                          PHONEBOOK_UUID in props['org.bluez.Device1'].get('UUIDs', [])]
+                if len(phones) != 1:
+                    self._forget('Connect one paired phone by Bluetooth and allow contact sharing')
+                else:
+                    device = phones[0]
+                    address = str(device['Address'])
+                    if self._ensure_session(session_bus, dbus, address):
+                        last_sync = None
+                    with self.lock:
+                        self.data.update(available=True, connected=True, name=str(device.get('Alias', 'Phone'))[:128], error='')
+                        views = set(self.pending)
+                        self.pending.clear()
+                    if last_sync is None or time.monotonic() - last_sync >= self.refresh_interval:
+                        views.update(VIEWS)
+                    for view in sorted(views):
+                        if self.stop.is_set():
+                            break
+                        with self.lock:
+                            self.data['syncing'] = True
+                        try:
+                            entries = self._pull(session_bus, dbus, view)
+                            now = time.time()
+                            with self.lock:
+                                self.data['views'][view] = {'entries': entries, 'error': '', 'updatedAt': now}
+                                self.data['updatedAt'] = now
+                        except Exception:
+                            with self.lock:
+                                self.data['views'][view] = {'entries': [], 'error': 'Phone did not provide this phonebook; check contact sharing permission', 'updatedAt': None}
+                    if views:
+                        last_sync = time.monotonic()
+                    with self.lock:
+                        self.data['syncing'] = False
+                failures = 0
+            except Exception as exc:
+                self._forget('Phonebook connection unavailable; unlock the phone and allow contact sharing')
+                failures += 1
+                # Leave so _run rebuilds buses and proxies for a restarted BlueZ/obexd.
+                if service_lost(exc) or failures >= MAX_FAILURES:
+                    raise
+            self.wake.wait(5)
+            self.wake.clear()
 
     def _pull(self, bus, dbus, view):
         folder, limit = VIEWS[view]

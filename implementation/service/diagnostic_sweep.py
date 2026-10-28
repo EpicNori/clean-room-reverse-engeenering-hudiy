@@ -26,7 +26,7 @@ def supported(command, response):
 # Common numeric fields are decoded; the complete raw response is always retained.
 NUMERIC = {
     '04':('Engine load','%',1,lambda a,b:a*100/255),
-    '05':('Coolant temperature','Ã‚Â°C',1,lambda a,b:a-40),
+    '05':('Coolant temperature','°C',1,lambda a,b:a-40),
     '06':('Short fuel trim bank 1','%',1,lambda a,b:(a-128)*100/128),
     '07':('Long fuel trim bank 1','%',1,lambda a,b:(a-128)*100/128),
     '08':('Short fuel trim bank 2','%',1,lambda a,b:(a-128)*100/128),
@@ -35,8 +35,8 @@ NUMERIC = {
     '0B':('Intake manifold pressure','kPa',1,lambda a,b:a),
     '0C':('Engine speed','rpm',2,lambda a,b:(a*256+b)/4),
     '0D':('Vehicle speed','km/h',1,lambda a,b:a),
-    '0E':('Timing advance','Ã‚Â°',1,lambda a,b:a/2-64),
-    '0F':('Intake air temperature','Ã‚Â°C',1,lambda a,b:a-40),
+    '0E':('Timing advance','°',1,lambda a,b:a/2-64),
+    '0F':('Intake air temperature','°C',1,lambda a,b:a-40),
     '10':('Mass air flow','g/s',2,lambda a,b:(a*256+b)/100),
     '11':('Throttle position','%',1,lambda a,b:a*100/255),
     '1F':('Engine run time','s',2,lambda a,b:a*256+b),
@@ -46,11 +46,11 @@ NUMERIC = {
     '31':('Distance since codes cleared','km',2,lambda a,b:a*256+b),
     '33':('Barometric pressure','kPa',1,lambda a,b:a),
     '42':('Control module voltage','V',2,lambda a,b:(a*256+b)/1000),
-    '46':('Ambient air temperature','Ã‚Â°C',1,lambda a,b:a-40),
+    '46':('Ambient air temperature','°C',1,lambda a,b:a-40),
     '4D':('Time with MIL on','min',2,lambda a,b:a*256+b),
     '4E':('Time since codes cleared','min',2,lambda a,b:a*256+b),
     '52':('Ethanol fuel','%',1,lambda a,b:a*100/255),
-    '5C':('Oil temperature','Ã‚Â°C',1,lambda a,b:a-40),
+    '5C':('Oil temperature','°C',1,lambda a,b:a-40),
     '5E':('Fuel rate','L/h',2,lambda a,b:(a*256+b)/20),
     '23':('Fuel rail pressure','kPa',2,lambda a,b:(a*256+b)*10),
     '43':('Absolute engine load','%',2,lambda a,b:(a*256+b)*100/255),
@@ -62,7 +62,7 @@ NUMERIC = {
     '5A':('Relative accelerator pedal','%',1,lambda a,b:a*100/255),
     '61':('Driver demanded torque','%',1,lambda a,b:a-125),
     '62':('Actual engine torque','%',1,lambda a,b:a-125),
-    '63':('Reference engine torque','NÂ·m',2,lambda a,b:a*256+b),
+    '63':('Reference engine torque','N·m',2,lambda a,b:a*256+b),
 }
 
 

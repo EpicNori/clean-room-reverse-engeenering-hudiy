@@ -84,6 +84,21 @@ class CustomOBDTests(unittest.TestCase):
         self.assertEqual(decode_sensor(sensor(mode='22',pid='1234',bytes=4,formula='D'),'007\r0: 62 12 34 11 22\r1: 33 44>'),68)
         with self.assertRaises(ValueError):decode_codes('NO DATA>')
 
+    def test_user_facing_messages_and_service_sources_have_no_mojibake(self):
+        # Escaped so this file never contains the markers it searches for.
+        markers=('\u00e2\u20ac','\u00c3','\u00c2')
+        config=copy.deepcopy(DEFAULT_CONFIG);config['range']['tankLitres']=300
+        messages=[]
+        for action in (lambda:calculate('x',bytes([1])),lambda:validate_config(config)):
+            with self.assertRaises(ValueError) as caught:action()
+            messages.append(str(caught.exception))
+        self.assertEqual(messages,['Formulas allow A\u2013H, numbers and arithmetic/bitwise operators only','Tank capacity must be 1\u2013250 litres'])
+        from diagnostic_sweep import NUMERIC
+        self.assertEqual((NUMERIC['05'][1],NUMERIC['63'][1]),('\u00b0C','N\u00b7m'))
+        for source in Path(__file__).resolve().parent.glob('*.py'):
+            text=source.read_text(encoding='utf-8')
+            with self.subTest(source=source.name):self.assertFalse(any(marker in text for marker in markers))
+
 
 class PollingIntegrationTests(unittest.TestCase):
     def test_custom_sensor_polling_layout_updates_and_disconnect_use_the_real_transport(self):

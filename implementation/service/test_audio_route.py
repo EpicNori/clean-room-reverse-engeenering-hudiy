@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import tempfile
+import threading
 import unittest
 from unittest.mock import Mock
 from audio_route_support import receiver_sink
@@ -8,6 +9,10 @@ from independent_audio_route import IndependentAudioRoute
 
 ADDRESS='11:22:33:44:55:66'
 SINK='bluez_output.11_22_33_44_55_66.1'
+
+
+class FastStop(threading.Event):
+    def wait(self,timeout=None):return self.is_set()
 
 
 class AudioRouteTests(unittest.TestCase):
@@ -65,5 +70,32 @@ class AudioRouteTests(unittest.TestCase):
         self.assertFalse(service.snapshot()['routed'])
         self.assertEqual(service._command.call_count,2)
         self.assertNotIn('move-sink-input',str(service._command.call_args_list))
+
+    def test_unexpected_tick_error_keeps_routing_thread_alive(self):
+        service,_=self.service();service.address=ADDRESS
+        service.stop=FastStop()
+        # An error type the routing tick does not expect must not end the thread.
+        def command(*args):
+            if args[-1]=='sink-inputs':raise AttributeError('unexpected pactl data')
+            return json.dumps([{'name':SINK,'index':90}]).encode()
+        service._command=Mock(side_effect=command)
+        original,ticks=service._tick,[]
+        def tick():
+            ticks.append(1)
+            if len(ticks)==2:service.stop.set()
+            original()
+        service._tick=tick
+        service._run()
+        self.assertEqual(len(ticks),2)
+        self.assertEqual(service.snapshot()['error'],'Radio output check failed; retrying')
+        self.assertFalse(service.snapshot()['routed'])
+        self.assertTrue(service.operation_lock.acquire(blocking=False))
+
+    def test_null_stream_properties_from_pactl_are_tolerated(self):
+        service,_=self.service();service.address=ADDRESS
+        streams=[{'index':72,'sink':71,'properties':None}]
+        service._command=Mock(side_effect=lambda *args:json.dumps([{'name':SINK,'index':90}] if args[-1]=='sinks' else streams).encode())
+        service._tick()
+        self.assertNotEqual(service.snapshot()['error'],'Radio output check failed; retrying')
 
 if __name__=='__main__':unittest.main()

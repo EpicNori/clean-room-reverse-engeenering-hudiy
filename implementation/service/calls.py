@@ -8,6 +8,15 @@ from bluetooth_devices import read_devices
 
 NUMBER=re.compile(r'\+?[0-9]{3,20}')
 STATES={'incoming':1,'waiting':1,'dialing':2,'alerting':2,'active':3,'held':3}
+ONGOING=('active','dialing','alerting')
+# Errors meaning oFono/BlueZ left the bus or our connection died; proxies must be rebuilt.
+LOST=('org.freedesktop.DBus.Error.ServiceUnknown','org.freedesktop.DBus.Error.NameHasNoOwner','org.freedesktop.DBus.Error.Disconnected')
+MAX_FAILURES=6
+
+
+def service_lost(error):
+    name=getattr(error,'get_dbus_name',None)
+    return callable(name) and name() in LOST
 
 
 def dial_number(value):
@@ -28,6 +37,8 @@ class PhoneCalls:
         self.modem=None
         self.calls={}
         self.muted=None
+        # Commands wait briefly for the background refresh instead of failing at once.
+        self.command_wait=5;self.refresh_interval=5;self.retry_interval=3
         self.data={'available':False,'call':{},'error':'Connect one paired phone with Bluetooth calls enabled'}
 
     def snapshot(self):
@@ -93,8 +104,10 @@ class PhoneCalls:
             number=dial_number(number)
             if confirmed is not True:raise ValueError('Confirm the number before calling')
         if not self.enabled or not self.bus:raise ConnectionError('Bluetooth calling unavailable')
-        if not self.operation_lock.acquire(blocking=False):raise ConnectionError('Phone operation in progress')
+        if not self.operation_lock.acquire(timeout=self.command_wait):raise ConnectionError('Phone operation in progress')
         try:
+            # The worker may have dropped the bus for a rebuild while we waited.
+            if not self.bus:raise ConnectionError('Bluetooth calling unavailable')
             self._refresh()
             manager=self._interface(self.modem,'org.ofono.VoiceCallManager')
             # Revalidate current calls immediately before changing a real call.
@@ -104,6 +117,10 @@ class PhoneCalls:
                 if calls:raise ConnectionError('End the current call before calling another number')
                 manager.Dial(number,'default',timeout=3)
             else:
+                if operation=='end' and len(calls)>1:
+                    # Call waiting/hold: end only the single call in progress; oFono keeps the other one.
+                    calls=[(p,props) for p,props in calls if props.get('State') in ONGOING]
+                    if len(calls)!=1:raise ConnectionError('Choose the call to end on the phone')
                 if len(calls)!=1:raise ConnectionError('One current call is required')
                 path,props=calls[0]
                 call=self._interface(path,'org.ofono.VoiceCall')
@@ -124,6 +141,12 @@ class PhoneCalls:
             self.worker=threading.Thread(target=self._run,daemon=True);self.worker.start()
 
     def _run(self):
+        # oFono may start after us or restart; rebuild the bus and proxies each round.
+        while not self.stop.is_set():
+            self._run_once()
+            self.stop.wait(self.retry_interval)
+
+    def _run_once(self):
         matches=[]
         try:
             import dbus
@@ -136,25 +159,38 @@ class PhoneCalls:
             for handler,name,interface in ((self._added,'CallAdded','org.ofono.VoiceCallManager'),
                     (self._removed,'CallRemoved','org.ofono.VoiceCallManager'),(self._changed,'PropertyChanged','org.ofono.VoiceCall')):
                 matches.append(self.bus.add_signal_receiver(handler,signal_name=name,dbus_interface=interface,bus_name='org.ofono',path_keyword='path'))
-            context=GLib.MainContext.default();next_refresh=0
+            context=GLib.MainContext.default();next_refresh=0;failures=0
             while not self.stop.is_set():
                 for _ in range(20):
                     if not context.pending():break
                     context.iteration(False)
                 if time.monotonic()>=next_refresh:
-                    next_refresh=time.monotonic()+5
+                    next_refresh=time.monotonic()+self.refresh_interval
                     try:
                         with self.operation_lock:self._refresh()
-                    except Exception:
+                        failures=0
+                    except Exception as exc:
                         with self.lock:
                             self.modem=None;self.calls={}
                             self.data={'available':False,'call':{},'error':'Connect one paired phone with Bluetooth calls enabled'}
+                        # ConnectionError is the normal "no suitable phone" result, not a broken proxy.
+                        if not isinstance(exc,ConnectionError):failures+=1
+                        if service_lost(exc) or failures>=MAX_FAILURES:raise
                 self.stop.wait(.25)
         except Exception:
             with self.lock:self.data={'available':False,'call':{},'error':'The installed oFono calling service is unavailable'}
         finally:
-            for match in matches:match.remove()
-            if self.bus:self.bus.close();self.bus=None
+            for match in matches:
+                try:match.remove()
+                except Exception:pass
+            # Wait for a running command before closing the bus it uses.
+            with self.operation_lock:
+                bus,self.bus,self.modems,self.bluez=self.bus,None,None,None
+                # Signals may have been missed; force GetCalls after the rebuild.
+                with self.lock:self.modem=None;self.calls={}
+            if bus:
+                try:bus.close()
+                except Exception:pass
 
     def close(self):
         self.stop.set()

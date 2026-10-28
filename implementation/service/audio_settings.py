@@ -3,6 +3,7 @@ import copy
 import json
 import math
 from pathlib import Path
+import sys
 import threading
 from runtime_support import save_json
 
@@ -54,7 +55,9 @@ class AudioSettings:
             self.projection.apply_audio(updated)
             try: save_json(self.path,updated)
             except OSError:
-                self.projection.apply_audio(previous)
+                # Report the storage failure, not a rollback hiccup it may cause.
+                try: self.projection.apply_audio(previous)
+                except (OSError,ValueError) as exc: print(f'Audio rollback failed: {exc}',file=sys.stderr,flush=True)
                 raise
             self.data=updated
             self.projection.audio_options=copy.deepcopy(updated)

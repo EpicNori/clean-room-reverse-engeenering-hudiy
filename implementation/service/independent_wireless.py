@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import secrets
 import subprocess
+import sys
 import threading
 import time
 from runtime_support import save_json
@@ -108,5 +109,8 @@ class IndependentWireless:
                 self.data=updated
                 self.restore_error=''
             self.last_restore=float('-inf')
-            self.projection.reload_wireless()
+            # NetworkManager and the preference file already hold the new mode; the
+            # runtime re-reads it on start and while its Wi-Fi listener is unbound.
+            try:self.projection.reload_wireless()
+            except (OSError,ConnectionError) as exc:print(f'Car Wi-Fi saved; runtime reload deferred: {exc}',file=sys.stderr,flush=True)
         return {'saved':True,'message':'Car Wi-Fi enabled' if enabled else 'Car Wi-Fi disabled'}

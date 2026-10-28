@@ -56,6 +56,16 @@ CONNECT_TIMEOUT = 30  # BlueZ connections commonly need 5-20 s.
 DISCONNECT_TIMEOUT = 10
 FAILED_VISIBLE = 30
 MAX_OPERATIONS = 4
+LOCK_WAIT = 4  # User actions wait briefly for the 1 s refresh instead of failing at once.
+MAX_FAILURES = 5  # Consecutive refresh failures before the D-Bus connection is rebuilt.
+BUS_LOST = frozenset({'org.freedesktop.DBus.Error.ServiceUnknown', 'org.freedesktop.DBus.Error.NameHasNoOwner',
+                      'org.freedesktop.DBus.Error.Disconnected'})
+
+
+def bus_lost(error, root=False):
+    """True when bluetoothd (or the bus) went away, so proxies bound to its old unique name are useless."""
+    name = str(getattr(error, 'get_dbus_name', lambda: '')() or '')
+    return name in BUS_LOST or (root and name == 'org.freedesktop.DBus.Error.UnknownObject')
 
 
 def friendly_error(error, operation='connect'):
@@ -66,7 +76,7 @@ def friendly_error(error, operation='connect'):
             'rename': "Couldn't rename the device"}.get(operation, "Couldn't connect")
     if 'alreadyconnected' in text or 'already connected' in text: return ''
     if 'inprogress' in text or 'in progress' in text: return 'The device is still busy with a previous request. Please wait.'
-    if 'notready' in text or 'not ready' in text: return 'Bluetooth is not ready yet. Try again in a moment.'
+    if 'notready' in text or 'not ready' in text or bus_lost(error): return 'Bluetooth is not ready yet. Try again in a moment.'
     if 'blocked' in text or 'rfkill' in text: return 'Bluetooth is blocked by the system.'
     if 'authentication' in text or 'rejected' in text or 'cancel' in text:
         return ('Pairing was cancelled or the codes did not match.' if operation == 'pair'
@@ -145,6 +155,9 @@ class BluetoothDevices:
             return {**copy.deepcopy(self.data),'autoConnect':sorted(self.automatic), 'manualPhones':sorted(self.manual_phones),
                     'effectiveAutoConnect':sorted(effective),'operations':operations}
 
+    def _acquire(self):
+        if not self.operation_lock.acquire(timeout=LOCK_WAIT): raise ConnectionError('Bluetooth operation in progress')
+
     def _busy(self, address):
         return self.operations.get(address,{}).get('state') in ('connecting','disconnecting')
 
@@ -154,7 +167,7 @@ class BluetoothDevices:
         if operation=='automatic' and type(enabled) is not bool: raise ValueError('Automatic reconnect must be boolean')
         if operation=='disconnect' and confirmed is not True: raise ValueError('Confirm device disconnection')
         if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
-        if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        self._acquire()
         job=None
         try:
             self._refresh()
@@ -202,7 +215,9 @@ class BluetoothDevices:
     def _device_request(self, address, path, operation):
         message=''
         try:
-            device=self.dbus.Interface(self.bus.get_object('org.bluez',path),'org.bluez.Device1')
+            bus=self.bus
+            if not bus: raise ConnectionError('Bluetooth is not ready')  # The bus is being rebuilt.
+            device=self.dbus.Interface(bus.get_object('org.bluez',path),'org.bluez.Device1')
             if operation=='connect': device.Connect(timeout=CONNECT_TIMEOUT)
             else: device.Disconnect(timeout=DISCONNECT_TIMEOUT)
         except Exception as error:
@@ -219,7 +234,7 @@ class BluetoothDevices:
     def power(self, enabled):
         if type(enabled) is not bool: raise ValueError('Bluetooth power must be on or off')
         if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
-        if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        self._acquire()
         try:
             self._refresh()
             if not enabled:
@@ -240,7 +255,7 @@ class BluetoothDevices:
         name=name.strip()
         if not 1<=len(name)<=64 or not name.isprintable(): raise ValueError('Use 1-64 printable characters for the name')
         if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
-        if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        self._acquire()
         try:
             self._refresh()
             with self.lock: selected=next((d for d in self.devices if d['paired'] and d['address']==address),None)
@@ -286,7 +301,7 @@ class BluetoothDevices:
         """
         if not self.enabled or not self.bus:raise ConnectionError('Bluetooth is not ready')
         if not manual and not self.automatic_phone_allowed():return 'manual'
-        if not self.operation_lock.acquire(blocking=False):return 'waiting-for-bluetooth'
+        if not self.operation_lock.acquire(timeout=LOCK_WAIT):return 'waiting-for-bluetooth'
         try:
             self._refresh()
             if not self.data.get('powered'):raise ConnectionError('Bluetooth is turned off')
@@ -307,24 +322,27 @@ class BluetoothDevices:
                     return 'waiting-for-phone'
                 self.last_attempt[selected['address']]=now
                 path=selected['_path']
-            try:self.dbus.Interface(self.bus.get_object('org.bluez',path),'org.bluez.Device1').Connect(timeout=3)
-            except Exception as error:
-                name=getattr(error,'get_dbus_name',lambda:'')()
-                if name not in ('org.bluez.Error.AlreadyConnected','org.bluez.Error.InProgress'):
-                    raise ConnectionError('The paired phone could not reconnect over Bluetooth') from None
-            return 'waiting-for-phone'
         finally:self.operation_lock.release()
+        # Connect without the operation lock so user actions and the refresh loop are not blocked.
+        try:self.dbus.Interface(self.bus.get_object('org.bluez',path),'org.bluez.Device1').Connect(timeout=3)
+        except Exception as error:
+            name=getattr(error,'get_dbus_name',lambda:'')()
+            if name not in ('org.bluez.Error.AlreadyConnected','org.bluez.Error.InProgress'):
+                raise ConnectionError('The paired phone could not reconnect over Bluetooth') from None
+        return 'waiting-for-phone'
 
     def _reconnect(self):
+        """Background reconnect; called without the operation lock because Connect may take seconds."""
         now=time.monotonic()
         addresses=self._automatic_addresses()
         phone_ready=self.phone_connection_ready()
         with self.lock:
             if not self.data.get('powered'):return
             selected=next((d for d in self.devices if d['paired'] and not d['connected'] and d['address'] in addresses and not self._busy(d['address']) and (not d.get('phone') or phone_ready) and now-self.last_attempt.get(d['address'],float('-inf'))>=30),None)
-        if selected:
-            self.last_attempt[selected['address']]=now
-            try:self.dbus.Interface(self.bus.get_object('org.bluez',selected['_path']),'org.bluez.Device1').Connect(timeout=3)
+            if selected:self.last_attempt[selected['address']]=now
+        bus=self.bus
+        if selected and bus:
+            try:self.dbus.Interface(bus.get_object('org.bluez',selected['_path']),'org.bluez.Device1').Connect(timeout=3)
             except Exception:pass
 
     def media_snapshot(self):
@@ -349,7 +367,7 @@ class BluetoothDevices:
         if operation == 'remove' and (not isinstance(address, str) or not ADDRESS.fullmatch(address) or confirmed is not True):
             raise ValueError('Unpairing requires a known device address and explicit confirmation')
         if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
-        if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        self._acquire()
         try:
             self._refresh()
             adapter = self._adapter()
@@ -378,7 +396,7 @@ class BluetoothDevices:
     def playback(self, operation):
         if operation not in ('toggle', 'next', 'previous'): raise ValueError('Unknown Bluetooth playback action')
         if not self.enabled or not self.bus: raise ConnectionError('Bluetooth service unavailable')
-        if not self.operation_lock.acquire(blocking=False): raise ConnectionError('Bluetooth operation in progress')
+        self._acquire()
         try:
             objects = self.manager.GetManagedObjects(timeout=3)
             _, _, devices = read_devices(objects)
@@ -410,27 +428,43 @@ class BluetoothDevices:
             self.dbus = dbus
             self.bus = dbus.SystemBus(private=True)
             self.manager = dbus.Interface(self.bus.get_object('org.bluez', '/'), 'org.freedesktop.DBus.ObjectManager')
+            failures = 0
             while not self.stop.is_set():
                 try:
-                    with self.operation_lock:
-                        if self.scan_until and time.monotonic() >= self.scan_until: self._stop_scan()
-                        self._refresh()
-                        self._reconnect()
-                except Exception:
+                    self._tick()
+                    failures = 0
+                except Exception as error:
+                    failures += 1
                     with self.lock:
                         self.data.update(available=False, devices=[], error='Bluetooth connection unavailable')
                         self.devices = []
                         self.media = {}
+                    # Proxies stay bound to the old bluetoothd; let _run rebuild them after a restart.
+                    if failures >= MAX_FAILURES or bus_lost(error, root=True): break
                 self.stop.wait(1)
         except Exception:
             with self.lock: self.data.update(available=False, error='BlueZ D-Bus service unavailable')
         finally:
             if self.bus:
-                try:
-                    with self.operation_lock: self._stop_scan()
-                except Exception: pass
+                if self.operation_lock.acquire(timeout=LOCK_WAIT):
+                    try: self._stop_scan()
+                    except Exception: pass
+                    finally: self.operation_lock.release()
+                # Discovery belongs to the closed connection; running connect workers fail on their own.
+                with self.lock:
+                    self.scan_until = 0
+                    self.data['scanActive'] = False
                 self.bus.close()
                 self.bus = None
+
+    def _tick(self):
+        with self.operation_lock:
+            if self.scan_until and time.monotonic() >= self.scan_until:
+                try: self._stop_scan()
+                except Exception as error:
+                    if bus_lost(error): raise
+            self._refresh()
+        self._reconnect()
 
     def close(self):
         self.stop.set()

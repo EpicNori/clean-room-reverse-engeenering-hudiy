@@ -47,6 +47,19 @@ class AudioTests(unittest.TestCase):
             self.assertEqual(runtime.commands[-1],DEFAULTS)
             self.assertEqual(settings.data,DEFAULTS)
 
+    def test_failed_rollback_does_not_mask_the_storage_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime=Runtime(); settings=AudioSettings(runtime,Path(directory)/'audio.json')
+            applied=[]
+            def apply(data):
+                applied.append(copy.deepcopy(data))
+                if len(applied)>1: raise ConnectionError('runtime disconnected')
+            with patch.object(runtime,'apply_audio',side_effect=apply),patch('audio_settings.save_json',side_effect=OSError('disk full')),patch('sys.stderr'):
+                with self.assertRaisesRegex(OSError,'disk full') as caught: settings.save({'balance':100})
+            self.assertNotIsInstance(caught.exception,ConnectionError)
+            self.assertEqual(applied[-1],DEFAULTS)
+            self.assertEqual(settings.data,DEFAULTS)
+
     def test_unavailable_runtime_cannot_acknowledge_or_persist(self):
         with tempfile.TemporaryDirectory() as directory:
             file=Path(directory)/'audio.json'; runtime=Runtime(); settings=AudioSettings(runtime,file)

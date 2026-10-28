@@ -1,5 +1,6 @@
 """Private first-run guide progress; no device configuration or live data."""
 import json
+import sys
 import threading
 import time
 from pathlib import Path
@@ -51,6 +52,9 @@ class OnboardingStore:
                 save_json(self.path,next_state)
                 self.state=next_state
                 self.until=0
-                self.hold(False)
+                # Progress is saved; releasing the native lease is best effort and
+                # the runtime's own 30 s lease expiry covers a missed release.
+                try:self.hold(False)
+                except (OSError,ConnectionError) as exc:print(f'Guide finished; native hold release failed: {exc}',file=sys.stderr,flush=True)
             else: raise ValueError('Unsupported guide action')
             return {**self.snapshot(),'saved':True}

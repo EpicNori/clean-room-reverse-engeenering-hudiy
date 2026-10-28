@@ -210,6 +210,27 @@ class HTTPTests(unittest.TestCase):
     def test_false_integration_success_never_returned(self):
         with self.request('/api/action',{'action':'projection'}) as r:self.assertEqual(r.status,501)
         with self.request('/api/action',[]) as r:self.assertEqual(r.status,400)
+        for name in ('bluetooth-list','unknown-action'):
+            with self.request('/api/action',{'action':name}) as r:
+                self.assertEqual(r.status,400);self.assertEqual(json.load(r),{'error':'Unknown or unsupported action'})
+    def test_failing_snapshot_still_answers_with_generic_json_error(self):
+        display=Mock();display.snapshot.side_effect=RuntimeError('/private/path traceback')
+        with patch.object(server,'display',display):
+            with self.request('/api/display') as r:
+                self.assertEqual(r.status,503);self.assertEqual(r.headers['Content-Type'],'application/json')
+                body=r.read().decode();self.assertNotIn('/private',body)
+                self.assertEqual(json.loads(body),{'error':'Requested data is temporarily unavailable'})
+        with self.request('/api/status') as r:self.assertEqual(r.status,200)
+    def test_shutdown_finalizes_obd_recording_before_other_services_close(self):
+        services=Mock();http=Mock();http.serve_forever.side_effect=KeyboardInterrupt
+        services.obd_logs.close.side_effect=lambda:self.assertFalse(services.obd_logs.auto_record)
+        names=('projection','wireless','software_update','obd','phonebook','bluetooth','agent','radio_output','calls','display','obd_logs')
+        with patch.multiple(server,**{name:getattr(services,name) for name in names}),patch.object(server,'ThreadingHTTPServer',return_value=http),\
+             patch('server.signal.signal'),patch('sys.argv',['server.py']),patch('builtins.print'):
+            server.main()
+        closes=[call[0] for call in services.mock_calls if call[0].endswith('.close')]
+        self.assertEqual(closes[0],'obd_logs.close')
+        self.assertIn('obd.close',closes);http.server_close.assert_called_once_with()
     def test_standalone_taskbar_change_retriggers_owned_wireless_only_after_save(self):
         projection=Mock(enabled=True)
         projection.snapshot.return_value={'options':{'taskbarVisible':True}}

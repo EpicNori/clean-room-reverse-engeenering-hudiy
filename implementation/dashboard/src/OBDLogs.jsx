@@ -17,9 +17,17 @@ const date = (n) =>
 const duration = (n) =>
   `${Math.floor(n / 3600) ? Math.floor(n / 3600) + ":" : ""}${String(Math.floor(n / 60) % 60).padStart(2, "0")}:${String(Math.floor(n) % 60).padStart(2, "0")}`;
 
-async function request(path = "/api/obd-logs", data) {
+// The Qt WebEngine host loads the dashboard with ?host=content|taskbar (same
+// detection as App.jsx). It has no download handler, so plain links do nothing.
+const NATIVE_HOST = Boolean(new URLSearchParams(location.search).get("host"));
+// Normal calls stay short; a CSV/JSONL export of up to 64 MiB can take much
+// longer on the Pi while the server is still writing the file.
+const REQUEST_TIMEOUT = 8000,
+  EXPORT_TIMEOUT = 120000;
+
+async function request(path = "/api/obd-logs", data, timeout = REQUEST_TIMEOUT) {
   const controller = new AbortController(),
-    timer = setTimeout(() => controller.abort(), 8000);
+    timer = setTimeout(() => controller.abort(), timeout);
   try {
     const response = await fetch(path, {
       signal: controller.signal,
@@ -197,6 +205,7 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
     [notice, setNotice] = useState(""),
     [preview, setPreview] = useState(null),
     [remove, setRemove] = useState(null),
+    [exporting, setExporting] = useState(""),
     [tick, setTick] = useState(Date.now());
   const alive = useRef(true),
     pending = useRef(false),
@@ -257,8 +266,15 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
     setBusy(true);
     setError("");
     setNotice("");
+    const exportJob =
+      data.action === "export" ? `${data.id}:${data.format}` : "";
+    setExporting(exportJob);
     try {
-      const next = await request("/api/obd-logs", data);
+      const next = await request(
+        "/api/obd-logs",
+        data,
+        exportJob ? EXPORT_TIMEOUT : REQUEST_TIMEOUT,
+      );
       if (alive.current) {
         if (data.action === "export")
           setNotice(`Saved ${next.filename} to ${next.directory}`);
@@ -279,13 +295,18 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
       if (alive.current)
         setError(
           e.name === "AbortError"
-            ? "Request timed out. Check the recording status before retrying."
+            ? exportJob
+              ? "Export did not finish in time. It may still be saving; check the export folder before retrying."
+              : "Request timed out. Check the recording status before retrying."
             : e.message,
         );
       return false;
     } finally {
       mutating.current = false;
-      if (alive.current) setBusy(false);
+      if (alive.current) {
+        setBusy(false);
+        setExporting("");
+      }
     }
   }
   async function showPreview(identifier) {
@@ -560,12 +581,15 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
                   <>
                     <button
                       disabled={busy}
+                      aria-busy={exporting === `${session.id}:csv`}
                       onClick={() =>
                         run({ action: "export", id: session.id, format: "csv" })
                       }
                       aria-label={`Export CSV ${session.id}`}
                     >
-                      Export CSV
+                      {exporting === `${session.id}:csv`
+                        ? "Exporting…"
+                        : "Export CSV"}
                     </button>
                     <button
                       disabled={busy}
@@ -576,16 +600,21 @@ export function OBDLogs({ telemetry, onSettings, onDashboard, demo = false }) {
                           format: "jsonl",
                         })
                       }
+                      aria-busy={exporting === `${session.id}:jsonl`}
                       aria-label={`Export JSONL ${session.id}`}
                     >
-                      Export JSONL
+                      {exporting === `${session.id}:jsonl`
+                        ? "Exporting…"
+                        : "Export JSONL"}
                     </button>
-                    <a
-                      href={`/api/obd-logs/${session.id}/jsonl`}
-                      download={`obd-${session.id}.jsonl`}
-                    >
-                      Download JSONL
-                    </a>
+                    {!NATIVE_HOST && (
+                      <a
+                        href={`/api/obd-logs/${session.id}/jsonl`}
+                        download={`obd-${session.id}.jsonl`}
+                      >
+                        Download JSONL
+                      </a>
+                    )}
                     <button
                       disabled={busy}
                       onClick={() => setRemove(session.id)}

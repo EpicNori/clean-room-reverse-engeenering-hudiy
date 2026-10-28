@@ -1,10 +1,13 @@
 import copy
 from pathlib import Path
+import sys
 import tempfile
+import threading
+import time
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
-from bluetooth_devices import BluetoothDevices, CONNECT_TIMEOUT, DISCONNECT_TIMEOUT, friendly_error, read_devices
+from unittest.mock import Mock, patch
+from bluetooth_devices import BluetoothDevices, CONNECT_TIMEOUT, DISCONNECT_TIMEOUT, MAX_FAILURES, friendly_error, read_devices
 from live_media import with_bluetooth_media
 
 ADAPTER='/org/bluez/hci0'
@@ -249,3 +252,89 @@ class BluetoothScreenTests(unittest.TestCase):
         self.assertEqual(friendly_error(BluezError('org.bluez.Error.AuthenticationRejected'),'pair'),
                          'Pairing was cancelled or the codes did not match.')
         self.assertNotIn('org.bluez',friendly_error(BluezError('org.bluez.Error.Failed','weird'),'disconnect'))
+        self.assertEqual(friendly_error(BluezError('org.freedesktop.DBus.Error.ServiceUnknown')),
+                         'Bluetooth is not ready yet. Try again in a moment.')
+
+
+class Stop:
+    """Stands in for the stop event: ends the background loop after a fixed number of waits."""
+    def __init__(self,ticks):self.ticks=ticks;self.waits=0
+    def is_set(self):return self.waits>=self.ticks
+    def wait(self,_):self.waits+=1
+
+
+def fake_dbus(managers,device):
+    """Minimal dbus module; every SystemBus() call is a new connection with the next manager."""
+    buses=[]
+    def system_bus(**_):
+        buses.append(Mock());return buses[-1]
+    def interface(_,name):return managers[len(buses)-1] if name=='org.freedesktop.DBus.ObjectManager' else device
+    return SimpleNamespace(SystemBus=system_bus,Interface=interface,ObjectPath=str),buses
+
+
+class BluetoothLockAndRecoveryTests(unittest.TestCase):
+    service=BluetoothTests.service
+
+    def test_user_actions_wait_briefly_for_the_background_refresh(self):
+        service,device,objects=self.service()
+        with patch('bluetooth_devices.LOCK_WAIT',2):
+            service.operation_lock.acquire()
+            threading.Timer(.1,service.operation_lock.release).start()
+            self.assertTrue(service.command('scan')['accepted'])
+        with patch('bluetooth_devices.LOCK_WAIT',.05):
+            service.operation_lock.acquire()
+            try:
+                for action in (lambda:service.power(True),lambda:service.rename(ADDRESS,'Car'),lambda:service.playback('next'),
+                               lambda:service.command('stop'),lambda:service.connection('connect',ADDRESS)):
+                    with self.assertRaisesRegex(ConnectionError,'in progress'):action()
+                self.assertEqual(service.retry_android_auto(manual=True),'waiting-for-bluetooth')
+            finally:service.operation_lock.release()
+        device.Connect.assert_not_called()
+        # The Android Auto bootstrap connect also runs without holding the operation lock.
+        objects[DEVICE]['org.bluez.Device1'].update(Connected=False,UUIDs=['0000111f-0000-1000-8000-00805f9b34fb'])
+        locked=[];device.Connect.side_effect=lambda **_:locked.append(service.operation_lock.locked())
+        self.assertEqual(service.retry_android_auto(manual=True),'waiting-for-phone')
+        self.assertEqual(locked,[False])
+
+    def test_background_reconnect_runs_without_the_operation_lock(self):
+        objects=copy.deepcopy(OBJECTS);objects[DEVICE]['org.bluez.Device1']['Connected']=False
+        manager=Mock();manager.GetManagedObjects.side_effect=lambda **_:objects
+        device=Mock();service=BluetoothDevices();service.enabled=True
+        service.automatic={ADDRESS};service.stop=Stop(1)
+        locked=[];device.Connect.side_effect=lambda **_:locked.append(service.operation_lock.locked())
+        module,buses=fake_dbus([manager],device)
+        with patch.dict(sys.modules,{'dbus':module}):service._run_once()
+        device.Connect.assert_called_once_with(timeout=3)
+        self.assertEqual(locked,[False])
+        self.assertTrue(service.snapshot()['available'])
+        buses[0].close.assert_called_once();self.assertIsNone(service.bus)
+
+    def test_bus_is_rebuilt_after_bluetoothd_restart_or_repeated_failures(self):
+        objects=copy.deepcopy(OBJECTS)
+        gone=Mock();gone.GetManagedObjects.side_effect=BluezError('org.freedesktop.DBus.Error.ServiceUnknown','The name :1.4 was not provided')
+        fresh=Mock();fresh.GetManagedObjects.side_effect=lambda **_:objects
+        flaky=Mock();flaky.GetManagedObjects.side_effect=[TimeoutError()]*(MAX_FAILURES-1)+[objects]+[TimeoutError()]*MAX_FAILURES
+        module,buses=fake_dbus([gone,fresh,flaky],Mock())
+        service=BluetoothDevices();service.enabled=True;service.stop=Stop(50)
+        service.scan_until=time.monotonic()+30
+        with patch.dict(sys.modules,{'dbus':module}):
+            service._run_once()
+            # A vanished bluetoothd ends the loop at once instead of retrying stale proxies forever.
+            self.assertEqual(gone.GetManagedObjects.call_count,1)
+            buses[0].close.assert_called_once();self.assertIsNone(service.bus)
+            data=service.snapshot()
+            self.assertEqual((data['available'],data['scanActive'],service.scan_until),(False,False,0))
+            service.stop=Stop(1);service._run_once()
+            self.assertTrue(service.snapshot()['available'])
+            service.stop=Stop(50);service._run_once()
+        # Only consecutive failures count; a good refresh resets the counter.
+        self.assertEqual(flaky.GetManagedObjects.call_count,2*MAX_FAILURES)
+        self.assertEqual(service.stop.waits,2*MAX_FAILURES-1)
+        self.assertEqual(len(buses),3)
+
+    def test_connect_worker_fails_cleanly_while_the_bus_is_rebuilt(self):
+        service,_,_=self.service()
+        service.bus=None
+        service._device_request(ADDRESS,DEVICE,'connect')
+        self.assertEqual(service.snapshot()['operations'][ADDRESS],
+                         {'state':'failed','message':'Bluetooth is not ready yet. Try again in a moment.'})

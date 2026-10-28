@@ -42,7 +42,7 @@ def formula_tree(expression):
             continue
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
             continue
-        raise ValueError('Formulas allow Aâ€“H, numbers and arithmetic/bitwise operators only')
+        raise ValueError('Formulas allow A–H, numbers and arithmetic/bitwise operators only')
     return tree
 
 
@@ -115,7 +115,7 @@ def validate_config(value):
                 raise ValueError('Tiles cannot overlap')
     settings=value['range']
     if not isinstance(settings,dict) or set(settings)!={'tankLitres','fuelLevel','fuelRate'}: raise ValueError('Invalid range settings')
-    if settings['tankLitres'] is not None and (type(settings['tankLitres']) not in (int,float) or not math.isfinite(settings['tankLitres']) or not 1<=settings['tankLitres']<=250): raise ValueError('Tank capacity must be 1â€“250 litres')
+    if settings['tankLitres'] is not None and (type(settings['tankLitres']) not in (int,float) or not math.isfinite(settings['tankLitres']) or not 1<=settings['tankLitres']<=250): raise ValueError('Tank capacity must be 1–250 litres')
     for field in ('fuelLevel','fuelRate'):
         if settings[field] is not None and settings[field] not in sources-{'errors'}-{'derived:'+id for id in DERIVED}:
             raise ValueError('Range inputs must refer to existing sensor readings')

@@ -20,6 +20,7 @@ const OBDLogs = lazy(() => import("./OBDLogs.jsx").then(module => ({default: mod
 const SoftwareUpdates = lazy(() => import("./SoftwareUpdates.jsx").then(module => ({default: module.SoftwareUpdates})));
 import { createMediaProcessor } from "./audio";
 import { audioPresets } from './audioPresets.mjs';
+import { createLatestQueue } from './latestQueue.mjs';
 import { themePalette } from "./theme";
 import { useDragScroll } from "./useDragScroll";
 import { PhonebookView } from "./PhonebookView";
@@ -290,7 +291,8 @@ export function App() {
     const message = trackObserver.current.observe(media, projectionData.media);
     if (message) noticeCenter.current.show('track', message);
   }, [media, projectionData.media]);
-  const audioPending=useRef(0), audioQueue=useRef(Promise.resolve()), audioConfirmed=useRef(null);
+  const audioSync=useRef(null), audioConfirmed=useRef(null);
+  audioSync.current ??= createLatestQueue();
   layoutState.current = layout;
   layoutEnabled.current = Boolean(status.projection?.enabled);
   useDragScroll(viewportRef);
@@ -347,13 +349,11 @@ export function App() {
   const saveAudio = patch => {
     setPrefs(p=>({...p,...patch}));
     if (status.projection?.renderer!=='standalone') return;
-    audioPending.current++;
-    audioQueue.current=audioQueue.current.then(async()=>{
-      try {
-        const result=await action('audio-settings',{settings:patch});
-        if (result) audioConfirmed.current=result.settings;
-        if (audioPending.current===1 && audioConfirmed.current) setPrefs(p=>({...p,...audioConfirmed.current}));
-      } finally {audioPending.current--;}
+    // At most one request in flight plus the latest merged change, even while dragging.
+    audioSync.current.push(patch, async settings=>{
+      const result=await action('audio-settings',{settings});
+      if (result) audioConfirmed.current=result.settings;
+      if (!audioSync.current.pending && audioConfirmed.current) setPrefs(p=>({...p,...audioConfirmed.current}));
     });
   };
   const pref = (key, value) => {
@@ -503,7 +503,7 @@ export function App() {
         const response=await fetch('/api/audio-settings',{signal:controller.signal});
         if(!response.ok) return;
         const data=await response.json();
-        if(!cancelled && data.enabled && !audioPending.current) {
+        if(!cancelled && data.enabled && !audioSync.current.busy) {
           audioConfirmed.current=data.settings;
           setPrefs(p=>JSON.stringify({equalizer:p.equalizer,balance:p.balance,preset:p.preset})===JSON.stringify(data.settings) ? p : {...p,...data.settings});
         }

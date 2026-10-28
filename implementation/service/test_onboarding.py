@@ -28,6 +28,16 @@ class OnboardingTests(unittest.TestCase):
         with patch('onboarding.save_json',side_effect=OSError('private path')):
             with self.assertRaises(OSError):store.command({'action':'finish','outcome':'skipped','confirmed':True})
         self.assertEqual(store.snapshot(),before);hold.assert_called_once_with(True)
+    def test_saved_finish_is_reported_even_if_native_hold_release_fails(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'guide.json';hold=Mock();store=OnboardingStore(True,path,hold=hold)
+            store.command({'action':'begin'})
+            hold.side_effect=ConnectionError('Independent car runtime is unavailable or closing')
+            with patch('sys.stderr'):result=store.command({'action':'finish','outcome':'completed','confirmed':True})
+            self.assertTrue(result['saved']);self.assertEqual(result['outcome'],'completed');self.assertFalse(result['active'])
+            self.assertEqual(OnboardingStore(True,path).snapshot()['outcome'],'completed')
+            hold.assert_called_with(False)
+            with self.assertRaises(ConnectionError):store.command({'action':'begin'})
     def test_lease_expires_after_renderer_crash_and_heartbeat_renews(self):
         now=[0];store=OnboardingStore(True,clock=lambda:now[0])
         store.command({'action':'begin'});now[0]=20

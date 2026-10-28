@@ -90,6 +90,10 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
     def do_GET(self):
+        # A failing snapshot must still answer; details stay out of the response.
+        try:return self.get()
+        except Exception:return self.send(503,{'error':'Requested data is temporarily unavailable'})
+    def get(self):
         if not self.trusted_host():return self.send(403,{'error':'Untrusted Host header'})
         path=urlsplit(self.path).path
         if path=='/api/projection':return self.send(200,with_bluetooth_media(projection.data_snapshot(),bluetooth.media_snapshot()))
@@ -367,8 +371,6 @@ class Handler(BaseHTTPRequestHandler):
                 if set(data)!={'action','view'}:raise ValueError('Phone refresh requires only a view')
                 if not phonebook.enabled:return self.send(501,{'error':'Contacts require Bluetooth phonebook access on the Pi'})
                 return self.send(200,phonebook.refresh(data.get('view')))
-            if name in {'phone-refresh','phone-call','phone-end','bluetooth-scan','bluetooth-list'}:
-                return self.send(501,{'error':'This integration is not implemented; no device action was performed'})
             return self.send(400,{'error':'Unknown or unsupported action'})
         except (ValueError,TypeError) as exc:return self.send(400,{'error':str(exc)})
         except Exception as exc:return self.send(503,{'error':str(exc)})
@@ -396,8 +398,12 @@ def main():
     try:server.serve_forever()
     except KeyboardInterrupt:pass
     finally:
+        # The native host kills this service 4 s after SIGTERM: finalize a running
+        # OBD recording first, without a late reconnect starting a new automatic one.
+        obd_logs.auto_record=False
+        obd_logs.close()
         software_update.close()
         wireless.close()
         if agent:agent.close()
-        radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();obd_logs.close();server.server_close()
+        radio_output.close();calls.close();bluetooth.close();phonebook.close();projection.close();obd.close();server.server_close()
 if __name__=='__main__':main()

@@ -1,14 +1,39 @@
 import copy
 import os
 from pathlib import Path
+import re
 import stat
 import tempfile
 import unittest
 from unittest.mock import patch
-from layout import LayoutStore, validate_layout, DEFAULT_LAYOUT
+from layout import LayoutStore, validate_layout, DEFAULT_LAYOUT, LEGACY_IDS, MENU_IDS
+from runtime_support import ROUTES
+
+CATALOG = Path(__file__).resolve().parents[1] / 'dashboard/src/catalog.js'
+# Menu tiles that run a device action instead of opening a screen route.
+ACTION_TILES = {'android-usb', 'android-wifi', 'android-resume', 'android-quit', 'quit'}
+# Screens reachable outside the application menus (taskbar, players, legacy shortcuts).
+EXTRA_ROUTES = {'dashboard', 'apps', 'playlist', 'stations'} | set(LEGACY_IDS)
+
+
+def catalog_menus():
+    source = CATALOG.read_text(encoding='utf-8')
+    body = re.search(r'export const menus = \{(.*?)\n\};', source, re.S).group(1)
+    groups = {}
+    for match in re.finditer(r'^  (?:"([^"]+)"|(\w+)): \[(.*?)^  \],', body, re.M | re.S):
+        groups[match.group(1) or match.group(2)] = re.findall(r'\[\s*"[^"]*",\s*"[^"]*",\s*"([^"]+)"\s*\]', match.group(3))
+    return groups
 
 
 class LayoutTests(unittest.TestCase):
+    def test_dashboard_catalog_backend_menus_and_native_routes_stay_in_sync(self):
+        menus = catalog_menus()
+        self.assertEqual(list(menus), list(MENU_IDS))
+        self.assertEqual(menus, MENU_IDS)
+        tiles = {id for group in menus.values() for id in group}
+        self.assertLessEqual(ACTION_TILES, tiles)
+        self.assertEqual(set(ROUTES), (tiles - ACTION_TILES) | EXTRA_ROUTES)
+
     def test_catalog_upgrade_keeps_existing_shortcuts_and_order(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'layout.json'

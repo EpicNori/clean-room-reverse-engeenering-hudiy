@@ -65,7 +65,11 @@ class AudioRouteBase:
 
     def _run(self):
         while not self.stop.is_set():
-            self._tick();self.stop.wait(5)
+            # Unexpected pactl/JSON shapes must not end radio routing for good.
+            try:self._tick()
+            except Exception:
+                with self.lock:self.data.update(routed=False,error='Radio output check failed; retrying')
+            self.stop.wait(5)
 
     def close(self):
         self.stop.set()
