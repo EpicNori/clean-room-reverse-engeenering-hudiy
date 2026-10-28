@@ -1,3 +1,4 @@
+import {ClockCardContent, NavigationCardContent, MusicCardContent, PhoneCardContent} from "./DashboardCards";
 import {useOnboarding} from "./useOnboarding";
 import {Introduction} from "./Introduction";
 import {categoryLabel} from "./branding.mjs";
@@ -1057,19 +1058,7 @@ export function App() {
             <div className="dashboard-grid">
               <div className="dashboard-left" style={{ order: layout.columns.indexOf('clock-navigation') }}>
                 <div className="card clock-card" role="group" aria-label="Clock card" tabIndex={0} style={{ order: layout.leftCards.indexOf('clock') }} {...customizationAttributes('card', 'clock', undefined, 'dashboard')}>
-                  <div>
-                    <Icon name="schedule" size={32} />
-                    <span>{time}</span>
-                  </div>
-                  <p>
-                    {now.toLocaleDateString("en-GB", { weekday: "long" })},
-                    <br />
-                    {now.getDate()}{" "}
-                    {now.toLocaleDateString("en-GB", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
+                  <ClockCardContent time={time} now={now}/>
                 </div>
                 <button
                   className="card navigation-card"
@@ -1084,96 +1073,14 @@ export function App() {
                         )
                   }
                 >
-                  <Icon
-                    name={
-                      navigation.side === 1
-                        ? "turn_left"
-                        : navigation.side === 2
-                          ? "turn_right"
-                          : "navigation"
-                    }
-                  />
-                  {navigation.active ? (
-                    <span>
-                      {navigation.description || "Navigation active"}
-                      <br />
-                      {navigation.distance || ""}
-                    </span>
-                  ) : (
-                    <span>
-                      Waiting for
-                      <br />
-                      destination
-                    </span>
-                  )}
+                  <NavigationCardContent navigation={navigation}/>
                 </button>
               </div>
               <div className="card media-card" role="group" aria-label="Music card" tabIndex={0} style={{ order: layout.columns.indexOf('music') }} {...customizationAttributes('card', 'music', undefined, shownMedia.source)}>
-                <button
-                  className="album-tile"
-                  aria-label="Open music player"
-                  onClick={() => open(shownMedia.source)}
-                >
-                  {liveMedia && shownMedia.coverart ? (
-                    <img
-                      alt="Album cover"
-                      src={`/api/projection/coverart?v=${shownMedia.coverartVersion}`}
-                    />
-                  ) : (
-                    <Icon name="music_note" size={84} />
-                  )}
-                </button>
-                <div className="dashboard-track">
-                  <span>{shownMedia.title || "-"}</span>
-                  <span>{shownMedia.artist || "-"}</span>
-                  <span>{shownMedia.album || "-"}</span>
-                </div>
-                <div className="dashboard-duration">
-                  {shownMedia.timeKnown === false ? "—" : fmt(shownMedia.time)}/{shownMedia.durationKnown === false ? "—" : fmt(shownMedia.duration)}
-                </div>
-                <div className="dashboard-playback">
-                  <IconButton
-                    icon="skip_previous"
-                    label="Previous track"
-                    shortcutId="media-previous"
-                    onClick={() => stepTrack(-1)}
-                  />
-                  <IconButton
-                    icon={shownMedia.playing ? "pause" : "play_arrow"}
-                    className="play-circle"
-                    label={shownMedia.playing ? "Pause" : "Play"}
-                    shortcutId="media-toggle"
-                    onClick={play}
-                  />
-                  <IconButton
-                    icon="skip_next"
-                    label="Next track"
-                    shortcutId="media-next"
-                    onClick={() => stepTrack(1)}
-                  />
-                </div>
+                <MusicCardContent media={shownMedia} liveMedia={liveMedia} onOpen={()=>open(shownMedia.source)} onPrevious={()=>stepTrack(-1)} onPlay={play} onNext={()=>stepTrack(1)} pinActions/>
               </div>
               <div className="card phone-card" role="group" aria-label="Phone card" tabIndex={0} style={{ order: layout.columns.indexOf('phone') }} {...customizationAttributes('card', 'phone', undefined, 'contacts')}>
-                <div className="phone-title">
-                  <span>{status.phone?.name || phonebookData.name || ""}</span>
-                  <Icon name="bluetooth" size={42} />
-                </div>
-                <div className="phone-shortcuts">
-                  {[
-                    ["contacts", "contacts"],
-                    ["star", "favorites"],
-                    ["dialpad", "dialpad"],
-                    ["history", "call-log"],
-                  ].map(([i, id]) => (
-                    <IconButton
-                      key={id}
-                      icon={i}
-                      label={id}
-                      shortcutId={id}
-                      onClick={() => go(id)}
-                    />
-                  ))}
-                </div>
+                <PhoneCardContent name={status.phone?.name || phonebookData.name || ''} onGo={go} pinActions/>
               </div>
             </div>
           )}

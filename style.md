@@ -338,3 +338,17 @@ speaker icon and a 48px minimum touch target. The saved receiver reads Audio dev
 selected; show actual routing/waiting/failure status inline, independent of popup
 preferences. Preserve wrapping on narrow screens, both themes and hidden scrollbar
 chrome. No new colors, fonts, assets, dependencies or backend rules are required.
+
+
+## Preserve original dashboard widget appearance — 27 October 2026
+
+The clock, navigation, music and phone widgets must share their content components
+with the original dashboard. Keep the original date/year, schedule/navigation/
+Bluetooth icons, album tile, three metadata lines, playback circle and all four
+phone shortcuts. In custom layouts remove the extra dashboard heading and default
+widget title bars; retain the floating Customize dashboard entry, shown as a 48px
+icon-only circle on custom layouts so it does not cover widget content. Use
+original theme tokens and borderless cards, with proportional container-based
+scaling only where resizing needs it. Editor grips/selection and explicitly renamed
+titles remain available. Glass remains opt-in and changes surfaces, not widget
+identity. Preserve user's positions/sizes, all other widget types and theme settings.

@@ -1093,3 +1093,40 @@
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
+
+/* The editable dashboard uses the original card anatomy, not a second skin. */
+.dash-original-widget { padding:0; border:0; }
+.dash-original-widget > .dash-widget-content { height:100%; }
+.dash-original-body { box-sizing:border-box; width:100%; height:100%; color:inherit; }
+.dash-original-widget .clock-card { padding:12px 16px; }
+.dash-original-widget .clock-card > div { font-size:clamp(26px,12cqw,48px); line-height:1.12; gap:7px; }
+.dash-original-widget .clock-card > div .icon { font-size:clamp(20px,8cqw,32px)!important; }
+.dash-original-widget .clock-card p { font-size:clamp(16px,9.8cqw,40px); line-height:1.2; margin:clamp(10px,6cqw,26px) 0 0; }
+.dash-widget-content .dash-original-body.navigation-card { min-height:100%; padding:16px; border-radius:0; background:transparent; font-size:clamp(20px,10.8cqw,44px); line-height:1.16; }
+.dash-original-widget .navigation-card > .icon { top:16px; right:16px; font-size:clamp(26px,12cqw,48px)!important; }
+.dash-original-widget .media-card { padding:16px 8px 20px; min-height:280px; }
+.dash-original-widget .album-tile { width:min(52cqw,198px); height:auto; aspect-ratio:1; flex-shrink:0; min-height:48px; border-radius:12px; background:var(--active); color:var(--primary-text); padding:0; }
+.dash-original-widget .album-tile .icon { font-size:clamp(40px,21cqw,84px)!important; }
+.dash-original-widget .dashboard-track { font-size:clamp(16px,8.3cqw,34px); gap:clamp(8px,5cqw,22px); margin-top:clamp(8px,5cqw,20px); line-height:1.18; }
+.dash-original-widget .dashboard-duration { font-size:clamp(16px,8.3cqw,34px); margin-top:clamp(8px,5cqw,20px); }
+.dash-original-widget .dashboard-playback { position:static; margin-top:auto; padding-top:20px; width:min(90%,330px); gap:6px; }
+.dash-original-widget .icon-button { padding:0; border-radius:0; background:transparent; color:inherit; min-width:48px; min-height:48px; }
+.dash-original-widget .icon-button .icon { font-size:clamp(28px,12cqw,48px)!important; }
+.dash-original-widget .dashboard-playback .play-circle { width:clamp(48px,22cqw,88px); height:clamp(48px,22cqw,88px); background:var(--active); color:var(--primary-text); border-radius:50%; }
+.dash-original-widget .phone-card { padding:10px clamp(8px,6cqw,24px); min-height:148px; }
+.dash-original-widget .phone-title { font-size:clamp(20px,10cqw,42px); min-height:42px; line-height:1.2; gap:12px; }
+.dash-original-widget .phone-title > .icon { font-size:clamp(26px,10cqw,42px)!important; }
+.dash-original-widget .phone-shortcuts { margin-top:clamp(14px,8cqw,37px); gap:0; flex-wrap:wrap; }
+.dash-original-widget .phone-shortcuts .icon-button { width:clamp(48px,16cqw,72px); height:clamp(48px,16cqw,70px); }
+.dash-original-widget > .dash-original-header { position:absolute; inset:8px 8px auto; z-index:3; margin:0; pointer-events:none; }
+.dash-original-header > span { display:none!important; }
+.dash-original-header > span.dash-custom-title { display:flex!important; background:var(--surface); border-radius:8px; padding:4px 8px; max-width:75%; }
+.dash-original-header > button { pointer-events:auto; margin-left:auto; }
+.dash-mode-floating { position:absolute; top:8px; left:8px; z-index:4; }
+/* Custom layouts can place widgets under the entry, so keep it compact. */
+.personal-dashboard .dashboard-customize-entry.is-icon-only { width:48px; height:48px; padding:0; justify-content:center; border-radius:50%; bottom:8px; right:8px; }
+/* Keep the original top-right icons clear of the 48px editor grip. */
+.is-editing .dash-original-widget .navigation-card > .icon { right:64px; }
+.is-editing .dash-original-widget .phone-title { padding-right:52px; }
+.dash-surface-glass .dash-original-widget .album-tile,
+.dash-surface-glass .dash-original-widget .play-circle { background:color-mix(in srgb,var(--dash-accent) 24%,transparent); color:inherit; }

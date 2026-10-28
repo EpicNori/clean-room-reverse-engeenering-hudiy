@@ -78,3 +78,10 @@ Bluetooth Connections must offer Use as audio device for paired audio receivers,
 using the existing durable Sound/radio-output preference and explicit connection
 when needed. Do not treat a phone's audio-source profile or serial ELM327 as an
 output receiver. Keep selected/actual route/error status inline when popups are off.
+
+
+Customizing the dashboard must preserve the original clock/navigation/music/phone
+widget appearance. Reuse shared content components with the original dashboard;
+keep original icons, typography hierarchy, album/metadata/playback anatomy and all
+four phone shortcuts. Avoid extra dashboard headings/default widget title bars.
+Keep resizing/arrangement, editor grips and explicitly optional glass surfaces.

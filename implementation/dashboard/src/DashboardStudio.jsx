@@ -1,3 +1,10 @@
+import {
+  ORIGINAL_WIDGET_TYPES,
+  ClockCardContent,
+  NavigationCardContent,
+  MusicCardContent,
+  PhoneCardContent,
+} from "./DashboardCards";
 import React, {
   useState,
   useEffect,
@@ -67,92 +74,40 @@ function WidgetContent({ widget, data, onGo, palette }) {
   switch (widget.type) {
     case "clock":
       return (
-        <div className="dash-clock">
-          <strong>{data.time}</strong>
-          <span>
-            {data.now.toLocaleDateString("en-GB", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-          </span>
+        <div className="dash-original-body clock-card">
+          <ClockCardContent time={data.time} now={data.now} />
         </div>
       );
     case "navigation":
       return (
-        <div className="dash-navigation">
-          <Symbol
-            name={
-              nav.side === 1
-                ? "turn_left"
-                : nav.side === 2
-                  ? "turn_right"
-                  : "navigation"
-            }
-          />
-          <strong>
-            {nav.active
-              ? nav.description || "Navigation active"
-              : "Waiting for a destination"}
-          </strong>
-          {nav.active && nav.distance && <span>{nav.distance}</span>}
-          <button onClick={() => onGo("android-resume")}>
-            Open Android Auto
-            <Symbol name="arrow_forward" />
-          </button>
-        </div>
+        <button
+          className="dash-original-body navigation-card"
+          aria-label="Navigation card"
+          onClick={() => onGo("android-resume")}
+        >
+          <NavigationCardContent navigation={nav} />
+        </button>
       );
     case "music":
       return (
-        <div className="dash-music">
-          <div className="dash-album">
-            {data.liveMedia && media.coverart ? (
-              <img
-                alt="Album cover"
-                src={`/api/projection/coverart?v=${media.coverartVersion}`}
-              />
-            ) : (
-              <Symbol name="music_note" />
-            )}
-          </div>
-          <strong>{media.title || "Nothing playing"}</strong>
-          <span>{media.artist || "Connect a phone or choose local music"}</span>
-          <small>
-            {media.timeKnown === false ? "—" : timeText(media.time)} /{" "}
-            {media.durationKnown === false ? "—" : timeText(media.duration)}
-          </small>
-          <div className="dash-playback">
-            <button aria-label="Previous track" onClick={data.previous}>
-              <Symbol name="skip_previous" />
-            </button>
-            <button
-              aria-label={media.playing ? "Pause" : "Play"}
-              onClick={data.play}
-            >
-              <Symbol name={media.playing ? "pause" : "play_arrow"} />
-            </button>
-            <button aria-label="Next track" onClick={data.next}>
-              <Symbol name="skip_next" />
-            </button>
-          </div>
+        <div className="dash-original-body media-card">
+          <MusicCardContent
+            media={media}
+            liveMedia={data.liveMedia}
+            onOpen={() => onGo(media.source || "storage")}
+            onPrevious={data.previous}
+            onPlay={data.play}
+            onNext={data.next}
+          />
         </div>
       );
     case "phone":
       return (
-        <div className="dash-phone">
-          <strong>
-            {phone.name || data.phonebook?.name || "Connect your phone"}
-          </strong>
-          <div>
-            <button onClick={() => onGo("contacts")}>
-              <Symbol name="contacts" />
-              Contacts
-            </button>
-            <button onClick={() => onGo("dialpad")}>
-              <Symbol name="dialpad" />
-              Dialpad
-            </button>
-          </div>
+        <div className="dash-original-body phone-card">
+          <PhoneCardContent
+            name={phone.name || data.phonebook?.name || ""}
+            onGo={onGo}
+          />
         </div>
       );
     case "connections":
@@ -449,7 +404,7 @@ export function WidgetBoard({
             .map((w) => (
               <article
                 key={w.id}
-                className={`dash-widget ${selected === w.id && editing ? "is-selected" : ""} ${drag?.id === w.id ? "is-dragging" : ""}`}
+                className={`dash-widget ${ORIGINAL_WIDGET_TYPES.includes(w.type) ? `dash-original-widget dash-original-${w.type}` : ""} ${selected === w.id && editing ? "is-selected" : ""} ${drag?.id === w.id ? "is-dragging" : ""}`}
                 data-widget-id={w.id}
                 data-layout-kind={editing ? undefined : "widget"}
                 data-layout-id={w.id}
@@ -479,25 +434,41 @@ export function WidgetBoard({
                   }
                 }}
               >
-                <header>
-                  <span>
-                    <Symbol name={WIDGETS[w.type].icon} />
-                    {w.title || WIDGETS[w.type].label}
-                  </span>
-                  {editing && (
-                    <button
-                      aria-label={`Drag ${w.title || WIDGETS[w.type].label}`}
-                      title={
-                        metrics.cols === 6
-                          ? "Drag or use arrow keys"
-                          : "Use the Move controls on compact screens"
+                {(editing ||
+                  !ORIGINAL_WIDGET_TYPES.includes(w.type) ||
+                  (w.title && w.title !== WIDGETS[w.type].label)) && (
+                  <header
+                    className={
+                      ORIGINAL_WIDGET_TYPES.includes(w.type)
+                        ? "dash-original-header"
+                        : undefined
+                    }
+                  >
+                    <span
+                      className={
+                        w.title && w.title !== WIDGETS[w.type].label
+                          ? "dash-custom-title"
+                          : undefined
                       }
-                      {...grip(w)}
                     >
-                      <Symbol name="drag_indicator" />
-                    </button>
-                  )}
-                </header>
+                      <Symbol name={WIDGETS[w.type].icon} />
+                      {w.title || WIDGETS[w.type].label}
+                    </span>
+                    {editing && (
+                      <button
+                        aria-label={`Drag ${w.title || WIDGETS[w.type].label}`}
+                        title={
+                          metrics.cols === 6
+                            ? "Drag or use arrow keys"
+                            : "Use the Move controls on compact screens"
+                        }
+                        {...grip(w)}
+                      >
+                        <Symbol name="drag_indicator" />
+                      </button>
+                    )}
+                  </header>
+                )}
                 <div className="dash-widget-content">
                   <WidgetContent
                     widget={w}
@@ -534,21 +505,17 @@ export function DashboardView({ workspace, data, onGo, palette }) {
     <section
       className={`personal-dashboard ${workspace.config.appearance.surface === "glass" ? "dash-host-glass" : ""}`}
     >
-      <header className="dash-view-header">
-        <div>
-          <span className="dash-eyebrow">YOUR COCKPIT</span>
-          <h1>Dashboard</h1>
-        </div>
-        <div>
-          {data.obd?.mode === "simulator" && (
-            <span className="dash-mode">Simulator</span>
-          )}
-          <button onClick={() => onGo("dashboard-editor")}>
-            <Symbol name="tune" />
-            Customize dashboard
-          </button>
-        </div>
-      </header>
+      {data.obd?.mode === "simulator" && (
+        <span className="dash-mode dash-mode-floating">Simulator</span>
+      )}
+      <button
+        className="dashboard-customize-entry is-icon-only"
+        aria-label="Customize dashboard"
+        title="Customize dashboard"
+        onClick={() => onGo("dashboard-editor")}
+      >
+        <Symbol name="tune" />
+      </button>
       <WidgetBoard
         config={workspace.config}
         data={data}
