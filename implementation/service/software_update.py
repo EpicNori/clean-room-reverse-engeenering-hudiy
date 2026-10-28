@@ -122,7 +122,7 @@ class SoftwareUpdate:
         self.lock=threading.RLock();self.worker=None;self.scheduler=None;self.stop_event=threading.Event();self.cancel_event=threading.Event();self.cancelled_by_user=False
         self.settings=dict(DEFAULTS);self.cache={'phase':'idle','message':'Ready to check GitHub.','latestRevision':None,'checkedAt':None,'preparedRevision':None,'failedRevision':None}
         self.network={'allowed':False,'message':'Checking network…' if self.enabled else 'OTA installation requires our supervised Pi launcher.'}
-        self.last_attempt=0;self.started=time.monotonic();self.idle_since=None;self.idle_reason=None
+        self.last_attempt=0;self.started=time.monotonic();self.idle_since=None;self.idle_reason=None;self.activation=None
         if self.enabled:
             try:
                 private_directory(self.root)
@@ -213,7 +213,23 @@ class SoftwareUpdate:
         data=json.loads(download(API,cancel=self.cancel_event))
         revision=data.get('object',{}).get('sha') if isinstance(data,dict) and isinstance(data.get('object'),dict) and data['object'].get('type')=='commit' else None
         if not isinstance(revision,str) or not SHA.fullmatch(revision):raise ValueError('GitHub returned an invalid revision')
-        self._state('current' if revision==self.installed else 'available','The installed version is current.' if revision==self.installed else 'A GitHub update is available.',latestRevision=revision,checkedAt=time.time(),preparedRevision=self.cache.get('preparedRevision') if self.cache.get('preparedRevision')==revision else None,failedRevision=revision if self.cache.get('failedRevision')==revision else None)
+        result=self._compare(revision) if revision!=self.installed and isinstance(self.installed,str) and SHA.fullmatch(self.installed) else None
+        latest,phase,message=result or ((revision,'current','The installed version is current.') if revision==self.installed else (revision,'available','A GitHub update is available.'))
+        self._state(phase,message,latestRevision=latest,checkedAt=time.time(),preparedRevision=self.cache.get('preparedRevision') if self.cache.get('preparedRevision')==latest else None,failedRevision=latest if self.cache.get('failedRevision')==latest else None)
+
+    def _compare(self,revision):
+        """Classify main against the installed commit; None keeps the plain 'available' result."""
+        try:data=json.loads(download(f'https://api.github.com/repos/{REPOSITORY}/compare/{self.installed}...{revision}',limit=8*1024*1024,cancel=self.cancel_event))
+        except (ConnectionError,ValueError):return None
+        status=data.get('status') if isinstance(data,dict) else None
+        if status=='identical':return self.installed,'current','The installed version matches GitHub main.'
+        if status=='behind':return self.installed,'current','The installed version is newer than GitHub main; no downgrade is offered.'
+        if status=='diverged':return revision,'available','GitHub main has diverged from the installed version.'
+        if status!='ahead':return None
+        files=data.get('files')
+        if isinstance(files,list) and len(files)<300 and all(isinstance(f,dict) and isinstance(f.get('filename'),str) and isinstance(f.get('previous_filename',''),str) for f in files) and not any(f['filename'].startswith('implementation/') or f.get('previous_filename','').startswith('implementation/') for f in files):
+            return self.installed,'current',f'GitHub only has documentation changes ({revision[:7]}); no application update is needed.'
+        return revision,'available','A GitHub update is available.'
 
     def _run(self,args,cwd,env,timeout=3600):
         if self.cancel_event.is_set():raise InterruptedError('Update cancelled')
@@ -305,6 +321,16 @@ class SoftwareUpdate:
     def _prune(self):
         selected=selection(self.root);protected={selected['active'],selected['previous'],self.cache.get('preparedRevision')}
         releases=private_directory(self.root/'releases')
+        # Runs under operation_lock before a build: leftovers of failed/cancelled builds and power loss are not in use.
+        for path in list(releases.iterdir()):
+            if path.is_symlink() or not path.is_dir() or path.resolve().parent!=releases.resolve():continue
+            if not path.name.startswith('.stage-'):
+                if not SHA.fullmatch(path.name) or path.name in protected:continue
+                try:marker=read_json(path/'.ota-incomplete.json')
+                except (OSError,ValueError,TypeError):continue
+                if not isinstance(marker,dict) or marker.get('revision')!=path.name:continue
+            try:shutil.rmtree(path)
+            except OSError:pass
         candidates=[]
         for path in releases.iterdir():
             if path.is_symlink() or not path.is_dir() or not SHA.fullmatch(path.name):continue
@@ -344,8 +370,14 @@ class SoftwareUpdate:
             before,pending=activate(self.root,revision,self.baseline)
             try:
                 self._state('activating','Restarting into the selected version. The launcher will verify it and roll back if startup fails.',failedRevision=self.cache.get('latestRevision') if rollback else None)
-                self.projection.request_exit()
-            except Exception:write_json(self.root/'selection.json',before);raise
+                self.projection.request_exit(force=True)
+            except Exception:
+                write_json(self.root/'selection.json',before);self.activation=None
+                try:self._state('failed','The application restart could not be requested; the installed software is unchanged.')
+                except Exception:pass
+                raise
+            # Old process: _tick re-requests the exit and reverts the selection if no restart follows.
+            now=time.monotonic();self.activation={'nonce':pending['nonce'],'before':before,'requested':now,'resent':now}
         return {'accepted':True,'message':'Application restart requested. Reconnect to the interface shortly.'}
 
     def healthy(self):
@@ -365,12 +397,13 @@ class SoftwareUpdate:
 
     def _tick(self):
         self.network=network_status(self.projection.snapshot())
+        selected=selection(self.root)
+        if selected['pending']:self._watch_activation(selected);return
         if self.worker and self.worker.is_alive():return
-        if selection(self.root)['pending']:return
         if self.settings['autoCheck'] and time.time()-max(self.last_attempt,self.cache.get('checkedAt') or 0)>=self.settings['checkIntervalHours']*3600:
             if self.network.get('allowed') and (self.network.get('metered') is False or self.settings['allowMetered']):
-                self.last_attempt=time.time();self.request('check')
-            return
+                self.last_attempt=time.time();self.request('check');return
+            # Offline: a prepared release may still be installed automatically below.
         if self.settings['mode']!='idle':self.idle_reason=None;return
         latest=self.cache.get('latestRevision')
         if not latest or latest==self.installed or latest==self.cache.get('failedRevision') or self.cache['phase']=='failed':return
@@ -381,3 +414,17 @@ class SoftwareUpdate:
         if reason:self.idle_since=None;return
         if self.idle_since is None:self.idle_since=time.monotonic()
         if time.monotonic()-self.idle_since>=30:self.install(True,automatic=True)
+
+    def _watch_activation(self,selected):
+        """Old process only: resend the exit every 30 s; after 90 s restore the previous selection."""
+        watch=self.activation
+        if not watch or watch['nonce']!=selected['nonce'] or os.environ.get('HUDIY_UPDATE_NONCE')==selected['nonce']:return
+        now=time.monotonic()
+        if now-watch['requested']>=90:
+            with self.lock:
+                write_json(self.root/'selection.json',watch['before']);self.activation=None
+                self._state('failed','The application did not restart; the update was not activated. Installed software is unchanged.')
+        elif now-watch['resent']>=30:
+            watch['resent']=now
+            try:self.projection.request_exit(force=True)
+            except Exception:pass

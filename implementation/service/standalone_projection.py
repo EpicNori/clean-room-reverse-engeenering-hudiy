@@ -87,8 +87,8 @@ class StandaloneProjection:
             self.state = copy.deepcopy(value)
             self.updated = time.time()
 
-    def _send(self, command):
-        if not self.available or not self.sock or self.exit_requested:
+    def _send(self, command, force=False):
+        if not self.available or not self.sock or (self.exit_requested and not force):
             raise ConnectionError('Independent car runtime is unavailable or closing')
         payload = json.dumps(command, allow_nan=False, separators=(',', ':')).encode() + b'\n'
         if len(payload) > MAX_MESSAGE: raise ValueError('Native command exceeds size limit')
@@ -221,10 +221,11 @@ class StandaloneProjection:
     def reload_wireless(self):
         with self.lock: self._send({'operation': 'wireless-reload'})
 
-    def request_exit(self):
+    def request_exit(self, force=False):
+        # force: OTA activation re-sends the exit even if an earlier request did not end the runtime.
         with self.lock:
-            if not self.exit_requested:
-                self._send({'operation': 'exit'})
+            if force or not self.exit_requested:
+                self._send({'operation': 'exit'}, force=force)
                 self.exit_requested = True
         return {'accepted': True, 'message': 'Returning to the desktop'}
 

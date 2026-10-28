@@ -94,6 +94,18 @@ class StandaloneTests(unittest.TestCase):
             self.assertEqual(json.loads(bridge.sock.sendall.call_args.args[0]),{'operation':'exit'})
             with self.assertRaises(ConnectionError):bridge.action('resume')
 
+    def test_forced_exit_is_resent_but_a_plain_repeat_is_not(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bridge=self.projection(directory)
+            bridge.request_exit();bridge.request_exit()
+            self.assertEqual(bridge.sock.sendall.call_count,1)
+            self.assertTrue(bridge.request_exit(force=True)['accepted'])
+            self.assertEqual(bridge.sock.sendall.call_count,2);self.assertTrue(bridge.exit_requested)
+            self.assertEqual(json.loads(bridge.sock.sendall.call_args.args[0]),{'operation':'exit'})
+            with self.assertRaises(ConnectionError):bridge.action('resume')
+            bridge.available=False
+            with self.assertRaises(ConnectionError):bridge.request_exit(force=True)
+
     def test_handshake_alone_does_not_claim_video_or_a_real_microphone(self):
         with tempfile.TemporaryDirectory() as directory:
             bridge=self.projection(directory)
@@ -199,6 +211,43 @@ class StandaloneTests(unittest.TestCase):
             with self.assertRaises(ConnectionError):agent.pair(ADDRESS)
             thread.assert_called_once()
             self.assertTrue(agent.snapshot()['pairingBusy'])
+
+    def test_pairing_trusts_then_connects_and_reports_progress(self):
+        class BluezError(Exception):
+            def __init__(self,name,text=''):super().__init__(text);self.name=name
+            def get_dbus_name(self):return self.name
+        bluetooth=Mock();bluetooth.snapshot.return_value={'powered':True,'devices':[{'address':ADDRESS,'name':'Phone','paired':False}]}
+        agent=BluezAgent(bluetooth,Mock(),Mock());agent.ready=True
+        def start():
+            with patch('bluez_agent.threading.Thread'):agent.pair(ADDRESS)
+            self.assertEqual(agent.snapshot()['pairingProgress'],{'address':ADDRESS,'name':'Phone','state':'pairing','message':''})
+            agent.pairing_busy=False
+            calls=Mock();return calls,calls.device,calls.properties
+        calls,device,properties=start()
+        agent._pair_and_connect(device,properties)
+        self.assertEqual([call[0] for call in calls.mock_calls],['device.Pair','properties.Set','device.Connect'])
+        properties.Set.assert_called_once_with('org.bluez.Device1','Trusted',True,timeout=3)
+        self.assertEqual(agent.snapshot()['pairingProgress']['state'],'connected')
+        calls,device,properties=start()
+        device.Connect.side_effect=BluezError('org.bluez.Error.Failed','Host is down')
+        agent._pair_and_connect(device,properties)
+        progress=agent.snapshot()['pairingProgress']
+        self.assertEqual((progress['state'],progress['message']),('failed',"Paired, but couldn't connect. Make sure the device is on and in range."))
+        calls,device,properties=start()
+        device.Pair.side_effect=BluezError('org.bluez.Error.AuthenticationRejected')
+        agent._pair_and_connect(device,properties)
+        device.Connect.assert_not_called();properties.Set.assert_not_called()
+        self.assertEqual(agent.snapshot()['pairingProgress']['message'],'Pairing was cancelled or the codes did not match.')
+        self.assertTrue(agent.snapshot()['pairingError'])
+        calls,device,properties=start()
+        device.Pair.side_effect=BluezError('org.bluez.Error.AlreadyExists')
+        device.Connect.side_effect=BluezError('org.bluez.Error.AlreadyConnected')
+        agent._pair_and_connect(device,properties)
+        self.assertEqual(agent.snapshot()['pairingProgress']['state'],'connected')
+        agent.progress['at']-=31
+        self.assertIsNone(agent.snapshot()['pairingProgress'])
+        bluetooth.snapshot.return_value={'powered':False,'devices':[{'address':ADDRESS,'name':'Phone','paired':False}]}
+        with self.assertRaises(ConnectionError):agent.pair(ADDRESS)
 
     def test_wifi_write_failure_restores_the_previous_network_mode(self):
         with tempfile.TemporaryDirectory() as directory:
