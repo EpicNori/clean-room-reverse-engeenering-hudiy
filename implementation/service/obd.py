@@ -23,6 +23,10 @@ def decode(pid,response):
     return None
 
 class Transport:
+    # Resync probes with ATI: a bare CR would make the ELM327 repeat the last
+    # vehicle request, while ATI interrupts a busy adapter, never reaches the
+    # vehicle and its "ELM327 vX" answer cannot be mistaken for a late hex reply.
+    QUERY_TIMEOUT=3;RESYNC_DEADLINE=2.5;RESYNC_QUIET=.25;RESYNC_PROBES=3
     def __init__(self,port):
         self.sock=None
         self.serial=None
@@ -74,7 +78,7 @@ class Transport:
         if self.sock:self.sock.sendall(data)
         else:self.serial.write(data)
         result=b''
-        started=time.monotonic();deadline=started+3;hard_deadline=started+30
+        started=time.monotonic();deadline=started+self.QUERY_TIMEOUT;hard_deadline=started+30
         while time.monotonic()<min(deadline,hard_deadline) and len(result)<65536:
             try:
                 part=self.sock.recv(512) if self.sock else self.serial.read(512)
@@ -86,10 +90,44 @@ class Transport:
                 raise error
             result+=part
             if b'>' in result:return result.decode('ascii',errors='replace')
-            if part:deadline=time.monotonic()+3
+            if part:deadline=time.monotonic()+self.QUERY_TIMEOUT
         error=TimeoutError('ELM327 reply limit reached' if len(result)>=65536 else 'ELM327 did not return a prompt')
         error.response=result.decode('ascii',errors='replace')
         raise error
+    def resync(self):
+        """After a timeout, discard late replies until a fresh probe is answered alone."""
+        if self.closed:raise ConnectionError('OBD session closed')
+        started=time.time();seen=bytearray();error=None
+        try:self._resync(seen)
+        except Exception as exc:
+            error=exc;raise
+        finally:
+            # The discarded bytes stay in the raw log but are never mapped to a command.
+            if self.observer:self.observer.exchange('ATI',seen.decode('ascii',errors='replace'),error=error,header=self.header,started=started)
+    def _resync(self,seen):
+        if self.serial and hasattr(self.serial,'reset_input_buffer'):self.serial.reset_input_buffer()
+        deadline=time.monotonic()+self.RESYNC_DEADLINE;probes=0;tail=b'';last=None
+        while time.monotonic()<deadline and len(seen)<65536:
+            if last is None:
+                if probes>=self.RESYNC_PROBES:break
+                if self.sock:self.sock.sendall(b'ATI\r')
+                else:self.serial.write(b'ATI\r')
+                probes+=1;tail=b'';last=time.monotonic()
+            try:
+                part=self.sock.recv(512) if self.sock else self.serial.read(512)
+            except socket.timeout:
+                part=None
+            if part==b'' and self.sock:raise ConnectionError('ELM327 connection closed')
+            if part:
+                seen.extend(part);tail+=part;last=time.monotonic()
+                continue
+            prompt=tail.rstrip()
+            if not prompt.endswith(b'>') or time.monotonic()-last<self.RESYNC_QUIET:continue
+            # A quiet prompt: everything before its answer is stale. Only the
+            # adapter identity proves this prompt belongs to our own probe.
+            if b'ELM' in prompt[:-1].rsplit(b'>',1)[-1].upper():return
+            last=None
+        raise ConnectionError('ELM327 did not resynchronise after a timeout')
     def select_header(self,header=None):
         if header==self.header:return
         if self.protocol is None:

@@ -152,6 +152,10 @@ def observation(command, response):
     return result
 
 
+# Consecutive optional-request timeouts tolerated before the session is dropped.
+MAX_CONSECUTIVE_TIMEOUTS = 3
+
+
 class DiagnosticSweep:
     def __init__(self, recorder):
         self.recorder=recorder
@@ -165,7 +169,7 @@ class DiagnosticSweep:
         self.limitations=['Only exposed read-only diagnostics are accessible; proprietary live identifiers need definitions.',
                           'Generic OBD responders are not a scan of every vehicle module.',
                           'Freeze-frame discovery covers standard frame 0; proprietary histories are not discoverable.']
-        self.last_coverage=None;self.protocol=None
+        self.last_coverage=None;self.protocol=None;self.timeouts=0
         self.marker_generation=getattr(recorder,'marker_generation',0)
 
     @staticmethod
@@ -224,6 +228,17 @@ class DiagnosticSweep:
             self.recorder.set_coverage(coverage);self.recorder.record('coverage',coverage)
             self.last_coverage=coverage
 
+    def _unavailable(self, job, now, message):
+        header,command=job
+        key=self.key(header,command)
+        self.failures[key]=message[:160]
+        self.observed[key]=now
+        self.commands[job]=now+self.settings['snapshotIntervalSeconds']
+        returned={'command':command,'source':command,'ecuHeader':header,'error':message[:160]}
+        self.recorder.record('diagnostic',returned)
+        self._coverage()
+        return returned
+
     def step(self, transport):
         now=time.monotonic()
         marker=getattr(self.recorder,'marker_generation',0)
@@ -245,23 +260,35 @@ class DiagnosticSweep:
             job=min(due,key=lambda item:self.commands[item])
         self.next_at=now+self.settings['scanIntervalSeconds']
         header,command=job
-        requested=time.time()
+        requested=time.time();restore=bool(header)
         try:
             transport.select_header(header)
             response=transport.query(command)
+        except TimeoutError as exc:
+            # Optional request: resync first so no late reply is attributed to a
+            # later command. Repeated timeouts or a failed resync end the session.
+            self.timeouts+=1
+            if self.timeouts>=MAX_CONSECUTIVE_TIMEOUTS:
+                restore=False;raise
+            try:transport.resync()
+            except Exception:
+                restore=False;raise
+            # ATSH may have been applied late; force functional addressing below.
+            if header:transport.header=header
+            self.next_at=time.monotonic()+self.settings['scanIntervalSeconds']
+            return self._unavailable(job,now,str(exc))
         except ValueError as exc:
-            key=self.key(header,command)
-            self.failures[key]=str(exc)[:160]
-            self.observed[key]=now
-            self.commands[job]=now+self.settings['snapshotIntervalSeconds']
-            returned={'command':command,'source':command,'ecuHeader':header,'error':str(exc)[:160]}
-            self.recorder.record('diagnostic',returned)
-            self._coverage()
-            return returned
+            return self._unavailable(job,now,str(exc))
         finally:
-            if header:transport.select_header(None)
+            if restore:transport.select_header(None)
+        self.timeouts=0
         received=time.time();returned=None
+        if command=='ATDPN' or (not header and len(command)>2 and int(command[2:4],16)%32==0):
+            # A discovery request retried after a failure is answered now; it is
+            # not a periodic reading and must not stay due forever.
+            self.commands.pop(job,None)
         if command=='ATDPN':
+            self.failures.pop('ATDPN',None)
             import re
             match=re.search(r'(?:^|[\r\n])A?([0-9A-C])\s*(?:>|$)',response.upper().replace('ATDPN','').strip())
             self.protocol=match[1] if match else None
