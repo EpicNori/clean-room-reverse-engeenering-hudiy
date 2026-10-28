@@ -10,14 +10,13 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 
 ### ▶ Watch the intro · 0:42
 
-[![Watch the coscarOS intro video](docs/images/coscaros-intro-poster-play.jpg)](docs/videos/coscaros-intro.mp4)
+[![coscarOS intro preview: click to watch the full video](docs/images/coscaros-intro-preview.gif)](docs/videos/coscaros-intro.mp4)
 
-A 42-second tour built in code from real app captures (no sound). Open the [demo page](docs/demo/index.html) for the full player, features and gallery; [video source](docs/videos/source/README.md).
+**[▶ Watch the full video (MP4)](docs/videos/coscaros-intro.mp4)** · A 42-second tour built in code from real app captures (no sound). Open the [demo page](docs/demo/index.html) for the full player, features and gallery; [video source](docs/videos/source/README.md).
 
 ## Contents
 
 - [First launch and guided introduction](#first-launch-and-guided-introduction)
-
 - [Introduction](#introduction)
 - [coscarOS branding and upgrade compatibility](docs/BRANDING.md)
 - [Capability status and daily-use roadmap](#capability-status-and-daily-use-roadmap)
