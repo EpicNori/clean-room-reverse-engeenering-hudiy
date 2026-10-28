@@ -262,16 +262,18 @@ export function Telemetry({
     <div
       className={`telemetry ${isGauge ? "gauge-layout" : "wide-layout"} ${screen}`}
     >
-      <button className="telemetry-status" onClick={onSettings}>
-        {demo
-          ? "DEMO"
-          : telemetry.connected
-            ? "ELM327 connected"
-            : "OBD disconnected"}
-      </button>
-      <button className="telemetry-log-link" onClick={onLogs}>
-        Logs
-      </button>
+      <div className="telemetry-actions">
+        <button className="telemetry-log-link" onClick={onLogs}>
+          Logs
+        </button>
+        <button className="telemetry-status" onClick={onSettings}>
+          {demo
+            ? "DEMO"
+            : telemetry.connected
+              ? "ELM327 connected"
+              : "OBD disconnected"}
+        </button>
+      </div>
       {keys.map((name, i) => {
         const [label, unit, min, max] = definitions[name],
           value = values[name];

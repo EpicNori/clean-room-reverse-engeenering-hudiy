@@ -27,7 +27,7 @@ export const GUIDE_STEPS = [
     route: "apps",
     category: "Hudiy",
     target: "menu",
-    body: "Choose a category on the left, then an application on the right. The coscarOS category contains Settings, vehicle views, My OBD, OBD Logs and Extensions. Back returns to the previous page.",
+    body: "Choose a category on the left, then an application on the right. Vehicle holds My OBD, the gauge and chart views, OBD Logs and OBD settings. coscarOS contains Settings, Extensions and Quit. Back returns to the previous page.",
   },
   {
     id: "studio",
@@ -49,7 +49,7 @@ export const GUIDE_STEPS = [
     route: "settings",
     category: "System",
     target: "menu",
-    body: "Settings groups System, Projections, Audio and Bluetooth. System contains the dashboard editor, appearance, notification controls, refresh intervals and software updates. You can replay this tour in System → Application.",
+    body: "Settings groups System, Projections, Audio and Bluetooth. System contains the dashboard editor, appearance, notification controls and software updates. Music refresh is under Audio; Contact sync is under Bluetooth. You can replay this tour in System → Application.",
   },
   {
     id: "theme",

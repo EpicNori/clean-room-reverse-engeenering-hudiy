@@ -14,21 +14,36 @@ class LayoutTests(unittest.TestCase):
             path = Path(folder) / 'layout.json'
             old = copy.deepcopy(DEFAULT_LAYOUT)
             old['taskbar'].insert(2, 'contacts')
-            old['menus']['System'] = ['about', 'overlays', 'notification-settings', 'application', 'appearance', 'theme']
+            old['menus']['System'] = ['about', 'notification-settings', 'application', 'appearance', 'theme']
             path.write_text(__import__('json').dumps(old))
             restored = LayoutStore(True, path).snapshot()
             self.assertEqual(restored['taskbar'], old['taskbar'])
-            self.assertEqual(restored['menus']['System'], old['menus']['System'] + ['music-settings', 'contacts-settings', 'software-update', 'dashboard-editor'])
+            self.assertEqual(restored['menus']['System'], old['menus']['System'] + ['dashboard-editor', 'software-update'])
 
-    def test_previous_catalog_gains_custom_obd_without_losing_shortcuts_or_order(self):
-        old=copy.deepcopy(DEFAULT_LAYOUT)
-        old['menus']['Hudiy'].remove('custom-obd')
-        old['menus']['Hudiy'].reverse()
-        old['taskbar'].insert(2,'contacts')
-        result=validate_layout(old)
-        self.assertEqual(result['taskbar'],old['taskbar'])
-        self.assertEqual(result['menus']['Hudiy'][:-1],old['menus']['Hudiy'])
-        self.assertEqual(result['menus']['Hudiy'][-1],'custom-obd')
+    def test_previous_catalog_moves_tiles_and_drops_placeholders_without_losing_order(self):
+        old = copy.deepcopy(DEFAULT_LAYOUT)
+        old['taskbar'][2:2] = ['contacts', 'autobox-wifi', 'notifications']
+        old['menus'] = {
+            'Phone': ['notifications', 'dialpad', 'contacts', 'favorites', 'call-log', 'active-call'],
+            'Music': ['storage', 'radio', 'a2dp', 'autobox-music', 'android-music'],
+            'Android Auto': ['android-usb', 'android-wifi', 'android-resume', 'android-quit'],
+            'Autobox': ['autobox-wifi', 'autobox-resume'],
+            'Hudiy': ['obd-logs', 'custom-obd', 'active-apps', 'settings', 'quit', 'obd-charts', 'obd-blocks', 'combined', 'gauges', 'gauges-2', 'marketplace'],
+            'System': ['dashboard-editor', 'theme', 'appearance', 'application', 'notification-settings', 'overlays', 'about', 'music-settings', 'contacts-settings', 'software-update'],
+            'Projections': ['android-settings', 'autobox-settings'],
+            'Audio': ['sound', 'audio-input', 'equalizer', 'presets'],
+            'Bluetooth': ['pair', 'remove', 'bluetooth-connections'],
+        }
+        result = validate_layout(old)
+        self.assertEqual(result['taskbar'][:4], ['dashboard', 'apps', 'contacts', 'mute'])
+        self.assertEqual(result['menus']['Phone'], ['dialpad', 'contacts', 'favorites', 'call-log', 'active-call'])
+        self.assertEqual(result['menus']['Vehicle'], ['obd-logs', 'custom-obd', 'obd-charts', 'obd-blocks', 'combined', 'gauges', 'gauges-2', 'obd-settings'])
+        self.assertEqual(result['menus']['Hudiy'], ['settings', 'quit', 'marketplace'])
+        self.assertEqual(result['menus']['Audio'][-1], 'music-settings')
+        self.assertEqual(result['menus']['Bluetooth'][-1], 'contacts-settings')
+        self.assertNotIn('Autobox', result['menus'])
+        old['menus']['Hudiy'].append('shell')
+        with self.assertRaises(ValueError): validate_layout(old)
 
     def test_save_flushes_data_before_reporting_success(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -6,16 +6,20 @@ import threading
 from runtime_support import save_json
 
 MENU_IDS = {
-    'Phone': ['contacts', 'favorites', 'dialpad', 'call-log', 'active-call', 'notifications'],
-    'Music': ['storage', 'radio', 'a2dp', 'autobox-music', 'android-music'],
+    'Phone': ['contacts', 'favorites', 'dialpad', 'call-log', 'active-call'],
+    'Music': ['storage', 'radio', 'a2dp', 'android-music'],
     'Android Auto': ['android-usb', 'android-wifi', 'android-resume', 'android-quit'],
-    'Autobox': ['autobox-wifi', 'autobox-resume'],
-    'Hudiy': ['active-apps', 'settings', 'quit', 'obd-charts', 'obd-blocks', 'combined', 'gauges', 'gauges-2', 'custom-obd', 'obd-logs', 'marketplace'],
-    'System': ['dashboard-editor', 'theme', 'appearance', 'application', 'notification-settings', 'overlays', 'about', 'music-settings', 'contacts-settings', 'software-update'],
-    'Projections': ['android-settings', 'autobox-settings'],
-    'Audio': ['sound', 'audio-input', 'equalizer', 'presets'],
-    'Bluetooth': ['pair', 'remove', 'bluetooth-connections'],
+    'Vehicle': ['custom-obd', 'gauges', 'gauges-2', 'combined', 'obd-charts', 'obd-blocks', 'obd-logs', 'obd-settings'],
+    'Hudiy': ['settings', 'marketplace', 'quit'],
+    'System': ['dashboard-editor', 'theme', 'appearance', 'notification-settings', 'application', 'software-update', 'about'],
+    'Projections': ['android-settings'],
+    'Audio': ['sound', 'audio-input', 'equalizer', 'presets', 'music-settings'],
+    'Bluetooth': ['pair', 'remove', 'bluetooth-connections', 'contacts-settings'],
 }
+# Earlier catalogs offered these placeholders; saved layouts drop them instead of failing validation.
+RETIRED_GROUPS = {'Autobox'}
+RETIRED_IDS = {'notifications', 'active-apps', 'overlays', 'autobox-wifi', 'autobox-resume', 'autobox-music', 'autobox-settings'}
+ADDED_GROUPS = {'Vehicle'}
 REQUIRED = {'dashboard', 'apps', 'android-resume'}
 DEFAULT_LAYOUT = {
     'taskbar': ['dashboard', 'apps', 'mute', 'volume-down', 'volume-up', 'android-resume', 'connection-status', 'clock'],
@@ -35,28 +39,29 @@ def validate_layout(value):
                 len(set(data)) != len(data) or (complete and set(data) != set(allowed))):
             raise ValueError('Layout contains invalid or duplicate items')
         return list(data)
-    taskbar = items(value['taskbar'], SHORTCUTS)
+    taskbar = value['taskbar']
+    if isinstance(taskbar, list): taskbar = [id for id in taskbar if not (isinstance(id, str) and id in RETIRED_IDS)]
+    taskbar = items(taskbar, SHORTCUTS)
     if not REQUIRED.issubset(taskbar):
         raise ValueError('Keep Dashboard, Applications and Android Auto shortcuts')
     groups = value['menus']
-    if not isinstance(groups, dict) or set(groups) != set(MENU_IDS):
+    if (not isinstance(groups, dict) or not set(MENU_IDS) - ADDED_GROUPS <= set(groups) <= set(MENU_IDS) | RETIRED_GROUPS
+            or any(not isinstance(group, list) for group in groups.values())):
         raise ValueError('Invalid application categories')
-    # Upgrade the previous catalog without discarding its personal taskbar/order.
-    groups = dict(groups)
-    bluetooth = groups['Bluetooth']
-    if isinstance(bluetooth,list) and 'bluetooth-connections' not in bluetooth:
-        groups['Bluetooth']=bluetooth+['bluetooth-connections']
-    audio=groups['Audio']
-    if isinstance(audio,list) and 'audio-input' not in audio:groups['Audio']=audio+['audio-input']
-    hudiy=groups['Hudiy']
-    if isinstance(hudiy,list):groups['Hudiy']=hudiy+[id for id in ('custom-obd','obd-logs') if id not in hudiy]
-    system = groups['System']
-    if isinstance(system, list):
-        groups['System'] = system + [id for id in ('music-settings', 'contacts-settings', 'software-update', 'dashboard-editor') if id not in system]
+    # Upgrade a previous catalog without discarding its personal taskbar/order: known
+    # tiles keep their relative order, moved tiles join their new group, new tiles append.
+    known = SHORTCUTS | RETIRED_IDS
+    for group in groups.values():
+        items(group, known)
+    previous = [id for group in groups.values() for id in group]
+    def upgrade(key, allowed):
+        source = groups.get(key, previous)
+        kept = [id for id in source if id in allowed]
+        return kept + [id for id in allowed if id not in kept]
     return {'taskbar': taskbar,
             'columns': items(value['columns'], DEFAULT_LAYOUT['columns'], True),
             'leftCards': items(value['leftCards'], DEFAULT_LAYOUT['leftCards'], True),
-            'menus': {key: items(groups[key], allowed, True) for key, allowed in MENU_IDS.items()}}
+            'menus': {key: items(upgrade(key, allowed), allowed, True) for key, allowed in MENU_IDS.items()}}
 
 
 class LayoutStore:

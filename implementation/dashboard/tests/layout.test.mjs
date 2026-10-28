@@ -7,7 +7,7 @@ test('stored layout rejects unknown commands and duplicates while retaining navi
   assert.deepEqual(result.taskbar, ['contacts', ...REQUIRED_SHORTCUTS]);
   assert.deepEqual(result.columns, ['phone', 'music', 'clock-navigation']);
   assert.equal(result.menus.Phone[0], 'dialpad');
-  assert.equal(result.menus.Phone.length, 6);
+  assert.equal(result.menus.Phone.length, 5);
   assert.ok(!result.menus.Phone.includes('script'));
   assert.deepEqual(normalizeLayout(null).taskbar, DEFAULT_TASKBAR);
 });

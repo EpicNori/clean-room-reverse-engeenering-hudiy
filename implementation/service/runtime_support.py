@@ -4,11 +4,11 @@ import os
 from pathlib import Path
 
 ROUTES = frozenset('''dashboard dashboard-editor apps settings software-update obd-settings custom-obd obd-logs playlist stations
-    contacts favorites dialpad call-log active-call notifications
-    storage radio a2dp autobox-music android-music active-apps
+    contacts favorites dialpad call-log active-call
+    storage radio a2dp android-music
     obd-charts obd-blocks combined gauges gauges-2 marketplace
-    theme appearance application notification-settings overlays about music-settings contacts-settings
-    android-settings autobox-settings sound audio-input equalizer presets pair remove bluetooth-connections'''.split())
+    theme appearance application notification-settings about music-settings contacts-settings
+    android-settings sound audio-input equalizer presets pair remove bluetooth-connections'''.split())
 
 PREFERENCES = Path.home() / '.local/share/hudiy-recreation/projection.json'
 

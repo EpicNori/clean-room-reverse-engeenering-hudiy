@@ -2255,8 +2255,11 @@ a {
 
 
 /* OBD logging entry remains available before its page is lazy-loaded. */
-.telemetry-log-link {position:absolute;z-index:3;right:24px;top:12px;min-height:48px;padding:8px 14px;border:0;border-radius:12px;background:var(--active);color:var(--primary-text);font:inherit;font-size:17px;cursor:pointer;}
-@media(max-width:640px),(max-aspect-ratio:1/1){.telemetry-log-link{right:12px;top:60px;}}
+.telemetry-log-link {min-height:48px;padding:8px 14px;border:0;border-radius:12px;background:var(--active);color:var(--primary-text);font:inherit;font-size:17px;cursor:pointer;}
+/* Logs and the OBD status share one toolbar so neither covers the other. */
+.telemetry-actions {position:absolute;z-index:4;right:calc(25 * var(--x));top:calc(12 * var(--y));display:flex;align-items:center;gap:8px;}
+.telemetry-actions > .telemetry-status {position:static;min-height:48px;}
+@media(max-width:640px),(max-aspect-ratio:1/1){.telemetry-actions{right:12px;top:4px;}}
 
 /* Microphone settings reuse the audio settings palette and touch targets. */
 .audio-input-settings {padding:16px; min-width:0;}

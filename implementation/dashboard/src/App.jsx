@@ -167,14 +167,12 @@ const mediaTitles = {
   storage: "Storage",
   radio: "FM Radio",
   a2dp: "Bluetooth",
-  "autobox-music": "Autobox",
   "android-music": "Android Auto",
 };
 const mediaIcons = {
   storage: "audio_file",
   radio: "cell_tower",
   a2dp: "bluetooth_audio",
-  "autobox-music": "smartphone",
   "android-music": "navigation",
 };
 export function App() {
@@ -735,14 +733,9 @@ export function App() {
       action('application-quit');
       return;
     }
-    if (
-      (id.startsWith("android-") &&
-        !["android-settings", "android-music"].includes(id)) ||
-      (id.startsWith("autobox-") &&
-        !["autobox-settings", "autobox-music", "autobox-device"].includes(id))
-    ) {
+    if (id.startsWith("android-") && !["android-settings", "android-music"].includes(id)) {
       action("projection", {
-        projection: id.startsWith("android") ? "android" : "autobox",
+        projection: "android",
         operation: id.split("-").slice(-1)[0],
       });
       return;
@@ -759,7 +752,7 @@ export function App() {
     if (id === 'mute') return outputMute();
     if (id === 'volume-down') return outputVolume(Math.max(0, prefs.volume - 5));
     if (id === 'volume-up') return outputVolume(Math.min(100, prefs.volume + 5));
-    if (id === 'connection-status') return go('obd-settings');
+    if (id === 'connection-status') return go('bluetooth-connections');
     if (id === 'clock') return home();
     if (id === 'media-toggle') return TASKBAR ? action('projection', { operation: 'media-toggle' }) : play();
     if (id === 'media-next' || id === 'media-previous') return TASKBAR ? action('projection', { operation: id }) : stepTrack(id === 'media-next' ? 1 : -1);
@@ -890,8 +883,6 @@ export function App() {
         <button className="setting-row link-row" onClick={() => guide.start()} disabled={!guide.ready || guide.busy}>Replay introduction<Icon name="school" /></button>
         <p className="setting-note">A spotlight guide to the dashboard, devices, customization and diagnostics. Skip requires confirmation.</p>
         {guide.error && !guide.open && <p className="setting-note" role="status">{guide.error}</p>}
-        {toggle("hotspot", "Enable hotspot")}
-        {toggle("showCursor", "Show cursor")}
       </>
     ),
     "notification-settings": (
@@ -907,31 +898,6 @@ export function App() {
           max: 15,
         })}
         {slider("toastDuration", "Toast duration", { min: 1, max: 15 })}
-      </>
-    ),
-    overlays: (
-      <>
-        {radio("navigationOverlay", "Navigation", [
-          "None",
-          "Always",
-          "Projection",
-          "UI",
-        ])}
-        {radio("volumeOverlay", "Volume", [
-          "None",
-          "Always",
-          "Projection",
-          "UI",
-        ])}
-        {slider("xStep", "X step", { min: 1, max: 20 })}
-        {slider("yStep", "Y step", { min: 1, max: 20 })}
-        <button
-          className="setting-row link-row"
-          onClick={() => go("custom-overlays")}
-        >
-          Custom overlays visibility
-          <Icon name="chevron_right" />
-        </button>
       </>
     ),
     "android-settings": (
@@ -962,19 +928,6 @@ export function App() {
         {radio("androidDayNight", "Day/Night", ["Common", "Day", "Night"])}
       </>
     ),
-    "autobox-settings": (
-      <>
-        {toggle("autoboxWireless", "Wireless autoconnect")}
-        {radio("autoboxDayNight", "Day/Night", ["Common", "Day", "Night"])}
-        <button
-          className="setting-row link-row"
-          onClick={() => go("autobox-device")}
-        >
-          About device
-          <Icon name="chevron_right" />
-        </button>
-      </>
-    ),
     sound: (
       <>
         <RadioOutput action={action} connections={()=>go('bluetooth-connections')}/>
@@ -984,8 +937,6 @@ export function App() {
           Microphone / audio input<Icon name="chevron_right"/>
         </button>
         {slider("balance", "Balance", { min: -100, max: 100 })}
-        {slider("fade", "Fade", { min: -100, max: 100 })}
-        {slider("subwoofer", "Subwoofer", { min: -100, max: 100 })}
       </>
     ),
     "audio-input": <AudioInput action={action} pair={()=>go("pair")}/>,
@@ -1137,15 +1088,7 @@ export function App() {
           )}
           {screen !== "dashboard" &&
             !["apps", "settings"].includes(screen) &&
-            ![
-              "obd-charts",
-              "obd-blocks",
-              "combined",
-              "gauges",
-              "gauges-2",
-              "dashboard-editor",
-              "marketplace",
-            ].includes(screen) && (
+            !["dashboard-editor", "marketplace"].includes(screen) && (
               <IconButton
                 className="back-button"
                 icon={screen in mediaTitles ? "close" : "arrow_back"}
@@ -1570,17 +1513,6 @@ export function App() {
             </div>
           )}
           {["pair", "remove", "bluetooth-connections"].includes(screen) && <BluetoothView mode={screen} action={action} />}
-          {screen === "autobox-device" && (
-            <div className="about">
-              <h1>Autobox</h1>
-              <p>No CarlinKit adapter connected.</p>
-            </div>
-          )}
-          {screen === "active-apps" && (
-            <div className="empty-message">
-              No background applications active.
-            </div>
-          )}
           {[
             "obd-charts",
             "obd-blocks",

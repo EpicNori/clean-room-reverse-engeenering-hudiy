@@ -2,7 +2,7 @@ export const appCategories = [
   ["Phone", "call"],
   ["Music", "library_music"],
   ["Android Auto", "navigation"],
-  ["Autobox", "smartphone"],
+  ["Vehicle", "directions_car"],
   ["Hudiy", "apps"],
 ];
 export const settingCategories = [
@@ -14,17 +14,15 @@ export const settingCategories = [
 export const menus = {
   Phone: [
     ["Contacts", "contacts", "contacts"],
-    ["Favorites", "contacts", "favorites"],
+    ["Favorites", "star", "favorites"],
     ["Dialpad", "dialpad", "dialpad"],
-    ["Call log", "phone_in_talk", "call-log"],
+    ["Call log", "history", "call-log"],
     ["Active call", "phone_in_talk", "active-call"],
-    ["Notifications", "notifications", "notifications"],
   ],
   Music: [
     ["Storage Music", "audio_file", "storage"],
     ["FM Radio", "cell_tower", "radio"],
     ["A2DP", "bluetooth_audio", "a2dp"],
-    ["Autobox Music", "smartphone", "autobox-music"],
     ["Android Auto", "navigation", "android-music"],
   ],
   "Android Auto": [
@@ -33,49 +31,46 @@ export const menus = {
     ["Resume", "redo", "android-resume"],
     ["Quit", "close", "android-quit"],
   ],
-  Autobox: [
-    ["Connect WiFi", "wifi", "autobox-wifi"],
-    ["Resume", "redo", "autobox-resume"],
-  ],
-  Hudiy: [
-    ["Active apps", "web_asset", "active-apps"],
-    ["Settings", "settings", "settings"],
-    ["Quit", "disabled_by_default", "quit"],
-    ["OBD Charts", "show_chart", "obd-charts"],
-    ["OBD Blocks", "more_horiz", "obd-blocks"],
-    ["Combined", "speed", "combined"],
+  // Every vehicle view and its adapter settings live together.
+  Vehicle: [
+    ["My OBD", "dashboard_customize", "custom-obd"],
     ["Gauges", "speed", "gauges"],
     ["Gauges 2", "speed", "gauges-2"],
-    ["My OBD", "dashboard_customize", "custom-obd"],
+    ["Combined", "speed", "combined"],
+    ["OBD Charts", "show_chart", "obd-charts"],
+    ["OBD Blocks", "more_horiz", "obd-blocks"],
     ["OBD Logs", "description", "obd-logs"],
+    ["OBD settings", "settings_input_component", "obd-settings"],
+  ],
+  Hudiy: [
+    ["Settings", "settings", "settings"],
     ["Extensions", "storefront", "marketplace"],
+    ["Quit", "disabled_by_default", "quit"],
   ],
   System: [
     ["Dashboard", "dashboard_customize", "dashboard-editor"],
     ["Theme", "palette", "theme"],
     ["Appearance", "design_services", "appearance"],
-    ["Application", "settings_applications", "application"],
     ["Notifications", "notifications", "notification-settings"],
-    ["Overlays", "picture_in_picture", "overlays"],
-    ["About", "info", "about"],
-    ["Music", "library_music", "music-settings"],
-    ["Contacts", "contacts", "contacts-settings"],
+    ["Application", "settings_applications", "application"],
     ["Software updates", "system_update", "software-update"],
+    ["About", "info", "about"],
   ],
   Projections: [
     ["Android Auto", "navigation", "android-settings"],
-    ["Autobox", "smartphone", "autobox-settings"],
   ],
   Audio: [
     ["Sound", "spatial_audio", "sound"],
     ["Audio input", "mic", "audio-input"],
     ["Equalizer", "tune", "equalizer"],
     ["Presets", "equalizer", "presets"],
+    ["Music refresh", "library_music", "music-settings"],
   ],
   Bluetooth: [
     ["Pair", "add", "pair"],
     ["Remove", "remove", "remove"],
     ["Connections", "bluetooth_connected", "bluetooth-connections"],
+    ["Contact sync", "contacts", "contacts-settings"],
   ],
 };
 export const defaults = {

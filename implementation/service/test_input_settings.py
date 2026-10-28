@@ -101,7 +101,7 @@ class InputTests(unittest.TestCase):
         old=copy.deepcopy(DEFAULT_LAYOUT);old['menus']['Audio']=['presets','sound','equalizer']
         old['taskbar'].insert(2,'sound')
         migrated=validate_layout(old)
-        self.assertEqual(migrated['menus']['Audio'],['presets','sound','equalizer','audio-input'])
+        self.assertEqual(migrated['menus']['Audio'],['presets','sound','equalizer','audio-input','music-settings'])
         self.assertEqual(migrated['taskbar'],old['taskbar'])
 
 if __name__=='__main__':unittest.main()

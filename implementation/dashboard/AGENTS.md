@@ -85,3 +85,12 @@ widget appearance. Reuse shared content components with the original dashboard;
 keep original icons, typography hierarchy, album/metadata/playback anatomy and all
 four phone shortcuts. Avoid extra dashboard headings/default widget title bars.
 Keep resizing/arrangement, editor grips and explicitly optional glass surfaces.
+
+
+Every menu tile must open a real screen or a real device action; remove placeholders
+(no-op toggles, empty pages, unsupported Autobox) instead of showing them. Applications:
+Phone, Music, Android Auto, Vehicle (all OBD views, OBD Logs and OBD settings) and
+coscarOS (Settings, Extensions, Quit). Refresh settings live with their topic: Music
+refresh under Audio, Contact sync under Bluetooth. Every screen except Dashboard Studio
+and Extensions shows Back. Catalog changes need matching frontend/backend layout
+migrations so saved personal layouts keep their order instead of resetting.

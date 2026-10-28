@@ -18,7 +18,7 @@ export const SHORTCUTS = Object.fromEntries([
 export const REQUIRED_SHORTCUTS = ['dashboard', 'apps', 'android-resume'];
 export const DEFAULT_TASKBAR = ['dashboard', 'apps', 'mute', 'volume-down', 'volume-up', 'android-resume', 'connection-status', 'clock'];
 export const SCREEN_IDS = new Set(['dashboard', 'dashboard-editor', 'apps', 'settings', 'obd-settings', 'playlist', 'stations',
-  ...Object.values(menus).flat().map(([, , id]) => id).filter(id => !['quit', 'android-usb', 'android-wifi', 'android-resume', 'android-quit', 'autobox-wifi', 'autobox-resume'].includes(id))]);
+  ...Object.values(menus).flat().map(([, , id]) => id).filter(id => !['quit', 'android-usb', 'android-wifi', 'android-resume', 'android-quit'].includes(id))]);
 
 function order(value, allowed, complete = true) {
   const selected = Array.isArray(value) ? value.filter(id => typeof id === 'string' && allowed.includes(id)) : [];
@@ -32,7 +32,8 @@ export function normalizeLayout(value) {
     columns: order(raw.columns, ['clock-navigation', 'music', 'phone']),
     leftCards: order(raw.leftCards, ['clock', 'navigation']),
     menus: Object.fromEntries(Object.entries(menus).map(([group, entries]) =>
-      [group, order(raw.menus?.[group], entries.map(([, , id]) => id))])),
+      // A group added by a catalog update inherits the order its tiles had in their previous group.
+      [group, order(raw.menus?.[group] ?? Object.values(raw.menus || {}).flat(), entries.map(([, , id]) => id))])),
   };
 }
 export function readLayout() {
