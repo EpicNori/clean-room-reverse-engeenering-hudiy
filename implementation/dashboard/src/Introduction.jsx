@@ -1,51 +1,158 @@
-import React, { useEffect, useRef, useState } from "react";
-import { GUIDE_STEPS, guideRect } from "./onboarding.mjs";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  GUIDE_STEPS,
+  guidePlacement,
+  guideRect,
+  unionRect,
+} from "./onboarding.mjs";
 import "./introduction.css";
 
+const area = (r) => (r ? r.width * r.height : 0);
+// Part of an element that is not cut off by scrolling ancestors or the viewport.
+function clippedRect(element) {
+  const r = element.getBoundingClientRect();
+  let left = Math.max(r.left, 0),
+    top = Math.max(r.top, 0),
+    right = Math.min(r.right, innerWidth),
+    bottom = Math.min(r.bottom, innerHeight);
+  for (let p = element.parentElement; p && p !== document.body; p = p.parentElement) {
+    const style = getComputedStyle(p);
+    if (style.overflowX === "visible" && style.overflowY === "visible") continue;
+    const c = p.getBoundingClientRect();
+    left = Math.max(left, c.left);
+    top = Math.max(top, c.top);
+    right = Math.min(right, c.right);
+    bottom = Math.min(bottom, c.bottom);
+  }
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+// Boxes around each target selector that is mostly visible, in preference order.
+// The preferred target is scrolled into view; the app may reset its list to the top
+// right after a screen change, so retry a few times but never endlessly. Any target
+// that stays cut off by its scroll area is skipped.
+function targetBoxes(step, state) {
+  const boxes = [];
+  for (const selector of step.target || []) {
+    const found = [...document.querySelectorAll(selector)].filter(
+      (element) =>
+        !element.closest(".introduction-layer") &&
+        element.getClientRects().length > 0,
+    );
+    if (!found.length) continue;
+    const measure = () => [
+      unionRect(found.map((e) => e.getBoundingClientRect())),
+      unionRect(found.map(clippedRect)),
+    ];
+    let [full, box] = measure();
+    const tries = state.scrolled.get(found[0]) || 0;
+    if (!boxes.length && tries < 3 && area(box) < area(full) * 0.9) {
+      state.scrolled.set(found[0], tries + 1);
+      found[0].scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "instant",
+      });
+      [full, box] = measure();
+    }
+    if (box && area(box) >= area(full) * 0.6) boxes.push(box);
+  }
+  return boxes;
+}
+
 export function Introduction({ guide, onNavigate, onDone, native }) {
-  const step = GUIDE_STEPS[guide.progress.step],
+  const index = guide.progress.step,
+    step = GUIDE_STEPS[index],
+    last = index === GUIDE_STEPS.length - 1,
     dialog = useRef(null),
-    next = useRef(null);
+    next = useRef(null),
+    keys = useRef({}),
+    shownAt = useRef(0);
   const [skip, setSkip] = useState(false),
-    [rect, setRect] = useState(null);
+    [rect, setRect] = useState(null),
+    [place, setPlace] = useState(null);
   useEffect(() => {
     onNavigate(step);
     setSkip(false);
+    shownAt.current = performance.now();
   }, [step.id]);
-  useEffect(() => {
-    let frame;
+  useLayoutEffect(() => {
+    let frame,
+      ticks = 0;
+    const state = { scrolled: new Map() };
     const measure = () => {
-      const target =
-        step.target && document.querySelector(`[data-tour="${step.target}"]`);
-      setRect(
-        guideRect(target?.getBoundingClientRect(), innerWidth, innerHeight),
+      const card = dialog.current;
+      if (!card) return;
+      const size = { width: card.offsetWidth, height: card.offsetHeight };
+      const options = (skip ? [] : targetBoxes(step, state)).map((box) => {
+        const spot = guideRect(box, innerWidth, innerHeight);
+        return [spot, spot && guidePlacement(spot, size, innerWidth, innerHeight)];
+      }).filter(([spot]) => spot);
+      // Use the first target the card fits beside without covering it.
+      const [spot, nextPlace] = options.find(
+        ([, p]) => !p.side.endsWith("overlap"),
+      ) ||
+        options[0] || [null, guidePlacement(null, size, innerWidth, innerHeight)];
+      setRect((old) => (JSON.stringify(old) === JSON.stringify(spot) ? old : spot));
+      setPlace((old) =>
+        JSON.stringify(old) === JSON.stringify(nextPlace) ? old : nextPlace,
       );
     };
-    frame = requestAnimationFrame(measure);
-    const timer = setInterval(measure, 500);
-    addEventListener("resize", measure);
-    addEventListener("scroll", measure, true);
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    // Measure after the step's screen has rendered, not the previous one.
+    schedule();
+    // Screens load lazily and settle after navigation: re-measure quickly for the
+    // first seconds, then only occasionally in case their content changes.
+    const timer = setInterval(() => (++ticks < 10 || ticks % 4 === 0) && schedule(), 400);
+    const resize = new ResizeObserver(schedule);
+    dialog.current && resize.observe(dialog.current);
+    const viewport = () => {
+      // A new window size may need the target scrolled into view again.
+      state.scrolled.clear();
+      schedule();
+    };
+    addEventListener("resize", viewport);
+    addEventListener("scroll", schedule, true);
     return () => {
       cancelAnimationFrame(frame);
       clearInterval(timer);
-      removeEventListener("resize", measure);
-      removeEventListener("scroll", measure, true);
+      resize.disconnect();
+      removeEventListener("resize", viewport);
+      removeEventListener("scroll", schedule, true);
     };
-  }, [step.id]);
+  }, [step.id, skip]);
+  async function finish(outcome) {
+    if (await guide.finish(outcome)) onDone();
+  }
+  const forward = () => {
+    if (performance.now() - shownAt.current < 350) return;
+    last ? finish("completed") : guide.move(index + 1);
+  };
+  keys.current = {
+    forward: () => !skip && !guide.busy && forward(),
+    back: () => !skip && !guide.busy && index > 0 && guide.move(index - 1),
+    toggleSkip: () => !guide.busy && setSkip((value) => !value),
+  };
   useEffect(() => {
     const previous = document.activeElement;
     const key = (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        setSkip(true);
+        keys.current.toggleSkip();
+        return;
+      }
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.repeat) keys.current[e.key === "ArrowRight" ? "forward" : "back"]();
         return;
       }
       if (e.key !== "Tab") return;
       const buttons = [
-        ...dialog.current.querySelectorAll(
-          "button:not(:disabled),select:not(:disabled)",
-        ),
+        ...dialog.current.querySelectorAll("button:not(:disabled)"),
       ].filter((element) => element.getClientRects().length > 0);
       const i = buttons.indexOf(document.activeElement);
       if (e.shiftKey && i <= 0) {
@@ -68,44 +175,14 @@ export function Introduction({ guide, onNavigate, onDone, native }) {
       else next.current?.focus();
     });
     return () => cancelAnimationFrame(frame);
-  }, [skip, step.id]);
-  async function finish(outcome) {
-    if (await guide.finish(outcome)) onDone();
-  }
-  const cardTop = rect && rect.top > innerHeight * 0.55;
+  }, [skip, step.id, guide.busy]);
   return (
     <div className="introduction-layer" data-no-drag-scroll="true">
-      <div className="introduction-shield" aria-hidden="true" />
-      <svg
-        className="introduction-mask"
-        width="100%"
-        height="100%"
+      <div
+        className={`introduction-shield ${rect ? "" : "is-dimmed"}`}
         aria-hidden="true"
-      >
-        <defs>
-          <mask id="guide-cutout">
-            <rect width="100%" height="100%" fill="white" />
-            {rect && !skip && (
-              <rect
-                x={rect.left}
-                y={rect.top}
-                width={rect.width}
-                height={rect.height}
-                rx="18"
-                fill="black"
-              />
-            )}
-          </mask>
-        </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="black"
-          fillOpacity=".68"
-          mask="url(#guide-cutout)"
-        />
-      </svg>
-      {rect && !skip && (
+      />
+      {rect && (
         <div
           className="introduction-spotlight"
           aria-hidden="true"
@@ -118,49 +195,54 @@ export function Introduction({ guide, onNavigate, onDone, native }) {
         aria-modal="true"
         aria-labelledby="introduction-title"
         aria-describedby="introduction-description"
-        className={`introduction-card ${cardTop ? "at-top" : ""}`}
+        className="introduction-card"
+        data-side={place?.side || "center"}
+        style={
+          place
+            ? { left: place.left, top: place.top }
+            : { left: 12, top: 12, visibility: "hidden" }
+        }
       >
-        <div className="introduction-eyebrow">
-          COSCAROS / INTRODUCTION{" "}
-          <span>
-            {guide.progress.step + 1} / {GUIDE_STEPS.length}
+        <header className="introduction-top">
+          <span className="introduction-count">
+            Step {index + 1} of {GUIDE_STEPS.length}
           </span>
-        </div>
-        <progress
+          {!skip && (
+            <button
+              className="introduction-skip"
+              disabled={guide.busy}
+              onClick={() => setSkip(true)}
+            >
+              Skip
+              <span className="material-symbols-rounded" aria-hidden="true">
+                close
+              </span>
+            </button>
+          )}
+        </header>
+        <div
+          className="introduction-progress"
+          role="progressbar"
           aria-label="Introduction progress"
-          value={guide.progress.step + 1}
-          max={GUIDE_STEPS.length}
-        />
+          aria-valuemin={1}
+          aria-valuemax={GUIDE_STEPS.length}
+          aria-valuenow={index + 1}
+        >
+          <span style={{ width: `${((index + 1) / GUIDE_STEPS.length) * 100}%` }} />
+        </div>
         <h1 id="introduction-title">
           {skip ? "Skip the introduction?" : step.title}
         </h1>
         <p id="introduction-description">
           {skip
-            ? "You can replay the entire guide from Settings → System → Application. Keep the guide open if you tapped Skip by mistake."
+            ? "You can replay it any time in Settings → System → Application."
             : step.body}
         </p>
         {!skip && native && step.id === "taskbar" && (
           <p className="introduction-hint">
-            The native taskbar sits below this guide. Its shortcuts are paused
-            until you finish or confirm Skip.
+            The taskbar sits just below this screen and is paused during the
+            tour.
           </p>
-        )}
-        {!skip && (
-          <label className="introduction-section">
-            Jump to section
-            <select
-              aria-label="Guide section"
-              value={guide.progress.step}
-              disabled={guide.busy}
-              onChange={(e) => guide.move(Number(e.target.value))}
-            >
-              {GUIDE_STEPS.map((s, i) => (
-                <option key={s.id} value={i}>
-                  {i + 1}. {s.title}
-                </option>
-              ))}
-            </select>
-          </label>
         )}
         {guide.error && (
           <p role="alert" className="introduction-error">
@@ -171,35 +253,27 @@ export function Introduction({ guide, onNavigate, onDone, native }) {
           {skip ? (
             <>
               <button
-                data-keep-guide
-                disabled={guide.busy}
-                onClick={() => {
-                  setSkip(false);
-                  next.current?.focus();
-                }}
-              >
-                Keep learning
-              </button>
-              <button
                 className="introduction-secondary"
                 disabled={guide.busy}
                 onClick={() => finish("skipped")}
               >
-                Confirm skip
+                Skip tour
+              </button>
+              <button
+                data-keep-guide
+                className="introduction-primary"
+                disabled={guide.busy}
+                onClick={() => setSkip(false)}
+              >
+                Keep going
               </button>
             </>
           ) : (
             <>
               <button
                 className="introduction-secondary"
-                disabled={guide.busy}
-                onClick={() => setSkip(true)}
-              >
-                Skip guide
-              </button>
-              <button
-                disabled={guide.busy || guide.progress.step === 0}
-                onClick={() => guide.move(guide.progress.step - 1)}
+                disabled={guide.busy || index === 0}
+                onClick={() => guide.move(index - 1)}
               >
                 Back
               </button>
@@ -207,29 +281,19 @@ export function Introduction({ guide, onNavigate, onDone, native }) {
                 ref={next}
                 className="introduction-primary"
                 disabled={guide.busy}
-                onClick={() =>
-                  guide.progress.step === GUIDE_STEPS.length - 1
-                    ? finish("completed")
-                    : guide.move(guide.progress.step + 1)
-                }
+                onClick={forward}
               >
                 {guide.busy
                   ? "Saving…"
-                  : guide.progress.step === GUIDE_STEPS.length - 1
-                    ? "Finish introduction"
-                    : guide.progress.step === 0
+                  : last
+                    ? "Finish"
+                    : index === 0
                       ? "Start tour"
                       : "Next"}
               </button>
             </>
           )}
         </div>
-        <p className="introduction-hint">
-          {native
-            ? "Progress saved on this Pi."
-            : "Preview: progress saved in this browser."}{" "}
-          Background controls are paused during the guide.
-        </p>
       </section>
     </div>
   );

@@ -10,132 +10,141 @@
   position: absolute;
   inset: 0;
   touch-action: none;
+  transition: background-color 0.25s ease;
 }
-.introduction-mask {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+.introduction-shield.is-dimmed {
+  background: rgb(0 0 0 / 0.55);
 }
+/* The huge shadow dims everything outside the highlighted element. */
 .introduction-spotlight {
   position: fixed;
-  border: 3px solid var(--primary-text);
-  border-radius: 18px;
-  box-shadow: 0 0 0 5px rgb(255 255 255 / 0.18);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 2px var(--primary),
+    0 0 0 200vmax rgb(0 0 0 / 0.55);
   pointer-events: none;
-  background: rgb(255 255 255 / 0.06);
   transition:
-    top 0.18s ease,
-    left 0.18s ease,
-    width 0.18s ease,
-    height 0.18s ease;
+    top 0.25s ease,
+    left 0.25s ease,
+    width 0.25s ease,
+    height 0.25s ease;
 }
 .introduction-card {
-  position: absolute;
-  right: 20px;
-  bottom: 20px;
-  width: min(460px, calc(100% - 40px));
-  max-height: calc(100% - 40px);
+  position: fixed;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
   overflow: auto;
-  padding: 24px;
-  border-radius: 24px;
+  padding: 16px 18px 18px;
+  border-radius: 20px;
   background: var(--bg);
-  box-shadow: 0 14px 50px rgb(0 0 0 / 0.35);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.3);
   border: 1px solid var(--selected);
   box-sizing: border-box;
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.45;
+  transition:
+    top 0.25s ease,
+    left 0.25s ease;
 }
-.introduction-card.at-top {
-  top: 20px;
-  bottom: auto;
-}
-.introduction-eyebrow {
+.introduction-top {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  font-size: 11px;
+  gap: 12px;
+  min-height: 36px;
+}
+.introduction-count {
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--primary-text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
 }
-.introduction-card progress {
-  width: 100%;
-  height: 5px;
-  accent-color: var(--primary-text);
-  margin: 14px 0 4px;
-  display: block;
-}
-.introduction-card h1 {
-  font-size: 27px;
-  line-height: 1.2;
-  margin: 16px 0 12px;
-  letter-spacing: -0.025em;
-}
-.introduction-card p {
-  margin: 0 0 18px;
-}
-.introduction-card .introduction-hint {
-  font-size: 12px;
-  line-height: 1.5;
-  margin: 16px 0 0;
-  opacity: 0.8;
-}
-.introduction-section {
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-}
-.introduction-section select {
-  width: 100%;
-  min-width: 0;
-  min-height: 48px;
-  border: 1px solid var(--primary-text);
-  border-radius: 12px;
-  padding: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 14px;
-}
-.introduction-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
-}
-.introduction-actions button {
-  flex: 1;
-  min-height: 48px;
-  padding: 10px 14px;
+.introduction-skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  margin-right: -8px;
+  padding: 0 6px 0 10px;
   border: 0;
-  border-radius: 14px;
-  color: var(--primary-text);
-  background: var(--selected);
+  border-radius: 18px;
+  background: transparent;
+  color: var(--text);
+  opacity: 0.75;
   font: inherit;
   font-size: 14px;
   cursor: pointer;
 }
+.introduction-skip .material-symbols-rounded {
+  font-size: 20px;
+}
+.introduction-progress {
+  height: 4px;
+  margin: 6px 0 14px;
+  border-radius: 2px;
+  background: rgb(128 128 128 / 0.25);
+  overflow: hidden;
+}
+.introduction-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 0.25s ease;
+}
+.introduction-card h1 {
+  font-size: 21px;
+  line-height: 1.25;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+.introduction-card p {
+  margin: 0;
+}
+.introduction-card .introduction-hint {
+  font-size: 13px;
+  margin-top: 8px;
+  opacity: 0.8;
+}
+.introduction-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.introduction-actions button {
+  flex: 1;
+  min-height: 46px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
 .introduction-actions button.introduction-primary {
+  border: 0;
   font-weight: 700;
-  border: 2px solid var(--primary-text);
+  color: var(--bg);
+  background: var(--primary);
 }
 .introduction-actions button.introduction-secondary {
-  background: transparent;
   border: 1px solid var(--selected);
+  color: var(--text);
+  background: transparent;
 }
-.introduction-actions button:disabled {
-  opacity: 0.45;
+.introduction-card button:disabled {
+  opacity: 0.4;
   cursor: default;
 }
 .introduction-card :focus-visible {
-  outline: 3px solid var(--primary-text);
-  outline-offset: 3px;
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
 }
 .introduction-error {
-  padding: 10px;
+  padding: 8px 10px;
   border: 1px solid currentColor;
   border-radius: 10px;
-  margin-top: 12px !important;
+  margin-top: 10px !important;
   font-size: 14px;
 }
 .guide-taskbar-pause {
@@ -151,45 +160,34 @@
     16px Roboto,
     sans-serif;
 }
-@media (max-width: 540px) {
+/* Small car displays such as 800×480: keep the card short so it fits beside targets. */
+@media (max-height: 520px), (max-width: 540px) {
   .introduction-card {
-    right: 12px;
-    bottom: 12px;
-    width: calc(100% - 24px);
-    max-height: calc(100% - 24px);
-    padding: 18px;
-    border-radius: 20px;
-    font-size: 15px;
-  }
-  .introduction-card.at-top {
-    top: 12px;
-  }
-  .introduction-card h1 {
-    font-size: 24px;
-  }
-}
-@media (max-height: 440px) and (min-width: 700px) {
-  .introduction-card {
-    width: min(620px, calc(100% - 40px));
-    padding: 16px;
+    width: min(310px, calc(100vw - 24px));
+    padding: 12px 14px 14px;
     font-size: 14px;
+    border-radius: 16px;
+  }
+  .introduction-progress {
+    margin: 4px 0 10px;
   }
   .introduction-card h1 {
-    font-size: 22px;
-    margin: 8px 0;
-  }
-  .introduction-card p {
-    margin-bottom: 10px;
-  }
-  .introduction-section {
-    display: none;
+    font-size: 18px;
+    margin-bottom: 4px;
   }
   .introduction-actions {
-    margin-top: 10px;
+    margin-top: 12px;
+  }
+  .introduction-actions button {
+    min-height: 42px;
+    font-size: 14px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .introduction-spotlight {
+  .introduction-spotlight,
+  .introduction-card,
+  .introduction-shield,
+  .introduction-progress span {
     transition: none;
   }
 }
