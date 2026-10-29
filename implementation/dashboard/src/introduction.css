@@ -5,12 +5,18 @@
   font-family: Roboto, sans-serif;
   color: var(--text);
   isolation: isolate;
+  /* Only the shields and the card take input, so taps in a usable area reach the app. */
+  pointer-events: none;
 }
 .introduction-shield {
   position: absolute;
   inset: 0;
+  pointer-events: auto;
   touch-action: none;
   transition: background-color 0.25s ease;
+}
+.introduction-layer.is-paused > :not(.introduction-shield) {
+  display: none;
 }
 .introduction-shield.is-dimmed {
   background: rgb(0 0 0 / 0.55);
@@ -19,9 +25,7 @@
 .introduction-spotlight {
   position: fixed;
   border-radius: 16px;
-  box-shadow:
-    0 0 0 2px var(--primary),
-    0 0 0 200vmax rgb(0 0 0 / 0.55);
+  box-shadow: 0 0 0 200vmax rgb(0 0 0 / 0.55);
   pointer-events: none;
   transition:
     top 0.25s ease,
@@ -29,8 +33,38 @@
     width 0.25s ease,
     height 0.25s ease;
 }
+.introduction-spotlight.has-ring {
+  box-shadow:
+    0 0 0 2px var(--primary),
+    0 0 0 200vmax rgb(0 0 0 / 0.55);
+}
+/* Hands-on steps: the usable area stays bright, the key setting gets the ring. */
+.introduction-spotlight.is-usable {
+  border-radius: 12px;
+  box-shadow: 0 0 0 200vmax rgb(0 0 0 / 0.45);
+}
+.introduction-ring {
+  position: fixed;
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px var(--primary);
+  pointer-events: none;
+  animation: introduction-breathe 2.4s ease-in-out infinite;
+  transition:
+    top 0.25s ease,
+    left 0.25s ease,
+    width 0.25s ease,
+    height 0.25s ease;
+}
+@keyframes introduction-breathe {
+  50% {
+    box-shadow:
+      0 0 0 2px var(--primary),
+      0 0 0 6px rgb(128 128 128 / 0.25);
+  }
+}
 .introduction-card {
   position: fixed;
+  pointer-events: auto;
   width: min(340px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
   overflow: auto;
@@ -101,6 +135,176 @@
 }
 .introduction-card p {
   margin: 0;
+}
+/* "Applications › coscarOS › Settings": the way to this step. */
+.introduction-card .introduction-path {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--primary);
+}
+.introduction-path .material-symbols-rounded {
+  font-size: 17px;
+  line-height: 1.1;
+}
+.introduction-path .is-current {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.introduction-path .is-later {
+  opacity: 0.55;
+}
+.introduction-path-arrow {
+  opacity: 0.6;
+}
+/* While showing the way, the spotlight glides a little slower between buttons. */
+.introduction-spotlight.is-walking {
+  transition-duration: 0.7s;
+}
+/* A fingertip that glides to each button and ripples when it "taps". */
+.introduction-finger {
+  position: fixed;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.85);
+  border: 2px solid var(--primary);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  transition:
+    left 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+    top 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.15s ease;
+}
+.introduction-finger::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  opacity: 0;
+}
+.introduction-finger.is-pressed {
+  transform: scale(0.82);
+}
+.introduction-finger.is-pressed::after {
+  animation: introduction-ripple 0.55s ease-out;
+}
+@keyframes introduction-ripple {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+/* The next screen opens out of the tapped button, then fades into place. */
+.introduction-opening {
+  position: fixed;
+  border-radius: 16px;
+  background: var(--bg);
+  opacity: 0.9;
+  pointer-events: none;
+  transition:
+    left 0.38s ease-out,
+    top 0.38s ease-out,
+    width 0.38s ease-out,
+    height 0.38s ease-out,
+    border-radius 0.38s ease-out;
+}
+.introduction-opening.is-open {
+  border-radius: 0;
+}
+.introduction-opening.is-fading {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+/* "Show again" replays the way to this step. */
+.introduction-again {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.introduction-again .material-symbols-rounded {
+  font-size: 16px;
+}
+.introduction-card .introduction-try {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  opacity: 1;
+}
+.introduction-try .material-symbols-rounded {
+  font-size: 16px;
+}
+/* While setting things up, the card becomes a slim bar over the taskbar. */
+.introduction-card.is-mini {
+  top: auto;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 14px;
+  border-radius: 16px;
+  transition: none;
+}
+.introduction-card.is-mini h1 {
+  margin: 0;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.introduction-card.is-mini button {
+  flex: none;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.introduction-card.is-mini .introduction-primary {
+  border: 0;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--primary);
+}
+.introduction-card.is-mini .introduction-secondary {
+  border: 1px solid var(--selected);
+  color: var(--text);
+  background: transparent;
+}
+.introduction-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .introduction-card .introduction-hint {
   font-size: 13px;
@@ -178,6 +382,14 @@
   .introduction-actions {
     margin-top: 12px;
   }
+  .introduction-card .introduction-path {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .introduction-again-label,
+  .introduction-card .introduction-try:not(.introduction-away) {
+    display: none;
+  }
   .introduction-actions button {
     min-height: 42px;
     font-size: 14px;
@@ -187,7 +399,15 @@
   .introduction-spotlight,
   .introduction-card,
   .introduction-shield,
-  .introduction-progress span {
+  .introduction-progress span,
+  .introduction-finger,
+  .introduction-opening,
+  .introduction-ring {
     transition: none;
+    animation: none;
+  }
+  .introduction-finger,
+  .introduction-opening {
+    display: none;
   }
 }

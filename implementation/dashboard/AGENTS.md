@@ -72,6 +72,10 @@ progress privately across restarts, keep browser-preview progress separate, requ
 explicit skip confirmation, and offer Replay introduction in System → Application.
 Tour navigation must not execute device actions or steal focus from a modal; prevent
 projection auto-opening while its temporary renewable guide lease is active.
+The guide shows the real way to each screen (taskbar → category → tile or Back) with
+an unhurried tap animation, a path line and Show again, and lets the viewer set up
+each settings step directly inside a usable area while everything else stays inert.
+Only the viewer's own taps may start device actions (e.g. opening Bluetooth scans).
 
 
 Bluetooth Connections must offer Use as audio device for paired audio receivers,

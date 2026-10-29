@@ -220,6 +220,8 @@ export function App() {
     [phonebookData, setPhonebookData] = useState({ views: {}, error: '', syncing: false }),
     [obdPath, setObdPath] = useState("/dev/rfcomm0");
   const guide = useOnboarding(Boolean(HOST_MODE), TASKBAR);
+  // The guide releases the screen while the viewer sets something up or an app dialog is open.
+  const [guideReleased, setGuideReleased] = useState(false);
   const guideActive = useRef(false); guideActive.current = guide.open;
   const dashboard = useDashboardWidgets(Boolean(HOST_MODE), !TASKBAR);
   const [dashboardTemplate, setDashboardTemplate] = useState(null);
@@ -1004,7 +1006,7 @@ export function App() {
           multiple
           onChange={loadFiles}
         />
-        <section inert={guide.open} data-tour={({dashboard:"dashboard","dashboard-editor":"studio",marketplace:"extensions","bluetooth-connections":"bluetooth","custom-obd":"obd","obd-logs":"logs","software-update":"updates"})[screen]} className={`screen screen-${screen}`}>
+        <section inert={guide.open && !guideReleased} data-tour={({dashboard:"dashboard","dashboard-editor":"studio",marketplace:"extensions","bluetooth-connections":"bluetooth","custom-obd":"obd","obd-logs":"logs","software-update":"updates"})[screen]} className={`screen screen-${screen}`}>
           {screen === "dashboard" && !dashboard.config.enabled && (
             <div className="dashboard-grid">
               <div className="dashboard-left" style={{ order: layout.columns.indexOf('clock-navigation') }}>
@@ -1564,7 +1566,7 @@ export function App() {
           pin={id => { updateLayout(current => pinShortcut(current, id)); setCustomize(null); }}
           move={moveCustomized} remove={id => { if (!REQUIRED_SHORTCUTS.includes(id)) updateLayout(current => ({ ...current, taskbar: current.taskbar.filter(item => item !== id) })); setCustomize(null); }} />}
         {TASKBAR && guide.remoteActive && <div className="guide-taskbar-pause" role="status">Introduction open · use Next or confirm Skip above</div>}
-        {!TASKBAR && guide.open && <Introduction guide={guide} native={CONTENT} onNavigate={step => {setScreen(step.route);setCategory(step.category || 'Hudiy');setSettingCategory(step.category || 'System');setCustomize(null);}} onDone={() => {setScreen('dashboard');setHistory([]);}} />}
+        {!TASKBAR && guide.open && <Introduction guide={guide} native={CONTENT} onRelease={setGuideReleased} screen={screen} category={screen === 'apps' ? category : settingCategory} onNavigate={step => {setScreen(step.route);setCategory(step.category || 'Hudiy');setSettingCategory(step.category || 'System');setCustomize(null);}} onDone={() => {setScreen('dashboard');setHistory([]);}} />}
         {notice && !guide.open && (
           <div className="toast" role="status">
             {notice.message}

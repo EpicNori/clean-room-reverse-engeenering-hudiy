@@ -6,9 +6,12 @@ import {
   guideState,
   readGuide,
   guideRect,
+  guidePathLabel,
   guidePlacement,
+  guideRoute,
   unionRect,
 } from "../src/onboarding.mjs";
+import { menus } from "../src/catalog.js";
 
 const overlaps = (a, b) =>
   a.left < b.left + b.width &&
@@ -97,6 +100,86 @@ test("guide covers the user journey with unique bounded sections", () => {
     assert.ok(step.title.length <= 32, step.id);
     assert.ok(step.body.length <= 110, step.id);
   }
+});
+test("every path uses real menu entries and ends on its step's screen", () => {
+  for (const step of GUIDE_STEPS.filter((s) => s.path)) {
+    const end = step.path.at(-1).to;
+    assert.equal(end.route, step.route, step.id);
+    if (step.category) assert.equal(end.category, step.category, step.id);
+    for (const tap of step.path) {
+      assert.ok(tap.label && tap.target.length && tap.to.route, step.id);
+      const tile = tap.target[0].match(/data-layout-id=([\w-]+)\]$/)?.[1];
+      if (tile && tap.target[0].startsWith("[data-tour=menu]")) {
+        const group = Object.values(menus).find((items) =>
+          items.some(([, , id]) => id === tile),
+        );
+        assert.ok(group, `${step.id}: ${tile} is a menu tile`);
+      }
+    }
+  }
+  assert.equal(
+    guidePathLabel(GUIDE_STEPS.find((s) => s.id === "theme")),
+    "Applications › coscarOS › Settings › System › Theme",
+  );
+});
+test("forward steps show only the taps that are still needed", () => {
+  const step = (id) => GUIDE_STEPS.find((s) => s.id === id);
+  const labels = (from, to) =>
+    guideRoute(step(from), step(to)).map((tap) => tap.label);
+  assert.deepEqual(labels("dashboard", "taskbar"), []);
+  assert.deepEqual(labels("taskbar", "apps"), ["Applications", "coscarOS"]);
+  assert.deepEqual(labels("settings", "theme"), ["Theme"]);
+  // Back returns to the parent menu; the category tap still follows.
+  assert.deepEqual(labels("theme", "pair"), ["Back", "Bluetooth"]);
+  assert.deepEqual(labels("android", "contacts"), [
+    "Back",
+    "Bluetooth",
+    "Contact sync",
+  ]);
+  assert.deepEqual(labels("my-obd", "logs"), ["Back", "OBD Logs"]);
+  // Extensions has no standard Back button, so the taskbar route is used.
+  assert.deepEqual(labels("extensions", "settings"), [
+    "Applications",
+    "coscarOS",
+    "Settings",
+    "System",
+  ]);
+  // Far jumps start again from the always-visible taskbar.
+  assert.deepEqual(labels("logs", "updates"), [
+    "Applications",
+    "coscarOS",
+    "Settings",
+    "System",
+    "Software updates",
+  ]);
+  for (let i = 1; i < GUIDE_STEPS.length; i++)
+    assert.ok(guideRoute(GUIDE_STEPS[i - 1], GUIDE_STEPS[i]).length <= 5);
+});
+test("settings steps can be set up during the tour", () => {
+  const handsOn = GUIDE_STEPS.filter((s) => s.interactive).map((s) => s.id);
+  for (const id of ["theme", "pair", "android", "contacts", "music", "audio", "microphone", "obd", "updates", "finish"])
+    assert.ok(handsOn.includes(id), id);
+  // Navigation-only steps stay blocked so a stray tap cannot leave the tour.
+  // The studio preview cards are real shortcuts, so the studio is only shown.
+  for (const id of ["welcome", "dashboard", "taskbar", "apps", "studio", "settings"])
+    assert.ok(!handsOn.includes(id), id);
+  // Pairing may continue on the Bluetooth screen the viewer opens themselves.
+  assert.deepEqual(GUIDE_STEPS.find((s) => s.id === "pair").follow, ["bluetooth-connections"]);
+  for (const step of GUIDE_STEPS.filter((s) => s.interactive))
+    assert.ok(step.interactive.every((s) => typeof s === "string" && s), step.id);
+});
+test("the way continues from a screen the viewer opened themselves", () => {
+  const step = (id) => GUIDE_STEPS.find((s) => s.id === id);
+  const pair = step("pair");
+  // The viewer tapped Bluetooth during the pairing step.
+  const bluetooth = {
+    route: "bluetooth-connections",
+    path: [...pair.path, { to: { route: "bluetooth-connections" } }],
+  };
+  assert.deepEqual(
+    guideRoute(bluetooth, step("android")).map((tap) => tap.label),
+    ["Back", "Projections", "Android Auto"],
+  );
 });
 test("pairing step stays on the settings menu instead of a device screen", () => {
   const pair = GUIDE_STEPS.find((s) => s.id === "pair");
