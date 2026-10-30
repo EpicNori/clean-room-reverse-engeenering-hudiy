@@ -120,6 +120,35 @@ h1 .ln:nth-child(3)>span{animation-delay:.18s}
 .time{font-variant-numeric:tabular-nums;color:var(--fg)}
 .video-note{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 24px;margin-top:18px;color:var(--fg-3)}
 
+/* full demo player (shares the player code with the intro) */
+.cta-col{display:flex;flex-direction:column;align-items:flex-end;gap:14px}
+.sub{color:var(--fg-2);text-decoration:none;font-size:11.5px;padding:4px 2px;border-bottom:1px solid var(--line);transition:color .3s var(--ease),border-color .3s var(--ease)}
+.sub:hover{color:var(--signal);border-color:var(--signal)}
+.demo-sec{border-top:1px solid var(--line);padding-top:clamp(72px,10vw,140px)}
+.demo-sec .sec-head .kicker{margin-bottom:18px}
+.player.full .overlay{cursor:pointer;background:radial-gradient(46% 56% at 50% 50%,rgba(24,17,22,.74),rgba(24,17,22,.46) 75%)}
+.player.full .play .s{background:rgba(24,17,22,.72);padding:5px 11px;border-radius:999px;color:var(--fg)}
+.player.full .bar{grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:14px}
+.ctl{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:rgba(24,17,22,.55);color:var(--fg);font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;transition:border-color .3s var(--ease),color .3s var(--ease)}
+.ctl:hover{border-color:var(--signal);color:var(--signal-2)}
+.ctl svg{width:15px;height:15px;fill:currentColor;flex:none}
+.ctl.fs{width:30px;padding:0;justify-content:center}
+.ctl.mute .i-off,.ctl.mute[aria-pressed="false"] .i-on{display:none}
+.ctl.mute[aria-pressed="false"] .i-off{display:block}
+.ctl.mute[aria-pressed="false"]{color:var(--fg-2)}
+.track .marks{position:absolute;inset:0;pointer-events:none}
+.track .mark{position:absolute;top:50%;width:2px;height:8px;margin:-4px 0 0 -1px;border-radius:1px;background:rgba(241,229,237,.6)}
+.chapters{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 0;padding:0}
+.chapters button{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-2);background:var(--bg-2);border:1px solid var(--line);border-radius:999px;padding:7px 11px;cursor:pointer;transition:border-color .3s var(--ease),color .3s var(--ease),background .3s var(--ease)}
+.chapters button:hover{border-color:var(--signal);color:var(--fg)}
+.chapters .ct{color:var(--fg-3);font-variant-numeric:tabular-nums}
+.chapters button[aria-current="true"]{background:var(--signal);border-color:var(--signal);color:var(--on-signal)}
+.chapters button[aria-current="true"] .ct{color:var(--on-signal);opacity:.75}
+.player:fullscreen{width:100%;height:100%;aspect-ratio:auto;border:0;border-radius:0;background:#000}
+.player:fullscreen video{object-fit:contain}
+.player:-webkit-full-screen{width:100%;height:100%;aspect-ratio:auto;border:0;border-radius:0;background:#000}
+.player:-webkit-full-screen video{object-fit:contain}
+
 /* sections */
 .sec{padding:clamp(72px,10vw,140px) 0;border-top:1px solid var(--line)}
 .sec-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px 48px;align-items:end;margin-bottom:clamp(36px,6vw,72px)}
@@ -168,6 +197,7 @@ footer a:hover{color:var(--fg)}
 
 @media (max-width:860px){
   .hero-foot,.sec-head{grid-template-columns:1fr}
+  .cta-col{align-items:flex-start}
   .features li{grid-template-columns:48px minmax(0,1fr)}
   .features li p{grid-column:2}
   .gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -190,6 +220,19 @@ footer a:hover{color:var(--fg)}
   .cta .kicker{text-align:center}
   .cta .kicker::before{display:none}
   .player{aspect-ratio:16/10}
+  .player.full{aspect-ratio:16/9}
+  .player.full .bar{grid-template-columns:minmax(0,1fr) auto auto auto;gap:6px 8px}
+  .player.full .play .t{font-size:16px}
+  .player.full .overlay{padding-bottom:58px}
+  .player.full .play{gap:8px;padding:6px}
+  .player.full .play .disc{width:52px;height:52px}
+  .ctl{height:28px;padding:0 9px}
+  .ctl.fs{width:28px}
+  .ctl .lbl{display:none}
+  .cta-col{align-items:stretch}
+  .sub{text-align:center;border-bottom:0}
+  .chapters{gap:6px}
+  .chapters button{padding:6px 9px;font-size:10.5px}
 }
 @media (max-width:380px){
   .top .btn-sm{padding:9px 12px;font-size:12.5px}
@@ -213,6 +256,7 @@ footer a:hover{color:var(--fg)}
     <a class="brand" href="#top" aria-label="coscarOS home"><i aria-hidden="true"></i>coscarOS</a>
     <nav class="nav" aria-label="Main">
       <a class="l" href="#features">Features</a>
+      <a class="l" href="#demo">Demo</a>
       <a class="l" href="#gallery">Gallery</a>
       <a class="l gh" href="https://github.com/desquerteur/coscarOS">GitHub</a>
       <a class="btn btn-light btn-sm" href="https://github.com/desquerteur/coscarOS#easy-pi-installation">Install on your Pi</a>
@@ -232,9 +276,12 @@ footer a:hover{color:var(--fg)}
       </h1>
       <div class="hero-foot rv">
         <p class="lead"><strong>Phone projection, a customizable vehicle dashboard and diagnostic recording in one Raspberry Pi touchscreen application.</strong> A React touch UI, a Python hardware service and a Qt fullscreen host, with USB and wireless Android Auto.</p>
-        <div class="ctas">
-          <a class="btn btn-light" href="https://github.com/desquerteur/coscarOS#easy-pi-installation">Install on your Pi <span class="arr" aria-hidden="true">→</span></a>
-          <a class="btn btn-dark" href="#intro" data-watch>▶ Watch the intro · <span data-dur>0:42</span></a>
+        <div class="cta-col">
+          <div class="ctas">
+            <a class="btn btn-light" href="https://github.com/desquerteur/coscarOS#easy-pi-installation">Install on your Pi <span class="arr" aria-hidden="true">→</span></a>
+            <a class="btn btn-dark" href="#intro" data-watch>▶ Watch the intro · <span data-dur="intro">0:42</span></a>
+          </div>
+          <a class="sub mono" href="#demo" data-watch>Full demo · <span data-dur="demo">1:47</span> · with sound <span aria-hidden="true">↓</span></a>
         </div>
       </div>
     </div>
@@ -244,26 +291,69 @@ footer a:hover{color:var(--fg)}
     <div class="wrap">
       <div class="stage rv">
         <div class="glow" aria-hidden="true"></div>
-        <div class="player" id="player">
+        <div class="player" id="player" data-kind="preview" data-key="intro" data-fallback="42.3" data-ready="Preview · no sound">
           <video id="vid" src="../videos/coscaros-intro.mp4" poster="../images/coscaros-intro-poster.jpg" muted loop playsinline preload="metadata" aria-label="coscarOS intro video (no sound)"></video>
           <span class="chip mono"><b aria-hidden="true">●</b> Video · built in code</span>
-          <div class="overlay" id="overlay">
+          <div class="overlay">
             <button class="play" id="playBtn" type="button" aria-label="Watch the intro from the beginning">
               <span class="disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3.8v16.4c0 .8.9 1.3 1.6.9l13-8.2c.6-.4.6-1.3 0-1.7l-13-8.2C6.9 2.5 6 3 6 3.8z"/></svg></span>
               <span class="t">Watch the intro</span>
-              <span class="s mono"><span data-dur>0:42</span> · No sound</span>
+              <span class="s mono"><span data-dur="intro">0:42</span> · No sound</span>
             </button>
           </div>
           <div class="bar mono">
             <span class="state" id="state">Preview · no sound</span>
-            <div class="track" id="track" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="40" aria-valuenow="0" aria-valuetext="0:00">
-              <span class="fill" id="fill"></span><span class="knob" id="knob"></span>
+            <div class="track" role="slider" tabindex="0" aria-label="Seek intro" aria-valuemin="0" aria-valuemax="42" aria-valuenow="0" aria-valuetext="0:00">
+              <span class="fill"></span><span class="knob"></span>
             </div>
-            <span class="time" id="time">0:00 / <span data-dur>0:42</span></span>
+            <span class="time">0:00 / <span data-dur="intro">0:42</span></span>
           </div>
         </div>
       </div>
       <div class="video-note mono"><span>Click the video or press Space to pause</span><span>Rendered from code · no voice-over</span></div>
+    </div>
+  </section>
+
+  <section class="video-sec demo-sec" id="demo" aria-labelledby="demo-title">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <div>
+          <p class="kicker mono"><span>Full demo · <span data-dur="demo">1:47</span> · With sound</span></p>
+          <h2 id="demo-title">See it <span class="it accent">in action.</span></h2>
+        </div>
+        <p>Real app footage, chapter by chapter — with sound.</p>
+      </div>
+      <div class="stage rv">
+        <div class="glow" aria-hidden="true"></div>
+        <div class="player full" id="player-demo" data-kind="full" data-key="demo" data-fallback="106.8" data-ready="Ready · with sound"
+             data-chapters='[[0,"Intro"],[4.8,"What it is"],[9.6,"Android Auto"],[19.2,"Themes"],[26.4,"Dashboard Studio"],[40.8,"My OBD"],[52.8,"Recording"],[60,"Bluetooth &amp; audio"],[74.4,"Guided tour"],[84,"Updates"],[91.2,"Under the hood"],[96,"Install"],[100.8,"Get it"]]'>
+          <video id="vid-demo" src="../videos/coscaros-demo-v2.mp4" poster="../images/coscaros-demo-v2-poster.jpg" playsinline preload="metadata" aria-label="coscarOS full demo video with sound"></video>
+          <span class="chip mono"><b aria-hidden="true">●</b> Full demo · real app footage</span>
+          <div class="overlay">
+            <button class="play" type="button" aria-label="Watch the full demo with sound">
+              <span class="disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3.8v16.4c0 .8.9 1.3 1.6.9l13-8.2c.6-.4.6-1.3 0-1.7l-13-8.2C6.9 2.5 6 3 6 3.8z"/></svg></span>
+              <span class="t">Watch the demo</span>
+              <span class="s mono"><span data-dur="demo">1:47</span> · With sound</span>
+            </button>
+          </div>
+          <div class="bar mono">
+            <span class="state">Ready · with sound</span>
+            <div class="track" role="slider" tabindex="0" aria-label="Seek demo" aria-valuemin="0" aria-valuemax="107" aria-valuenow="0" aria-valuetext="0:00">
+              <span class="fill"></span><span class="marks" aria-hidden="true"></span><span class="knob"></span>
+            </div>
+            <span class="time">0:00 / <span data-dur="demo">1:47</span></span>
+            <button class="ctl mute" type="button" aria-label="Sound" aria-pressed="true">
+              <svg class="i-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M14 8.2a4.5 4.5 0 0 1 0 7.6M16.5 5.5a8 8 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg class="i-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <span class="lbl">Sound on</span>
+            </button>
+            <button class="ctl fs" type="button" aria-label="Full screen" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <ol class="chapters" data-chapter-of="demo" aria-label="Demo chapters"></ol>
     </div>
   </section>
 
@@ -345,122 +435,262 @@ footer a:hover{color:var(--fg)}
     rv.forEach(function(el){ el.classList.add("in"); });
   }
 
-  /* video player */
-  var FALLBACK = 40;
-  var v = document.getElementById("vid"),
-      player = document.getElementById("player"),
-      playBtn = document.getElementById("playBtn"),
-      state = document.getElementById("state"),
-      track = document.getElementById("track"),
-      fill = document.getElementById("fill"),
-      knob = document.getElementById("knob"),
-      timeEl = document.getElementById("time");
-  var mode = "preview"; /* preview | playing | paused */
-
+  /* video players: one shared implementation for every .player[data-kind]
+     kind "preview": muted looping preview, Play restarts from 0 (intro)
+     kind "full":    no autoplay, Play starts with sound, chapters, mute, full screen (demo) */
+  var players = [], lastUsed = null;
   function fmt(s){ s = Math.max(0, Math.floor(s || 0)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); }
-  function dur(){ return (v.duration && isFinite(v.duration)) ? v.duration : FALLBACK; }
-  function setDur(){
-    var d = fmt(dur());
-    document.querySelectorAll("[data-dur]").forEach(function(el){ el.textContent = d; });
-    track.setAttribute("aria-valuemax", String(Math.round(dur())));
-  }
-  function paint(){
-    var t = v.currentTime || 0, p = Math.min(1, t / dur()) * 100;
-    fill.style.width = p + "%"; knob.style.left = p + "%";
-    timeEl.firstChild.nodeValue = fmt(t) + " / ";
-    track.setAttribute("aria-valuenow", String(Math.round(t)));
-    track.setAttribute("aria-valuetext", fmt(t));
-  }
-  function setState(){
-    state.textContent = mode === "playing" ? "Playing" : mode === "paused" ? "Paused" : "Preview · no sound";
-    state.classList.toggle("on", mode === "playing");
-    player.classList.toggle("playing", mode !== "preview");
-    wake();
-  }
-  /* While playing, hide the bar so it doesn't cover the video's own captions */
-  var idleTimer;
-  function wake(){
-    player.classList.remove("idle");
-    clearTimeout(idleTimer);
-    if (mode === "playing") idleTimer = setTimeout(function(){
-      if (mode === "playing" && !player.querySelector(".bar").contains(document.activeElement)) player.classList.add("idle");
-    }, 2200);
-  }
-  player.addEventListener("pointermove", wake);
-  player.addEventListener("focusin", wake);
-  function safePlay(){ var p = v.play(); if (p && p.catch) p.catch(function(){}); }
+  function fmtR(s){ return fmt(Math.round(s || 0)); } /* totals and chapter starts: rounded */
+  function anyFullPlaying(except){ return players.some(function(p){ return p !== except && p.kind === "full" && p.mode() === "playing"; }); }
 
-  function startFull(){
-    mode = "playing";
-    v.loop = false;
-    try { v.currentTime = 0; } catch(e) {}
-    safePlay(); setState(); paint();
-  }
-  function toggle(){
-    if (mode === "preview") { startFull(); return; }
-    if (mode === "paused") { mode = "playing"; safePlay(); } else { mode = "paused"; v.pause(); }
-    setState();
-  }
-  function backToOverlay(){
-    mode = "preview"; v.loop = true; setState();
-    try { v.currentTime = 0; } catch(e) {}
-    if (!reduce) safePlay(); else v.pause();
-    paint(); playBtn.focus({preventScroll:true});
+  function Player(root){
+    var self = this;
+    var v = root.querySelector("video"),
+        overlay = root.querySelector(".overlay"),
+        playBtn = root.querySelector(".play"),
+        bar = root.querySelector(".bar"),
+        state = root.querySelector(".state"),
+        track = root.querySelector(".track"),
+        fill = root.querySelector(".fill"),
+        knob = root.querySelector(".knob"),
+        timeEl = root.querySelector(".time"),
+        marksEl = root.querySelector(".marks"),
+        muteBtn = root.querySelector(".mute"),
+        fsBtn = root.querySelector(".fs");
+    var kind = root.getAttribute("data-kind") || "preview",
+        key = root.getAttribute("data-key") || "",
+        FALLBACK = parseFloat(root.getAttribute("data-fallback")) || 40,
+        readyLabel = root.getAttribute("data-ready") || "Preview · no sound",
+        chapters = [];
+    try { chapters = JSON.parse(root.getAttribute("data-chapters") || "[]"); } catch(e) { chapters = []; }
+    var chapList = key ? document.querySelector('[data-chapter-of="' + key + '"]') : null, chips = [];
+    var mode = "preview"; /* preview (overlay shown) | playing | paused */
+    var wantSound = true, idleTimer, dragging = false;
+
+    self.root = root; self.kind = kind;
+    self.mode = function(){ return mode; };
+
+    function dur(){ return (v.duration && isFinite(v.duration)) ? v.duration : FALLBACK; }
+    function renderMarks(){
+      if (!marksEl) return;
+      marksEl.textContent = "";
+      chapters.forEach(function(c){
+        if (!(c[0] > 0) || c[0] >= dur()) return;
+        var m = document.createElement("span");
+        m.className = "mark"; m.style.left = (c[0] / dur() * 100) + "%";
+        marksEl.appendChild(m);
+      });
+    }
+    function setDur(){
+      var d = fmtR(dur());
+      document.querySelectorAll('[data-dur="' + key + '"]').forEach(function(el){ el.textContent = d; });
+      track.setAttribute("aria-valuemax", String(Math.round(dur())));
+      renderMarks();
+    }
+    function paint(){
+      var t = v.currentTime || 0, p = Math.min(1, t / dur()) * 100;
+      fill.style.width = p + "%"; knob.style.left = p + "%";
+      timeEl.firstChild.nodeValue = fmt(t) + " / ";
+      track.setAttribute("aria-valuenow", String(Math.round(t)));
+      track.setAttribute("aria-valuetext", fmt(t));
+      if (chips.length) {
+        var idx = 0;
+        chapters.forEach(function(c, i){ if (t + 0.05 >= c[0]) idx = i; });
+        chips.forEach(function(b, i){
+          if (i === idx && mode !== "preview") b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
+        });
+      }
+    }
+    function setState(){
+      state.textContent = mode === "playing" ? "Playing" : mode === "paused" ? "Paused" : readyLabel;
+      state.classList.toggle("on", mode === "playing");
+      root.classList.toggle("playing", mode !== "preview");
+      wake();
+    }
+    /* While playing, hide the bar so it doesn't cover the video's own captions */
+    function wake(){
+      root.classList.remove("idle");
+      clearTimeout(idleTimer);
+      if (mode === "playing") idleTimer = setTimeout(function(){
+        if (mode === "playing" && !bar.contains(document.activeElement)) root.classList.add("idle");
+      }, 2200);
+    }
+    root.addEventListener("pointermove", wake);
+    root.addEventListener("pointerdown", wake);
+    root.addEventListener("focusin", wake);
+
+    function safePlay(){
+      var pr = v.play();
+      if (pr && pr.catch) pr.catch(function(){
+        if (kind === "full" && mode === "playing") { mode = "paused"; setState(); }
+      });
+    }
+    function claim(){
+      lastUsed = self;
+      players.forEach(function(p){ if (p !== self) p.yieldTo(); });
+    }
+    function startFull(at){
+      mode = "playing";
+      if (kind === "preview") v.loop = false;
+      else { v.muted = !wantSound; if (!v.volume) v.volume = 1; }
+      claim();
+      try { v.currentTime = at || 0; } catch(e) {}
+      safePlay(); setState(); paint();
+    }
+    function resume(){ mode = "playing"; claim(); safePlay(); setState(); }
+    function pause(){ mode = "paused"; v.pause(); setState(); }
+    function toggle(){
+      if (mode === "preview") { startFull(0); return; }
+      if (mode === "paused") resume(); else pause();
+    }
+    function backToOverlay(focus){
+      mode = "preview"; setState();
+      try { v.currentTime = 0; } catch(e) {}
+      if (kind === "preview") {
+        v.loop = true;
+        if (!reduce && !anyFullPlaying(self)) safePlay(); else v.pause();
+      } else {
+        v.pause();
+        players.forEach(function(p){ if (p !== self) p.resumePreview(); });
+      }
+      paint();
+      if (focus) playBtn.focus({preventScroll:true});
+    }
+    /* another player started: preview players fall back to their (paused) preview, full players pause */
+    self.yieldTo = function(){
+      if (kind === "preview") {
+        if (mode !== "preview") { mode = "preview"; v.loop = true; setState(); try { v.currentTime = 0; } catch(e) {} paint(); }
+        v.pause();
+      } else if (mode === "playing") pause();
+    };
+    self.resumePreview = function(){
+      if (kind === "preview" && mode === "preview" && !reduce && !anyFullPlaying()) safePlay();
+    };
+    self.toggle = function(){ lastUsed = self; toggle(); };
+    self.visible = function(){ var r = root.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; };
+    self.focusPlay = function(){ playBtn.focus({preventScroll:true}); };
+    self.seekTo = function(t){
+      if (mode === "preview") { startFull(t); return; }
+      try { v.currentTime = t; } catch(e) {}
+      if (mode === "paused") resume(); else claim();
+      paint();
+    };
+
+    playBtn.addEventListener("click", function(e){ e.stopPropagation(); startFull(0); });
+    if (kind === "full") overlay.addEventListener("click", function(){ startFull(0); });
+    v.addEventListener("click", function(){ lastUsed = self; toggle(); });
+    v.addEventListener("loadedmetadata", function(){ setDur(); paint(); });
+    v.addEventListener("durationchange", setDur);
+    v.addEventListener("timeupdate", paint);
+    v.addEventListener("ended", function(){ if (mode !== "preview") backToOverlay(kind === "preview" || root.contains(document.activeElement)); });
+    v.addEventListener("error", function(){ setDur(); }, true);
+
+    function seekFrom(clientX){
+      var r = track.getBoundingClientRect();
+      var p = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+      try { v.currentTime = p * dur(); } catch(e) {}
+      paint();
+    }
+    track.addEventListener("pointerdown", function(e){ lastUsed = self; dragging = true; track.setPointerCapture && track.setPointerCapture(e.pointerId); seekFrom(e.clientX); });
+    track.addEventListener("pointermove", function(e){ if (dragging) seekFrom(e.clientX); });
+    track.addEventListener("pointerup", function(){ dragging = false; });
+    track.addEventListener("pointercancel", function(){ dragging = false; });
+    track.addEventListener("keydown", function(e){
+      var step = e.key === "ArrowRight" ? 5 : e.key === "ArrowLeft" ? -5 : 0;
+      if (!step) return;
+      e.preventDefault();
+      try { v.currentTime = Math.min(dur(), Math.max(0, (v.currentTime || 0) + step)); } catch(err) {}
+      paint();
+    });
+
+    /* sound on/off (aria-pressed = sound is on) */
+    function paintMute(){
+      if (!muteBtn) return;
+      var on = !v.muted && v.volume > 0;
+      muteBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      muteBtn.setAttribute("aria-label", on ? "Sound on, select to mute" : "Sound off, select to unmute");
+      var l = muteBtn.querySelector(".lbl"); if (l) l.textContent = on ? "Sound on" : "Sound off";
+    }
+    if (muteBtn) {
+      muteBtn.addEventListener("click", function(){
+        lastUsed = self;
+        v.muted = !v.muted;
+        if (!v.muted && !v.volume) v.volume = 1;
+        wantSound = !v.muted;
+        paintMute();
+      });
+      v.addEventListener("volumechange", paintMute);
+      paintMute();
+    }
+
+    /* full screen on the player container */
+    if (fsBtn) {
+      var canFs = root.requestFullscreen || root.webkitRequestFullscreen || v.webkitEnterFullscreen;
+      if (!canFs) fsBtn.hidden = true;
+      var fsEl = function(){ return document.fullscreenElement || document.webkitFullscreenElement; };
+      fsBtn.addEventListener("click", function(){
+        lastUsed = self;
+        if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+        if (root.requestFullscreen) { var pr = root.requestFullscreen(); if (pr && pr.catch) pr.catch(function(){}); }
+        else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+        else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+      });
+      var onFs = function(){
+        var on = fsEl() === root;
+        fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
+        fsBtn.setAttribute("aria-label", on ? "Exit full screen" : "Full screen");
+      };
+      document.addEventListener("fullscreenchange", onFs);
+      document.addEventListener("webkitfullscreenchange", onFs);
+    }
+
+    /* chapter chips */
+    if (chapList && chapters.length) {
+      chapters.forEach(function(c){
+        var li = document.createElement("li"), b = document.createElement("button"), ct = document.createElement("span");
+        b.type = "button";
+        ct.className = "ct"; ct.textContent = fmtR(c[0]);
+        b.appendChild(ct); b.appendChild(document.createTextNode(c[1]));
+        b.setAttribute("aria-label", "Play chapter " + c[1] + " at " + fmtR(c[0]));
+        b.addEventListener("click", function(){ lastUsed = self; self.seekTo(c[0]); });
+        li.appendChild(b); chapList.appendChild(li); chips.push(b);
+      });
+    }
+
+    setDur(); paint(); setState();
+    if (kind === "preview") { if (!reduce) safePlay(); else { v.removeAttribute("autoplay"); v.pause(); } }
   }
 
-  playBtn.addEventListener("click", startFull);
-  v.addEventListener("click", toggle);
-  v.addEventListener("loadedmetadata", function(){ setDur(); paint(); });
-  v.addEventListener("durationchange", setDur);
-  v.addEventListener("timeupdate", paint);
-  v.addEventListener("ended", function(){ if (mode !== "preview") backToOverlay(); });
-  v.addEventListener("error", function(){ setDur(); }, true);
+  document.querySelectorAll(".player[data-kind]").forEach(function(el){ players.push(new Player(el)); });
 
-  function seekFrom(clientX){
-    var r = track.getBoundingClientRect();
-    var p = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-    try { v.currentTime = p * dur(); } catch(e) {}
-    paint();
-  }
-  var dragging = false;
-  track.addEventListener("pointerdown", function(e){ dragging = true; track.setPointerCapture && track.setPointerCapture(e.pointerId); seekFrom(e.clientX); });
-  track.addEventListener("pointermove", function(e){ if (dragging) seekFrom(e.clientX); });
-  track.addEventListener("pointerup", function(){ dragging = false; });
-  track.addEventListener("pointercancel", function(){ dragging = false; });
-  track.addEventListener("keydown", function(e){
-    var step = e.key === "ArrowRight" ? 5 : e.key === "ArrowLeft" ? -5 : 0;
-    if (!step) return;
-    e.preventDefault();
-    try { v.currentTime = Math.min(dur(), Math.max(0, (v.currentTime || 0) + step)); } catch(err) {}
-    paint();
-  });
-
-  /* Space toggles playback (unless typing / on a link or other button) */
+  /* Space toggles the focused player, else the last used visible one, else the first visible one.
+     Buttons/links handle Space natively, so they are skipped (no double trigger). */
   document.addEventListener("keydown", function(e){
     if (e.code !== "Space" && e.key !== " ") return;
+    if (e.defaultPrevented) return;
     if (document.getElementById("lb").classList.contains("open")) return;
     var t = e.target, tag = t && t.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (t && t.isContentEditable)) return;
-    if ((tag === "A" || tag === "BUTTON") && t !== playBtn) return;
-    if (t === playBtn) return; /* native button click handles it */
-    var r = player.getBoundingClientRect();
-    var visible = r.bottom > 0 && r.top < window.innerHeight;
-    if (!visible) return;
+    if (tag === "A" || tag === "BUTTON") return;
+    var p = null;
+    players.forEach(function(x){ if (!p && x.root.contains(document.activeElement)) p = x; });
+    if (!p && lastUsed && lastUsed.visible()) p = lastUsed;
+    if (!p) players.forEach(function(x){ if (!p && x.visible()) p = x; });
+    if (!p) return;
     e.preventDefault();
-    toggle();
+    p.toggle();
   });
 
-  /* "Watch the intro" hero button: scroll to video, then start */
+  /* hero links: scroll to the player and focus its play button */
   document.querySelectorAll("[data-watch]").forEach(function(a){
     a.addEventListener("click", function(e){
+      var sec = document.querySelector(a.getAttribute("href"));
+      if (!sec) return;
       e.preventDefault();
-      document.getElementById("intro").scrollIntoView({behavior: reduce ? "auto" : "smooth", block:"center"});
-      playBtn.focus({preventScroll:true});
+      sec.scrollIntoView({behavior: reduce ? "auto" : "smooth", block: sec.id === "intro" ? "center" : "start"});
+      players.forEach(function(p){ if (sec.contains(p.root)) p.focusPlay(); });
     });
   });
-
-  setDur(); paint(); setState();
-  if (!reduce) safePlay(); else { v.removeAttribute("autoplay"); v.pause(); }
 
   /* lightbox */
   var lb = document.getElementById("lb"), lbImg = document.getElementById("lbImg"), lbCap = document.getElementById("lbCap"), lbClose = document.getElementById("lbClose"), lastBtn = null;

@@ -101,3 +101,17 @@ listed above (`docs/images/*-current.jpg`, `widgets-glass.jpg`,
 code. Fonts: Inter Tight, Instrument Serif and Geist Mono (SIL Open Font License
 1.1), also loaded from Google Fonts by `docs/demo/index.html`. No external
 footage, music, logos or stock assets are used.
+
+### Full demo video v2 — 30 October 2026
+
+`docs/videos/coscaros-demo-v2.mp4` (1:47, 1920×1080, AAC stereo) and its poster
+`docs/images/coscaros-demo-v2-poster.jpg` combine our own HTML/CSS titles (same
+look and OFL fonts as the intro video) with screen recordings of the local
+coscarOS frontend and Python service, captured on 30 October 2026 in a fresh
+browser profile with no phone, Bluetooth adapter or vehicle attached. OBD
+values come from the app's built-in, on-screen labeled demo telemetry; the
+Bluetooth and Android Auto screens show their real desktop "available on the
+Pi" states. Stills reused: `android-auto-connection.jpg` and
+`ota-verified-current.jpg` (see above). All sound effects and the music bed
+were synthesized by our own script (Python/ffmpeg); no external audio, footage,
+logos or stock assets are used.

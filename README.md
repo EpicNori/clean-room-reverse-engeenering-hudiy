@@ -14,6 +14,8 @@ React touchscreen UI · Python hardware service · Qt fullscreen host · USB & w
 
 **[▶ Watch the full video (MP4)](docs/videos/coscaros-intro.mp4)** · A 42-second tour built in code from real app captures (no sound). Open the [demo page](docs/demo/index.html) for the full player, features and gallery; [video source](docs/videos/source/README.md).
 
+**[▶ Full demo with sound · 1:47 (MP4)](docs/videos/coscaros-demo-v2.mp4)** · Real app footage, chapter by chapter: Android Auto settings, themes, Dashboard Studio, My OBD (built-in demo telemetry), recording, Bluetooth and audio, the guided tour, updates and installation.
+
 ## Contents
 
 - [First launch and guided introduction](#first-launch-and-guided-introduction)
